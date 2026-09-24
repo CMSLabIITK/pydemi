@@ -18,7 +18,7 @@ from typing import Any
 
 import numpy as np
 
-from ..constants import ANGSTROM_BOHR, DENSITY_TO_AU, GRADIENT_TO_AU, RHO_FLOOR_AU
+from ..constants import ANGSTROM_BOHR, DENSITY_TO_AU, GEOMETRY_EPS, GRADIENT_TO_AU, RHO_FLOOR_AU
 from ..io.base import FloatArray, VolumetricData
 from ..operators.anisotropy import anisotropy_tensor, fractional_anisotropy
 from ..operators.topology import ascent_basins, extremum_census, percolation_levels
@@ -102,7 +102,7 @@ def _nnm(vd: VolumetricData, r_cut: FloatArray) -> tuple[np.ndarray, np.ndarray]
     c = census(vd)
     maxima = np.flatnonzero(c["maxima"])
     geo = geometry(vd)
-    far = geo.distance.ravel()[maxima] > r_cut[geo.atom_index.ravel()[maxima]]
+    far = geo.distance.ravel()[maxima] > r_cut[geo.atom_index.ravel()[maxima]] + GEOMETRY_EPS
     nnm = maxima[far]
     key = ("basins",)
     if key not in vd.cache:

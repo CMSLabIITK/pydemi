@@ -34,6 +34,7 @@ from typing import Any, Optional, Sequence
 import numpy as np
 from numpy.typing import NDArray
 
+from ..constants import GEOMETRY_EPS
 from ..core.partition import Partition
 
 F64 = NDArray[np.float64]
@@ -71,9 +72,9 @@ def site_sums(partition: Partition, field: NDArray[Any], gradient: Optional[NDAr
         add("total", a, wf)
         add("r1", a, wf * r)
         add("r2", a, wf * r * r)
-        core = r <= c1[a]
+        core = r <= c1[a] + GEOMETRY_EPS
         add("core", a, np.where(core, wf, 0.0))
-        add("bond", a, np.where(~core & (r <= c2[a]), wf, 0.0))
+        add("bond", a, np.where(~core & (r <= c2[a] + GEOMETRY_EPS), wf, 0.0))
         if g is not None and gn is not None:
             add("radial", a, p.weight * np.abs(np.einsum("ij,ij->i", g[p.voxel], p.direction)))
             add("gnorm", a, p.weight * gn[p.voxel])

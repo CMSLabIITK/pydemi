@@ -120,6 +120,9 @@ ION_GAUSSIAN_WIDTH: float = 0.5
 # relative tolerances
 # ----------------------------------------------------------------------
 
+#: distances within this of each other (Angstrom) are equal: shell and cutoff tests use it,
+#: and equidistant atom images are then ordered by a geometric rule (pydemi.core.geometry)
+GEOMETRY_EPS: float = 1e-8
 #: a field whose range max - min is below this fraction of max |f| is uniform
 #: (the uniform-density sentinel case, spec §10)
 UNIFORM_TOL: float = 1e-12

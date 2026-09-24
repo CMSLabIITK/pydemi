@@ -15,6 +15,7 @@ from typing import Any, Optional, Sequence, Union
 
 import numpy as np
 
+from ..constants import BECKE_CELLS, BECKE_K
 from ..core.geometry import Shells
 from ..io.base import VolumetricData
 from . import bonding, structural, magnetic, heterogeneity  # noqa: F401  (register descriptors)
@@ -77,7 +78,8 @@ def featurize(vd: VolumetricData, domains: Union[Sequence[str], str, None] = Non
         "density_source": v.density_source,
         "spin_mode": v.spin_mode,
         "site_counts": ",".join(f"{e}:{n}" for e, n in v.structure.site_counts().items()),
-        "partition": opts.partition,
+        "partition": opts.partition + (f"(k={BECKE_K},cells={BECKE_CELLS})"
+                                       if opts.partition == "becke" else ""),
         "shells": f"{opts.shells.c1},{opts.shells.c2}" + (",scaled" if opts.shells.scaled else ""),
         "derivative_backend": opts.derivative_backend
         + (f"{opts.fd_order}" if opts.derivative_backend == "fd" else ""),

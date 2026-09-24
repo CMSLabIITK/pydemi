@@ -19,6 +19,16 @@ a displacement of length d changes fractional coordinate a by at most
 d |column a of A^{-1}|, so images out to the largest nearest distance found
 are enough.
 
+Ties
+----
+Voxels exactly equidistant from two or more atom images -- common for atoms on
+high-symmetry grid points -- are resolved by a geometric rule: among the
+images within GEOMETRY_EPS of the nearest, the one with the lexicographically
+largest fractional displacement (voxel - image) wins. The rule does not depend
+on atom numbering or image enumeration, so it makes the same physical choice
+in a cell, its supercell, a translated and a rotated copy -- which the
+invariance requirements of the specification need.
+
 Power diagram
 -------------
 :func:`assign_atoms` with ``power_radii`` assigns voxels to
@@ -44,7 +54,7 @@ import numpy as np
 from numpy.typing import NDArray
 from scipy.spatial import cKDTree
 
-from ..constants import SHELL_C1, SHELL_C2
+from ..constants import GEOMETRY_EPS, SHELL_C1, SHELL_C2
 from ..data import covalent_radius
 from ..io.base import Lattice, Structure, VolumetricData
 from .grid import cart_coords
@@ -89,11 +99,64 @@ def reps_for(distance: float, lattice: Lattice) -> tuple[int, int, int]:
     return (r[0], r[1], r[2])
 
 
+def _rank(dk: F64, disp: F64, n_pick: int, eps: float) -> I64:
+    """Column indices of the ``n_pick`` first candidates in (distance, -displacement) order.
+
+    Candidates within ``eps`` of the smallest remaining distance are tied and
+    ordered by lexicographically largest fractional displacement.
+    """
+    rows = np.arange(dk.shape[0])
+    remaining = np.ones(dk.shape, dtype=bool)
+    out = np.empty((dk.shape[0], n_pick), dtype=np.int64)
+    for pick in range(n_pick):
+        d = np.where(remaining, dk, np.inf)
+        cand = remaining & (d <= d.min(axis=1, keepdims=True) + eps)
+        for c in range(3):
+            v = np.where(cand, disp[:, :, c], -np.inf)
+            cand &= v >= v.max(axis=1, keepdims=True) - 1e-9
+        choice = np.argmax(cand, axis=1)
+        out[:, pick] = choice
+        remaining[rows, choice] = False
+    return out
+
+
+def _nearest_images(tree: cKDTree, x: F64, pts4: F64, lattice: Lattice, n_pick: int,
+                    chunk: int = 1 << 20) -> tuple[F64, I64]:
+    """Distances and indices of the ``n_pick`` nearest images, ties broken geometrically."""
+    k0 = min(n_pick + 1, len(pts4))
+    dist = np.empty((len(x), n_pick))
+    idx = np.empty((len(x), n_pick), dtype=np.int64)
+    for s in range(0, len(x), chunk):
+        d, i = tree.query(x[s:s + chunk], k=k0)
+        d, i = np.asarray(d).reshape(-1, k0), np.asarray(i).reshape(-1, k0)
+        tied: NDArray[np.bool_] = np.zeros(len(d), dtype=bool)
+        if k0 > n_pick:
+            tied = d[:, n_pick] - d[:, n_pick - 1] <= GEOMETRY_EPS
+        for p in range(1, n_pick):
+            tied |= d[:, p] - d[:, p - 1] <= GEOMETRY_EPS
+        dist[s:s + chunk], idx[s:s + chunk] = d[:, :n_pick], i[:, :n_pick]
+        t = np.flatnonzero(tied)
+        if t.size:
+            k = min(max(2 * k0, 8), len(pts4))
+            while True:
+                dk, ik = tree.query(x[s + t], k=k)
+                dk, ik = np.asarray(dk).reshape(-1, k), np.asarray(ik).reshape(-1, k)
+                if k >= len(pts4) or np.all(dk[:, -1] - dk[:, n_pick - 1] > GEOMETRY_EPS):
+                    break
+                k = min(2 * k, len(pts4))
+            disp = (x[s + t][:, None, :3] - pts4[ik][:, :, :3]) @ lattice.inverse
+            order = _rank(dk, disp, n_pick, GEOMETRY_EPS)
+            rows = np.arange(len(t))[:, None]
+            dist[s + t], idx[s + t] = dk[rows, order], ik[rows, order]
+    return dist, idx
+
+
 def assign_atoms(shape: Sequence[int], structure: Structure,
-                 power_radii: Optional[F64] = None, chunk: int = 1 << 20) -> NearestAtom:
+                 power_radii: Optional[F64] = None) -> NearestAtom:
     """Assign every voxel to an atom: nearest (``power_radii=None``) or power diagram.
 
-    Distance and direction are measured to the assigned atom's image.
+    Distance and direction are measured to the assigned atom's image; exact
+    ties are resolved geometrically (module docstring).
     """
     n = structure.n_atoms
     if power_radii is None:
@@ -108,22 +171,20 @@ def assign_atoms(shape: Sequence[int], structure: Structure,
     reps = (1, 1, 1)
     while True:
         pts, owner, _ = image_points(structure, reps)
-        tree = cKDTree(np.hstack([pts, lift[owner][:, None]]))
-        dist = np.empty(len(x))
-        idx = np.empty(len(x), dtype=np.int64)
-        for s in range(0, len(x), chunk):
-            d, i = tree.query(x4[s:s + chunk])
-            dist[s:s + chunk], idx[s:s + chunk] = d, i
+        pts4 = np.hstack([pts, lift[owner][:, None]])
+        tree = cKDTree(pts4)
+        dist, idx = _nearest_images(tree, x4, pts4, structure.lattice, 1)
         needed = reps_for(float(dist.max()), structure.lattice)
         if all(a <= b for a, b in zip(needed, reps)):
             break
         reps = (max(needed[0], reps[0]), max(needed[1], reps[1]), max(needed[2], reps[2]))
-    diff = x - pts[idx]
+    best = idx[:, 0]
+    diff = x - pts[best]
     r = np.linalg.norm(diff, axis=1)
     safe = np.where(r > 1e-12, r, 1.0)
     u = np.where(r[:, None] > 1e-12, diff / safe[:, None], 0.0)
     s3 = tuple(int(m) for m in shape)
-    return NearestAtom(r.reshape(s3), u.reshape(s3 + (3,)), owner[idx].reshape(s3))
+    return NearestAtom(r.reshape(s3), u.reshape(s3 + (3,)), owner[best].reshape(s3))
 
 
 def nearest_atom(shape: Sequence[int], structure: Structure) -> NearestAtom:
@@ -172,9 +233,11 @@ class ShellMasks:
 
 
 def shell_masks(geometry: NearestAtom, structure: Structure, shells: Shells) -> ShellMasks:
+    """Shells about the nearest nucleus; boundaries tested with GEOMETRY_EPS tolerance."""
     c1, c2 = shells.atom_cutoffs(structure)
     r = geometry.distance
-    c1k, c2k = c1[geometry.atom_index], c2[geometry.atom_index]
+    c1k = c1[geometry.atom_index] + GEOMETRY_EPS
+    c2k = c2[geometry.atom_index] + GEOMETRY_EPS
     return ShellMasks(core=r <= c1k, bond=(r > c1k) & (r <= c2k), interstitial=r > c2k)
 
 
@@ -317,32 +380,27 @@ def bond_census_of(vd: VolumetricData, tol: float) -> BondCensus:
     return out
 
 
-def pair_regions(shape: Sequence[int], structure: Structure, chunk: int = 1 << 20
-                 ) -> tuple[I64, I64, I64]:
+def pair_regions(shape: Sequence[int], structure: Structure) -> tuple[I64, I64, I64]:
     """Second-order Voronoi assignment: for every voxel, its two nearest atom images.
 
     Returns (atom_a, atom_b, relative shift t (N, 3)) with the pair written
     canonically as in :class:`BondCensus` (wrapped positions): the region of
     pair (i, j, t) holds the voxels whose nearest two images are atom i and
-    atom j shifted by t. These regions tile the cell.
+    atom j shifted by t. These regions tile the cell; ties are resolved as in
+    the geometry pass.
     """
     x = cart_coords(shape, structure.lattice).reshape(-1, 3)
     reps = (1, 1, 1)
     while True:
         pts, owner, shift = image_points(structure, reps)
         tree = cKDTree(pts)
-        d = np.empty((len(x), 2))
-        idx = np.empty((len(x), 2), dtype=np.int64)
-        for s in range(0, len(x), chunk):
-            dd, ii = tree.query(x[s:s + chunk], k=2)
-            d[s:s + chunk], idx[s:s + chunk] = dd, ii
+        d, idx = _nearest_images(tree, x, pts, structure.lattice, 2)
         needed = reps_for(float(d[:, 1].max()), structure.lattice)
         if all(a <= b for a, b in zip(needed, reps)):
             break
         reps = (max(needed[0], reps[0]), max(needed[1], reps[1]), max(needed[2], reps[2]))
     a, b = owner[idx[:, 0]], owner[idx[:, 1]]
     t = shift[idx[:, 1]] - shift[idx[:, 0]]
-    # canonical orientation: (i, j, t) <= (j, i, -t) lexicographically
     swap = (b < a) | ((b == a) & _lex_less(-t, t))
     i = np.where(swap, b, a)
     j = np.where(swap, a, b)
