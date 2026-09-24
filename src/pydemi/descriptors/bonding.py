@@ -704,3 +704,96 @@ def bond_charge_transfer_pair_std(vd: VolumetricData) -> Result:
     """bond_charge_transfer_pair_std = std over nearest-neighbour pairs of int_{region(i,j)} drho dV"""
     x = pair_charge_transfer(vd)
     return x if isinstance(x, Sentinel) else float(np.std(x))
+
+
+# ----------------------------------------------------------------------
+# PAW extension: the deformation density outside the augmentation spheres
+# ----------------------------------------------------------------------
+# Beyond R_PAW of its nucleus a CHGCAR voxel is not pseudized, so there the
+# CHGCAR and the free-atom valence reference agree in kind. On a
+# 6,059-structure VASP dataset a median 87% of int |delta_rho| lies inside the
+# spheres (which fill 45% of the volume), so the whole-cell family is
+# dominated by pseudization; these variants use the outside voxels only.
+
+from .registry import augmentation_radii  # noqa: E402
+
+
+def _drho_out(vd: VolumetricData) -> tuple[FloatArray, "NDArray[np.bool_]"]:
+    R, _ = augmentation_radii(vd)
+    geo = geometry(vd)
+    out = geo.distance > R[geo.atom_index] + GEOMETRY_EPS
+    return np.where(out, delta_rho(vd), 0.0), out
+
+
+def _out(name: str, fn_doc: str, units: str, rng: tuple[float, float],
+         compute: "Callable[[VolumetricData, FloatArray], Result]",
+         cases: "dict[str, float]") -> None:
+    def fn(vd: VolumetricData) -> Result:
+        d, out = _drho_out(vd)
+        if not out.any():
+            return Sentinel(0.0, "empty_region")
+        return compute(vd, d)
+    register(name=name, domain="bonding", field="delta_rho", requires=["promolecule", "paw"],
+             units=units, range=rng, sentinel_cases={"empty_region": 0.0, **cases},
+             extension="paw", doc=fn_doc)(fn)
+
+
+from typing import Callable  # noqa: E402
+
+from ..constants import GEOMETRY_EPS  # noqa: E402
+
+
+def _moment(n: int) -> "Callable[[VolumetricData, FloatArray], Result]":
+    def c(vd: VolumetricData, d: FloatArray) -> Result:
+        return finite_or(radial_moment(d, geometry(vd).distance, n, "abs"), 0.0, "zero_deformation")
+    return c
+
+
+def _sigma(vd: VolumetricData, d: FloatArray) -> Result:
+    r = geometry(vd).distance
+    a = radial_moment(d, r, 1, "abs")
+    return finite_or(radial_moment(d, r, 2, "abs") - a * a, 0.0, "zero_deformation")
+
+
+def _share(shell: str) -> "Callable[[VolumetricData, FloatArray], Result]":
+    def c(vd: VolumetricData, d: FloatArray) -> Result:
+        m = masks(vd).bond if shell == "bond" else masks(vd).interstitial
+        pos = d > 0
+        return Sentinel(0.0, "no_accumulation") if not pos.any() else float(
+            np.sum(d[m & pos]) / np.sum(d[pos]))
+    return c
+
+
+def _dep(vd: VolumetricData, d: FloatArray) -> Result:
+    neg = d < 0
+    return Sentinel(0.0, "no_depletion") if not neg.any() else float(
+        np.sum(-d[masks(vd).bond & neg]) / np.sum(-d[neg]))
+
+
+def _polarity(vd: VolumetricData, d: FloatArray) -> Result:
+    Q = float(np.sum(vd.rho.data))
+    return Sentinel(0.0, "zero_density") if Q == 0.0 else float(np.sum(np.abs(d)) / Q)
+
+
+_OUT_TEXT = "over voxels outside every PAW augmentation sphere (r > R_PAW of the nearest nucleus)"
+_out("m1_def_out", f"m1_def_out = sum |drho_k| r_k / sum |drho_k| {_OUT_TEXT}", "Angstrom",
+     (0.0, np.inf), _moment(1), {"zero_deformation": 0.0})
+_out("m2_def_out", f"m2_def_out = sum |drho_k| r_k^2 / sum |drho_k| {_OUT_TEXT}", "Angstrom^2",
+     (0.0, np.inf), _moment(2), {"zero_deformation": 0.0})
+_out("sigma_r2_def_out", f"sigma_r2_def_out = m2_def_out - m1_def_out^2 {_OUT_TEXT}", "Angstrom^2",
+     (0.0, np.inf), _sigma, {"zero_deformation": 0.0})
+_out("f_bond_def_out", f"f_bond_def_out = sum_{{bond, drho > 0}} drho / sum_{{drho > 0}} drho "
+     f"{_OUT_TEXT}", "dimensionless", (0.0, 1.0), _share("bond"), {"no_accumulation": 0.0})
+_out("f_int_def_out", f"f_int_def_out = sum_{{int, drho > 0}} drho / sum_{{drho > 0}} drho "
+     f"{_OUT_TEXT}", "dimensionless", (0.0, 1.0), _share("int"), {"no_accumulation": 0.0})
+_out("f_bond_dep_out", f"f_bond_dep_out = sum_{{bond, drho < 0}} |drho| / sum_{{drho < 0}} |drho| "
+     f"{_OUT_TEXT}", "dimensionless", (0.0, 1.0), _dep, {"no_depletion": 0.0})
+_out("def_polarity_out", f"def_polarity_out = sum |drho_k| dV / Q_tot {_OUT_TEXT}",
+     "dimensionless", (0.0, np.inf), _polarity, {"zero_density": 0.0})
+
+
+@register(name="def_out_volume_fraction", domain="bonding", field="rho", requires=["paw"],
+          units="dimensionless", range=(0.0, 1.0), extension="paw")
+def def_out_volume_fraction(vd: VolumetricData) -> Result:
+    """def_out_volume_fraction = fraction of the cell outside every PAW augmentation sphere"""
+    return float(np.mean(_drho_out(vd)[1]))

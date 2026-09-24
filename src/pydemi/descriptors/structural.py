@@ -273,3 +273,73 @@ def LMC_complexity(vd: VolumetricData) -> Result:
     """LMC_complexity = D e^S  (D, S the unnormalized disequilibrium and entropy; = 1 when uniform)"""
     r = _shape_function(vd)
     return r if isinstance(r, Sentinel) else float(r["D"] * np.exp(r["S"]))
+
+
+# ----------------------------------------------------------------------
+# PAW extension (off by default: featurize(..., extensions=["paw"]))
+# ----------------------------------------------------------------------
+# A VASP CHGCAR is the PAW pseudo-density. On a 6,059-structure VASP dataset
+# it is negative somewhere in 61% of structures (so rho_min is usually a PAW
+# artefact near a nucleus, not the interstitial floor), and pseudized atoms
+# can have no maximum at the nucleus, only lobes on a shell inside their
+# augmentation sphere (CaSi3Pt: 8 lobes 0.81-0.83 A from Si holding 6.3 e,
+# just beyond a 0.8 A cutoff). These variants exclude the spheres.
+
+from .registry import augmentation_radii  # noqa: E402
+
+
+def _outside_spheres(vd: VolumetricData, inner: float) -> "np.ndarray":
+    R, _ = augmentation_radii(vd)
+    geo = geometry(vd)
+    return np.asarray(geo.distance > np.maximum(inner, R)[geo.atom_index] + GEOMETRY_EPS)
+
+
+@register(name="rho_min_int", domain="structural", field="rho", requires=["geometry", "paw"],
+          units="e/Angstrom^3", sentinel_cases={"empty_region": 0.0}, extension="paw")
+def rho_min_int(vd: VolumetricData) -> Result:
+    """rho_min_int = min of rho over voxels with r > max(c2, R_PAW) of their nearest nucleus
+
+    The interstitial density floor, out of reach of PAW pseudization.
+    """
+    far = _outside_spheres(vd, options(vd).shells.c2)
+    if not far.any():
+        return Sentinel(0.0, "empty_region")
+    return float(vd.rho.data[far].min())
+
+
+@register(name="rho_min_int_ratio", domain="structural", field="rho", requires=["geometry", "paw"],
+          units="dimensionless", sentinel_cases={"empty_region": 0.0, "zero_density": 0.0},
+          extension="paw")
+def rho_min_int_ratio(vd: VolumetricData) -> Result:
+    """rho_min_int_ratio = rho_min_int / <rho>_V"""
+    v = rho_min_int(vd)
+    if isinstance(v, Sentinel):
+        return v
+    m = float(np.mean(vd.rho.data))
+    return Sentinel(0.0, "zero_density") if m == 0.0 else float(v) / m
+
+
+def _paw_cut(vd: VolumetricData) -> FloatArray:
+    R, _ = augmentation_radii(vd)
+    return np.asarray(np.maximum(options(vd).nnm_r_cut, R))
+
+
+@register(name="n_NNM_paw", domain="structural", field="rho", requires=["census", "paw"],
+          units="1/Angstrom^3", range=(0.0, np.inf), extension="paw")
+def n_NNM_paw(vd: VolumetricData) -> Result:
+    """n_NNM_paw = (number of local maxima with r > max(r_cut, R_PAW,i)) / V_cell"""
+    return float(_nnm(vd, _paw_cut(vd))[0].size) / vd.structure.volume
+
+
+@register(name="Q_NNM_paw", domain="structural", field="rho", requires=["census", "paw"],
+          units="dimensionless", range=(0.0, 1.0), extension="paw")
+def Q_NNM_paw(vd: VolumetricData) -> Result:
+    """Q_NNM_paw = (charge in the basins of the maxima counted by n_NNM_paw) / Q_tot"""
+    return float(_nnm(vd, _paw_cut(vd))[1][0])
+
+
+@metadata_hook
+def _paw_metadata(vd: VolumetricData) -> dict[str, Any]:
+    if "paw" not in options(vd).extensions:
+        return {}
+    return {"paw_radii_source": augmentation_radii(vd)[1]}

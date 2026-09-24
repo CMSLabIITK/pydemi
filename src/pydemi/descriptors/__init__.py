@@ -18,7 +18,7 @@ import numpy as np
 from ..constants import BECKE_CELLS, BECKE_K
 from ..core.geometry import Shells
 from ..io.base import VolumetricData
-from . import bonding, structural, magnetic, heterogeneity  # noqa: F401  (register descriptors)
+from . import bonding, structural, magnetic, heterogeneity, compositional  # noqa: F401  (register descriptors)
 from .registry import (METADATA_HOOKS, REGISTRY, DescriptorSpec, FeatureOptions, Sentinel,
                        make_options, selected)
 

@@ -254,3 +254,20 @@ METADATA_HOOKS: list[MetadataFn] = []
 def metadata_hook(fn: MetadataFn) -> MetadataFn:
     METADATA_HOOKS.append(fn)
     return fn
+
+
+# ----------------------------------------------------------------------
+# PAW augmentation radii (for the ``paw`` extension)
+# ----------------------------------------------------------------------
+
+def augmentation_radii(vd: VolumetricData) -> tuple["np.ndarray", str]:
+    """(per-atom PAW augmentation radius R_PAW in Angstrom, source).
+
+    RCORE from the POTCAR / OUTCAR (``source="potcar"``) or, when unknown, the
+    covalent radius (``source="covalent"``). Inside R_PAW a VASP CHGCAR is
+    pseudized; outside it equals the all-electron valence density.
+    """
+    from ..data import covalent_radius
+    if vd.paw_radii is not None:
+        return np.array([vd.paw_radii[s] for s in vd.structure.species]), "potcar"
+    return np.array([covalent_radius(s) for s in vd.structure.species]), "covalent"
