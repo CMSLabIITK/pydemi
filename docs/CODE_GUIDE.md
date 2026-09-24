@@ -316,7 +316,7 @@ exact for triclinic cells.
 Why compact stencils and not `np.gradient` twice: applying a first-derivative
 routine twice produces a stencil of double width (the Laplacian of a smoothed
 density) and, in `np.gradient`, one-sided differences on the boundary planes.
-On fcc FeCoNiCr this moved `lnf` from 0.206 to 0.159 (`docs/numerics.md`).
+Over 200 VASP CHGCARs this changes `lnf` by 2% for the median structure and up to 21% (`docs/numerics.md`).
 
 ### `unpack_hessian(packed)` and `hessian_eigenvalues(packed, chunk)`
 
@@ -495,7 +495,7 @@ w_i(r) = ρ_i^free(r) / Σ_j ρ_j^free(r) over every image within `r_cut`
 
 Why Hirshfeld and not Becke as the default: free-atom densities decay
 exponentially, so the weight error falls exponentially with the cutoff
-(5e-3 at 3.5 Å, 7e-5 at 5.6 Å, 9e-6 at 6.5 Å on FeCoNiCr).
+(3.7e-2 at 3.5 Å, 6.8e-5 at 5.5 Å, 3.0e-6 at 6.5 Å on FeNi₃).
 
 Tests: `tests/test_sites_spin.py` (partition of unity, Becke two-atom closed
 form, size adjustment direction, opt-in behaviour), `tests/test_reference.py`
@@ -543,6 +543,11 @@ Methods:
   per shape (and per shells for masks).
 - `atom_radii(radii)`: per-atom radii from an element map, default Magpie
   covalent radii (used for the power diagram).
+- `augmentation_radii(fallback)`: per-atom PAW augmentation radius (RCORE
+  from `paw_radii`) or, when unknown, the covalent radius (or `fallback` for
+  elements without one), plus a from-PAW-data flag. Used by the
+  non-nuclear-maximum cutoff (§31) and the outside-PAW deformation variant
+  (§33).
 - `partition(shape, scheme, radii, k, cells, r_cut, part)`: builds and caches
   one partition per distinct configuration. Cache keys:
   - nearest: `(shape, "nearest")`
@@ -901,7 +906,7 @@ Becke, Hirshfeld), A, D, the entry-73 fidelity names (family B), G, I2 —
 the order in which the families were added. `REGISTRY` maps name → info. `names(family, kinds=SCALAR_KINDS, opt_in=False)` filters in order;
 `kinds=None` returns every kind.
 
-The registry currently holds 247 entries; 212 are scalar and on by default,
+The registry currently holds 257 entries; 222 are scalar and on by default,
 and 28 more (the Becke variants) are scalar but opt-in.
 
 ## 19. `descriptors/primitives.py`
@@ -1026,8 +1031,9 @@ background, V(0) − V(r) = kN[2√(α/π) − erf(√α r)/r] − (2π/3)k(N/V)
   mean of sign(λ₂)ρ.
 - `ellipticity_family(engine, field, shells)`: over bonding-shell voxels
   with λ₂ < 0, ε = λ₁/λ₂ − 1; mean, std and **median** (the median was added
-  after the real FeCoNiCr data gave mean 4.7, std 70, median 0.6 — a few
-  voxels with λ₂ → 0⁻ dominate the mean).
+  because a few voxels with λ₂ → 0⁻ dominate the mean: over the 6,057
+  structures of the dataset the mean is typically 11× the median, and it
+  exceeds three times the median in 98.6% of them).
 
 ## 27. `descriptors/information.py` — F6
 
@@ -1090,8 +1096,8 @@ ignoring NaN sites (e.g. an empty power cell).
 - `hirshfeld_charges(engine, field)`: q_i = N_i − ∫w_iρ with N_i = Z (AECCAR)
   or ZVAL (CHGCAR). Warns on CHGCAR with an all-electron reference: the
   pseudized valence pushed into the bonding region is credited to atoms with
-  diffuse free-atom valence (FeCoNiCr: Cr −1.2 e, Ni +0.7 e, against
-  electronegativity).
+  diffuse free-atom valence (on 31 VASP binaries the sign of the charge
+  transfer followed electronegativity in only 58% of cases).
 
 ## 30. `descriptors/spin.py` — Family E
 
@@ -1191,8 +1197,8 @@ to round-off for every maximum.
 ### `nuclear_radii(engine, shells)`
 
 Per-atom cutoff for "non-nuclear": max(c₁, R_PAW), with R_PAW from
-`engine.paw_radii` (RCORE) or, when unknown, the Magpie covalent radius (or c₁
-for placeholder elements). Returns the radii and whether PAW data were used.
+`engine.augmentation_radii(fallback=c₁)` — RCORE when known, else the Magpie
+covalent radius (or c₁ for placeholder elements). Returns the radii and whether PAW data were used.
 Motivation: in CaSi₃Pt the Si atoms have **no maximum at the nucleus** — the
 pseudo-density even goes negative there — only lobes at 0.81–0.83 Å, which a
 0.8 Å cutoff counted as 8 non-nuclear maxima holding 6.3 e.
@@ -1207,7 +1213,11 @@ Runs percolation, the census, basins and persistence, then:
 - `n_NNM_persistent` / `Q_NNM_persistent`: maxima kept by relative
   persistence (peak − merge)/peak ≥ 0.1; each discarded maximum's basin
   charge follows its absorber chain to a kept peak (the global maximum is
-  always kept). Added after the dataset run found Mg₃(TiAl₉)₂ with 576
+  always kept). A kept non-nuclear maximum is counted only if its merged
+  basin holds ≥ 0.01 e (`min_basin_charge`): relative persistence alone
+  admitted up to 48 tiny peaks holding < 1 e in Yb compounds. Maxima that
+  remain after both filters can be real density features, e.g. the persistent
+  maxima 1.455 Å from Zn in YbPrZn₂, outside the 1.22 Å Zn PAW sphere. Added after the dataset run found Mg₃(TiAl₉)₂ with 576
   "significant" ripple maxima in a flat free-electron sea; YMg₃ goes from 124
   significant to 0 persistent.
 - `rho_min`, `rho_min_ratio` (as specified) and `rho_min_int`,
@@ -1248,12 +1258,25 @@ Runs percolation, the census, basins and persistence, then:
   `def_charge_mismatch` (∫Δρ, should be 0) and `def_all_electron`.
   - `field=None`: AECCAR if loaded, else **NaN everywhere** (the default used
     by `compute_descriptors`).
-  - `field="rho"` with a non-pseudized reference **warns**: on FeCoNiCr the
-    CHGCAR holds 0.37 e within 0.4 Å of Fe where the free atom holds 2.0 e,
-    and ~3 e per Fe sit 0.8–1.5 Å out instead — Δρ measures the POTCAR, not
-    bonding (the first attempt gave f_bond_dep = 0 and a bond charge of
-    +12.6 e).
+  - `field="rho"` with a non-pseudized reference **warns**: inside the PAW
+    spheres CHGCAR is pseudized, and on 121 VASP CHGCARs 87% of ∫|Δρ| lies
+    inside them (45% of the volume), although the charge inside is conserved
+    to 0.6% — so |Δρ|-weighted whole-cell descriptors measure the POTCAR
+    more than the bonding. (An earlier, much larger estimate came from an
+    unrepresentative test file that was not raw VASP output.)
   - Warns when |∫Δρ| > 0.1 e (wrong ZVAL / reference counts).
+- `deformation_outside_paw(engine, shells)`: the `*_def_out` variants — the
+  same eight quantities from the CHGCAR and the valence free-atom
+  reference, with Δρ zeroed inside every PAW sphere (r ≤ R_PAW of the
+  voxel's nearest atom, from `engine.augmentation_radii`). Outside the
+  spheres the CHGCAR is not pseudized, so this route is consistent without
+  AECCARs and never warns. Adds `def_out_volume_fraction` and
+  `def_out_radii_from_paw`. The shell fractions refer to the parts of the
+  shells outside the spheres (an atom with R_PAW > c₂ contributes no bond
+  shell). On real data: FeNi₃ `def_polarity_out` 0.25%, CaSi₃Pt 3.5% with
+  0.57 e accumulated in the bonding shell — covalent bonding shows up, as it
+  should. The Family A runner in the dispatcher returns both the whole-cell
+  entries and these variants.
 
 ## 34. `descriptors/dataset.py`
 
@@ -1351,8 +1374,9 @@ charge drift.
   that becomes NaN counts as infinitely changed.
 - `format_report(report, limit)`: the table printed by `pydemi convergence`.
 
-On the 48³ FeCoNiCr grid, 26 of 97 descriptors changed by more than 2% at
-80% resolution — the report is the evidence for or against a grid.
+On 30 random VASP CHGCARs a median 20% of the reported quantities changed by
+more than 2% at 80% resolution — the report is the evidence for or against a
+grid.
 
 ## 39. `batch.py`
 
@@ -1433,7 +1457,7 @@ All three ship in the wheel (checked with `pip wheel`).
 
 ## 43. The test suite, file by file
 
-Run with `pytest` (164 tests, about a minute). `tests/conftest.py` sets
+Run with `pytest` (166 tests, about a minute). `tests/conftest.py` sets
 `PYDEMI_CACHE_DIR` to a temporary directory **before** pydemi is imported, so
 tests never write to `~/.cache`, and provides three structures: a one-atom
 cube, a two-atom triclinic cell (`TRICLINIC`) and a strongly sheared
@@ -1509,8 +1533,9 @@ a₀ fails a test.
 - **Undefined ratio → NaN** (`safe_div`); no epsilons.
 - **Input not available → name absent** from `compute_descriptors` output
   (ELF_*, V_*), empty CSV cell in batch output.
-- **Family A without AECCAR → NaN** for every entry (deliberate: the CHGCAR
-  route gives plausible-looking wrong numbers).
+- **Family A without AECCAR → NaN** for the whole-cell entries (deliberate:
+  inside the PAW spheres the CHGCAR route is dominated by pseudization); the
+  `*_def_out` variants are computed from the CHGCAR.
 - **Family D without calibration → NaN** (Cohen is always computed).
 - **Spin on a non-spin run → 0** with `is_spin_polarized = 0`; ratio entries
   of a non-magnetic spin run → 0 with `is_magnetic = 0` (the specification
@@ -1561,16 +1586,18 @@ reused, and rerun `tests/test_reference.py` (NIST checks).
 
 | Decision | Evidence |
 |---|---|
-| Periodic compact FD Laplacian as default | lnf 0.159 (np.gradient twice) vs 0.206 (compact) vs 0.211 (spectral) on FeCoNiCr |
+| Periodic compact FD Laplacian as default | over 200 VASP CHGCARs, np.gradient-twice lnf differs from spectral by 2% (median), up to 21%; compact FD by 0.2% (median) |
 | Keep specified names, add fixes under new names | a column must never change meaning between result files |
 | KD-tree minimum image | fractional rounding overestimates by > 0.1 Å in sheared cells |
 | Charge-weighted `lnf_rho` alongside `lnf` | spectral voxel-count lnf is noise in near-empty voxels (0.07–0.15 vs 0.008 exact) |
 | `lap_concentration_valence` | specified entry 14 is identically ½ |
-| Median ellipticity | mean 4.7, std 70, median 0.6 on FeCoNiCr |
+| Median ellipticity | mean ≈ 11× median for the typical structure of the dataset |
 | Becke opt-in, Hirshfeld default | Becke 2e-2 error at 60 competitors; Hirshfeld 9e-6 at 6.5 Å |
 | Hirshfeld blocks + lookup table | 4 min → 34 s at 180³ |
 | Own LDA atom solver | no atomic-DFT package installed; matches NIST to 1e-4 Ha |
-| Family A AECCAR-only | CHGCAR vs free-atom valence: ~3 e per Fe displaced by pseudization |
+| Family A whole-cell entries AECCAR-only | CHGCAR vs free-atom valence: 87% of ∫\|Δρ\| inside the PAW spheres (121 structures) |
+| `*_def_out` variants from CHGCAR | outside the spheres the two agree (FeNi₃ within ~3% beyond 0.8 Å) |
+| Charge requirement on persistent maxima | Yb compounds: up to 48 persistent maxima holding < 1 e |
 | Hirshfeld weights from the field's own electrons | total-density weights gave nonzero charges for a pure promolecule |
 | Consistent PL census (Freudenthal) | Euler identity then exact; 26-neighbour census is not a triangulation link |
 | Percolation supremum | literal min{c : …} is always the lowest density |

@@ -169,7 +169,9 @@ def test_fourier_resample_is_exact_for_band_limited_fields():
 def test_resample_engine_keeps_grid_ratios():
     eng = Engine(NACL, {"rho": _rho(NACL, 24), "elf": np.full((12, 12, 12), 0.5)})
     eng.add_field("elf_d", np.zeros((24, 24, 24)))              # derived: dropped
+    eng.paw_radii = {"Na": 1.2, "Cl": 1.0}
     new = resample_engine(eng, scale=0.5)
+    assert new.paw_radii == eng.paw_radii
     assert new["rho"].grid.shape == (12, 12, 12) and new["elf"].grid.shape == (6, 6, 6)
     assert "elf_d" not in new
     assert new["rho"].integral() == pytest.approx(eng["rho"].integral(), rel=1e-10)

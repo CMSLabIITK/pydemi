@@ -180,6 +180,20 @@ def test_persistence_removes_ripple_and_conserves_charge():
     assert 0.5 < d["Q_NNM_persistent"] <= d["Q_NNM"] + 1e-9
 
 
+def test_persistent_maxima_need_charge():
+    # a well-separated but nearly empty interstitial bump is persistent yet
+    # holds far below 0.01 e, so it is not counted; a real blob is
+    s = Structure(np.eye(3) * 7.0, ["Na"], [[0.0, 0.0, 0.0]])
+    grid = Grid(s.lattice, (28, 28, 28))
+    atom, _, _ = GaussianSuperposition(s, 2.0, 1.0).on_grid(grid, False)
+    site = Structure(s.lattice, ["X"], [[0.5, 0.5, 0.5]])
+    for q, expected in ((1e-4, 0), (0.5, 1)):
+        blob, _, _ = GaussianSuperposition(site, 0.8, q).on_grid(grid, False)
+        d = topology_family(Engine(s, {"rho": atom + blob}))
+        assert d["n_NNM"] == 1
+        assert d["n_NNM_persistent"] == expected
+
+
 def test_interstitial_floor_ignores_paw_core_dips():
     s = Structure(np.eye(3) * 6.0, ["Si"], [[0.5, 0.5, 0.5]])
     grid = Grid(s.lattice, (40, 40, 40))

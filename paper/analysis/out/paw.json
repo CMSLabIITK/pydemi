@@ -1,0 +1,104 @@
+{
+ "negative_density": {
+  "n": 6059,
+  "n_rho_min_negative": 3680,
+  "rho_min_ratio_median": -0.22101883585336374,
+  "rho_min_int_ratio_negative": 3,
+  "rho_min_int_ratio_median": 0.1321017732198057,
+  "rho_min_int_nan": 8
+ },
+ "CaSi3Pt": {
+  "grid": [
+   84,
+   84,
+   84
+  ],
+  "rho_min": -0.17981249873538993,
+  "rho_min_distance_A": 0.02318987263104777,
+  "rho_min_nearest": "Si",
+  "si_maxima_distances_A": [
+   0.8102474101278482,
+   0.8102474101278482,
+   0.8102474101278483,
+   0.8102474101278483,
+   0.8340202689875889,
+   0.834020268987589,
+   0.834020268987589,
+   0.8340202689875891
+  ],
+  "si_maxima_charge_e": 6.298688024226904,
+  "nuclear_maxima_found_for": [
+   "Ca",
+   "Pt"
+  ],
+  "n_NNM_fixed_0.8A": 8,
+  "Q_NNM_fixed_0.8A": 6.298688024226902,
+  "n_NNM_paw_cutoff": 0,
+  "paw_radii_A": {
+   "Ca": 1.5875316327089999,
+   "Si": 1.0054367007157,
+   "Pt": 1.3758607483478
+  }
+ },
+ "FeNi3": {
+  "zval": {
+   "Fe": 8.0,
+   "Ni": 10.0
+  },
+  "Q_tot": 38.00000033422558,
+  "promolecule_charge": 37.99999999999999,
+  "fe_radial_table": [
+   {
+    "shell_A": [
+     0,
+     0.4
+    ],
+    "chgcar_e": 1.519689200519941,
+    "free_atom_valence_e": 1.9859015366205
+   },
+   {
+    "shell_A": [
+     0.4,
+     0.8
+    ],
+    "chgcar_e": 3.402386534779929,
+    "free_atom_valence_e": 2.978085465323903
+   },
+   {
+    "shell_A": [
+     0.8,
+     1.2
+    ],
+    "chgcar_e": 1.8836817804326256,
+    "free_atom_valence_e": 1.9447934885083253
+   },
+   {
+    "shell_A": [
+     1.2,
+     1.5
+    ],
+    "chgcar_e": 0.9036368118346028,
+    "free_atom_valence_e": 0.9028143557362966
+   },
+   {
+    "shell_A": [
+     1.5,
+     3.0
+    ],
+    "chgcar_e": 0.036713769984155764,
+    "free_atom_valence_e": 0.038028628500451536
+   }
+  ],
+  "deformation_chgcar_route": {
+   "f_bond_dep": 0.0791099181995136,
+   "bond_charge_transfer": -0.1696107805456341,
+   "def_polarity": 0.17912136900925013
+  },
+  "hirshfeld_charges_chgcar": {
+   "Fe0": 0.07078397234132705,
+   "Ni1": -0.023593828846015796,
+   "Ni2": -0.023595152818263188,
+   "Ni3": -0.023595324902647263
+  }
+ }
+}

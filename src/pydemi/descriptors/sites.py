@@ -223,10 +223,9 @@ def hirshfeld_charges(engine: Engine, field: Optional[str] = None, **partition_k
     POTCAR ZVAL for CHGCAR. Only the AECCAR route, or CHGCAR with an
     :class:`~pydemi.atoms.reference.IsolatedAtomReference`, gives charges
     comparable with Bader: with all-electron-shaped reference weights the
-    pseudized CHGCAR valence, pushed outward into the bonding region, is
-    credited to the atoms with the most diffuse free-atom valence (on fcc
-    FeCoNiCr: Cr -1.2 e, Ni +0.7 e, against electronegativity). That case
-    warns.
+    pseudized CHGCAR valence is not partitioned consistently (on 31 VASP
+    binaries the sign of the charge transfer followed the electronegativity
+    difference in only 58% of cases). That case warns.
     """
     import warnings
     from ..engine import RHO_AE

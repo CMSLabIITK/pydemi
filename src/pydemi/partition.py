@@ -30,10 +30,10 @@ Becke in periodic solids (opt-in)
 Becke's scheme was built for molecules, where the product over all atoms is
 finite. In a periodic solid a far atom at distance R has s = 1 - O((d/R)^8)
 only once R >> d, and the number of such atoms grows as R^2, so the weights
-converge slowly with the number of atoms in the product. Measured on an fcc
-FeCoNiCr cell: max weight error ~2e-2 with 60 competitors, ~9e-3 with 100,
-~1e-3 with 300. The weight itself is always carried by the few nearest
-images (weight beyond the 8 nearest < 1e-9).
+converge slowly with the number of atoms in the product. Measured on FeNi3:
+max weight error 1.6e-2 with 60 competitors, 9.4e-3 with 100, 1.0e-3 with
+300. The weight itself is always carried by the few nearest images (weight
+beyond the 8 nearest < 4e-10).
 
 So the implementation separates the two roles: weights are assigned to the
 ``cells`` nearest images, and each product runs over the ``k`` nearest
@@ -205,7 +205,7 @@ class HirshfeldPartition(Partition):
     ``radial`` maps element -> (r in Angstrom, density). Every atom image
     within ``r_cut`` of a voxel contributes. The free-atom densities decay
     exponentially, so the weights converge quickly with r_cut -- measured
-    on fcc FeCoNiCr, max weight error 5e-3 at 3.5 A, 7e-5 at 5.6 A, 9e-6 at
+    on FeNi3, max weight error 3.7e-2 at 3.5 A, 6.8e-5 at 5.5 A, 3.0e-6 at
     6.5 A (the default) -- unlike Becke's products (module docstring).
 
     The grid is processed in blocks of voxels: candidate atom images are

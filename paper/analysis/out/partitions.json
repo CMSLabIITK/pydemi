@@ -1,0 +1,107 @@
+{
+ "structure": "FeNi3_221",
+ "grid": [
+  56,
+  56,
+  56
+ ],
+ "sample_voxels": 4747,
+ "becke": [
+  {
+   "K": 20,
+   "radius_A": 3.699311495523395,
+   "max_weight_error": 0.05646806924258285
+  },
+  {
+   "K": 40,
+   "radius_A": 4.684529018956067,
+   "max_weight_error": 0.029750028916795124
+  },
+  {
+   "K": 60,
+   "radius_A": 5.351551550642683,
+   "max_weight_error": 0.015693656406361556
+  },
+  {
+   "K": 100,
+   "radius_A": 6.351870131529988,
+   "max_weight_error": 0.009408631939667234
+  },
+  {
+   "K": 150,
+   "radius_A": 7.279216297047558,
+   "max_weight_error": 0.004547842627362186
+  },
+  {
+   "K": 200,
+   "radius_A": 8.015114913719055,
+   "max_weight_error": 0.0032272931099617264
+  },
+  {
+   "K": 300,
+   "radius_A": 9.177895002726983,
+   "max_weight_error": 0.0009972700561236003
+  }
+ ],
+ "becke_weight_beyond_8_cells": 3.3810110267040727e-10,
+ "hirshfeld": [
+  {
+   "r_cut_A": 3.5,
+   "max_weight_error": 0.03664219427309598
+  },
+  {
+   "r_cut_A": 4.5,
+   "max_weight_error": 0.0013110743196617786
+  },
+  {
+   "r_cut_A": 5.5,
+   "max_weight_error": 6.832768636469422e-05
+  },
+  {
+   "r_cut_A": 6.5,
+   "max_weight_error": 2.9625991768422733e-06
+  },
+  {
+   "r_cut_A": 7.5,
+   "max_weight_error": 1.2936163169205428e-06
+  }
+ ],
+ "dataset_partition_sensitivity": {
+  "m1_power": {
+   "n": 6059,
+   "median_rel_diff": 0.02039586624672147,
+   "p95_rel_diff": 0.19432825660630076,
+   "spearman_vs_nearest": 0.9220097177528112
+  },
+  "m1_hirshfeld": {
+   "n": 6059,
+   "median_rel_diff": 0.16863580083855886,
+   "p95_rel_diff": 0.3207107822667644,
+   "spearman_vs_nearest": 0.934132803983494
+  },
+  "f_bond_power": {
+   "n": 6059,
+   "median_rel_diff": 0.043288155001698,
+   "p95_rel_diff": 0.2672713578557669,
+   "spearman_vs_nearest": 0.954043736655474
+  },
+  "f_bond_hirshfeld": {
+   "n": 6059,
+   "median_rel_diff": 0.18319373517436432,
+   "p95_rel_diff": 0.3508805836017364,
+   "spearman_vs_nearest": 0.8902549829189694
+  },
+  "zeta_power": {
+   "n": 6059,
+   "median_rel_diff": 0.47060988942220544,
+   "p95_rel_diff": 6.073938457688916,
+   "spearman_vs_nearest": 0.7244868233946095
+  },
+  "zeta_hirshfeld": {
+   "n": 6059,
+   "median_rel_diff": 2.1737886944767304,
+   "p95_rel_diff": 6.03812400093072,
+   "spearman_vs_nearest": 0.8983545629475086
+  }
+ }
+}

@@ -140,6 +140,27 @@ class Engine:
             raise KeyError(f"no radius for element(s) {missing}")
         return np.array([table[s] for s in self.structure.species], float)
 
+    def augmentation_radii(self, fallback: Optional[float] = None):
+        """(per-atom PAW augmentation radius in Angstrom, from-PAW-data flag).
+
+        RCORE from the POTCAR / OUTCAR when known (``paw_radii``); otherwise
+        the element's Magpie covalent radius, or ``fallback`` for elements
+        without one (e.g. VASP 4 placeholder labels).
+        """
+        known = self.paw_radii is not None
+        if known:
+            radii = self.paw_radii
+        else:
+            radii = {}
+            for e in self.structure.elements:
+                try:
+                    radii[e] = covalent_radii([e])[e]
+                except KeyError:
+                    if fallback is None:
+                        raise
+                    radii[e] = fallback
+        return np.array([radii[s] for s in self.structure.species], float), known
+
     def partition(self, shape=None, scheme: str = "nearest", radii=None,
                   k: int = 60, cells: int = 8, r_cut: float = 6.5,
                   part: str = "total") -> Partition:

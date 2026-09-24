@@ -74,7 +74,10 @@ G2-G3 critical-point census (92-95)
     the basin adjacency graph reproduces the superlevel-set filtration.
     A maximum is kept when its relative persistence (peak - s) / peak is at
     least ``NNM_MIN_PERSISTENCE``; the charge of a discarded basin goes to the
-    maximum that absorbed it.
+    maximum that absorbed it. A kept non-nuclear maximum is then counted only
+    if its merged basin holds at least ``NNM_MIN_CHARGE`` electrons: relative
+    persistence alone admits tiny peaks in low-density regions (on the
+    6,059-structure dataset, Yb compounds kept up to 48 maxima holding < 1 e).
 
 G4 interstitial floor (96-98)
     rho_min, rho_min / <rho>_V, and <rho> over the interstitial shell.
@@ -319,19 +322,8 @@ def percolation_levels(values: np.ndarray, max_steps: int = 200) -> np.ndarray:
 
 def nuclear_radii(engine: Engine, shells: Optional[Shells] = None):
     """(per-atom r_cut for non-nuclear maxima in Angstrom, from-PAW-data flag)."""
-    from ..elements import covalent_radii
     shells = shells if shells is not None else engine.shells
-    known = engine.paw_radii is not None
-    if known:
-        radii = engine.paw_radii
-    else:
-        radii = {}
-        for e in engine.structure.elements:
-            try:
-                radii[e] = covalent_radii([e])[e]
-            except KeyError:                 # placeholder labels (e.g. VASP 4 "X0")
-                radii[e] = shells.c1
-    R = np.array([radii[s] for s in engine.structure.species])
+    R, known = engine.augmentation_radii(fallback=shells.c1)
     return np.maximum(shells.c1, R), known
 
 
@@ -376,7 +368,10 @@ def topology_family(engine: Engine, field: str = RHO, shells: Optional[Shells] =
             j = pos[absorber[j]]
         owner_peak[k] = j
     peak_charge = np.bincount(owner_peak, weights=basin_charge[peaks], minlength=peaks.size)
-    kept_nnm = np.flatnonzero(keep & (dist[peaks] > atom_cut[owner[peaks]]))
+    # a persistent maximum must also hold real charge: relative persistence
+    # alone passes tiny peaks in near-empty regions (e.g. Yb compounds)
+    kept_nnm = np.flatnonzero(keep & (dist[peaks] > atom_cut[owner[peaks]])
+                              & (peak_charge >= min_basin_charge))
 
     far = geo.distance > np.maximum(shells.c2, atom_cut[geo.atom_index])
     rho_min_int = float(rho[far].min()) if far.any() else float("nan")

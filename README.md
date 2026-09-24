@@ -13,11 +13,11 @@ electrostatic potential and the deformation density. Each field runs through
 the same moment, shell-fraction, anisotropy and partition machinery, so an
 extra descriptor costs almost nothing once the engine is built.
 
-212 scalar quantities in 17 families by default (plus 28 opt-in Becke
+222 scalar quantities in 17 families by default (plus 28 opt-in Becke
 variants), covering entries 1–107 of the *pydemi Consolidated Descriptor
 Reference* (`pydemi — Consolidated Descriptor Reference.pdf`). Quantities
 that need an optional input (ELFCAR, LOCPOT, AECCAR, calibration files) are
-added when it is present, so a CHGCAR-only structure yields 199. Every
+added when it is present, so a CHGCAR-only structure yields 209. Every
 quantity has a registry entry recording its reference number, kind, inputs,
 formula and caveats.
 
@@ -538,8 +538,10 @@ All by direct grid operations that always terminate.
   use exact 0-dimensional topological persistence: a maximum is kept when the
   density dips by at least 10% of its height before its region merges with a
   higher maximum's, and the charge of discarded ripple basins passes to the
-  maximum that absorbs them. On a 6,059-structure VASP dataset this removes
-  every ripple maximum in YMg₃ (124 "significant" → 0 persistent).
+  maximum that absorbs them. A persistent maximum is counted only if its
+  merged basin holds at least 0.01 e, which removes tiny peaks in
+  low-density regions. On a 6,059-structure VASP dataset this removes every
+  ripple maximum in YMg₃ (124 "significant" → 0 persistent).
 - **Interstitial floor (96–98):** PAW pseudo-densities dip below zero inside
   the augmentation spheres (61% of the CHGCARs in the same dataset), so the
   plain `rho_min` / `rho_min_ratio` are usually PAW artefacts.
@@ -560,9 +562,9 @@ All by direct grid operations that always terminate.
 | 93 | `euler_consistency` | metadata | n_max - n_saddle2 + n_saddle1 - n_min | identically 0 for a consistent PL census (Banchoff): an implementation self-check, not a grid-adequacy flag |
 | 94 | `n_NNM` | descriptor | maxima farther than max(c1, R_PAW) from their nearest nucleus | R_PAW = RCORE from POTCAR/OUTCAR, else covalent radius; counts every ripple maximum, see n_NNM_significant |
 | 94 | `n_NNM_significant` | variant | non-nuclear maxima whose basin holds >= 0.01 e | pydemi addition: robust to low-amplitude ripple |
-| 94 | `n_NNM_persistent` | variant | non-nuclear maxima with relative persistence (peak - merge) / peak >= 0.1 | pydemi addition: removes ripple, including flat free-electron seas |
+| 94 | `n_NNM_persistent` | variant | non-nuclear maxima with relative persistence (peak - merge) / peak >= 0.1 and merged basin charge >= 0.01 e | pydemi addition: removes ripple, including flat free-electron seas |
 | 95 | `Q_NNM` | descriptor | charge in the steepest-ascent basins of the non-nuclear maxima |  |
-| 95 | `Q_NNM_persistent` | variant | charge of the persistent non-nuclear maxima, ripple basins merged in | pydemi addition |
+| 95 | `Q_NNM_persistent` | variant | charge of the counted persistent non-nuclear maxima, ripple basins merged in | pydemi addition |
 |  | `paw_radii_known` | metadata | 1 if the non-nuclear-maximum cutoffs used PAW RCORE values |  |
 | 96 | `rho_min` | descriptor | min_k rho_k, e/A^3 | can be negative for PAW pseudo-densities |
 | 96 | `rho_min_int` | variant | min rho over r_k > max(c2, R_PAW), e/A^3 | pydemi addition: the interstitial floor, outside every PAW sphere; NaN when that region is empty |
@@ -586,10 +588,16 @@ midpoints.
 ### 5.16 Family A — deformation density
 
 Δρ = ρ − Σ_i ρ^free_{e(i)}(|r − R_i|), with the promolecule built in reciprocal
-space (exact periodic sum, integral exactly Σ N_i). By default computed from
-AECCAR0 + AECCAR2 against all-electron free atoms and NaN without AECCARs;
-see §6.2 for why CHGCAR needs a different reference.
-`deformation_family(eng, field="rho")` requests the CHGCAR route explicitly.
+space (exact periodic sum, integral exactly Σ N_i). The whole-cell entries
+are computed from AECCAR0 + AECCAR2 against all-electron free atoms and are
+NaN without AECCARs; see §6.2 for why the whole-cell CHGCAR route is
+dominated by pseudization (`deformation_family(eng, field="rho")` requests it
+explicitly). The `*_def_out` variants use the CHGCAR and the valence
+free-atom reference over the voxels **outside the PAW augmentation spheres**,
+where the CHGCAR is not pseudized, so they need no AECCARs; the sphere radii
+are RCORE from the POTCAR / OUTCAR (else covalent radii, flagged by
+`def_out_radii_from_paw`), and `def_out_volume_fraction` reports how much of
+the cell they cover.
 
 | Entry | Name | Kind | Definition | Notes |
 |---|---|---|---|---|
@@ -603,6 +611,16 @@ see §6.2 for why CHGCAR needs a different reference.
 | 47 | `def_polarity` | descriptor | int \|drho\| dV / Q_tot |  |
 |  | `def_charge_mismatch` | metadata | int drho dV, electrons | should be ~0; large means wrong reference counts |
 |  | `def_all_electron` | metadata | 1 if AECCAR0 + AECCAR2 was the field |  |
+| 40 | `m1_def_out` | variant | sum \|drho\| r / sum \|drho\|, over voxels outside the PAW spheres (r > R_PAW) | pydemi addition: CHGCAR is not pseudized there; no AECCAR needed |
+| 41 | `m2_def_out` | variant | sum \|drho\| r^2 / sum \|drho\|, over voxels outside the PAW spheres (r > R_PAW) | pydemi addition: CHGCAR is not pseudized there; no AECCAR needed |
+| 42 | `sigma_r2_def_out` | variant | m2_def_out - m1_def_out^2, over voxels outside the PAW spheres (r > R_PAW) | pydemi addition: CHGCAR is not pseudized there; no AECCAR needed |
+| 43 | `f_bond_def_out` | variant | bond share of accumulated charge, over voxels outside the PAW spheres (r > R_PAW) | pydemi addition: CHGCAR is not pseudized there; no AECCAR needed |
+| 44 | `f_int_def_out` | variant | interstitial share of accumulated charge, over voxels outside the PAW spheres (r > R_PAW) | pydemi addition: CHGCAR is not pseudized there; no AECCAR needed |
+| 45 | `f_bond_dep_out` | variant | bond share of depleted charge, over voxels outside the PAW spheres (r > R_PAW) | pydemi addition: CHGCAR is not pseudized there; no AECCAR needed |
+| 46 | `bond_charge_transfer_out` | variant | int_bond drho dV, electrons, over voxels outside the PAW spheres (r > R_PAW) | pydemi addition: CHGCAR is not pseudized there; no AECCAR needed |
+| 47 | `def_polarity_out` | variant | int \|drho\| dV / Q_tot, over voxels outside the PAW spheres (r > R_PAW) | pydemi addition: CHGCAR is not pseudized there; no AECCAR needed |
+|  | `def_out_volume_fraction` | metadata | fraction of the cell outside the PAW spheres |  |
+|  | `def_out_radii_from_paw` | metadata | 1 if R_PAW came from RCORE, 0 if from covalent radii |  |
 
 ### 5.17 Family D — calibrated quantities
 
@@ -641,12 +659,14 @@ density it is compared with:
 
 - **AECCAR0 + AECCAR2 with all-electron free atoms** is consistent, and is
   what Family A uses.
-- **CHGCAR with all-electron free-atom valence** is not: CHGCAR is PAW-pseudized
-  inside each atom's augmentation sphere. On fcc FeCoNiCr about 3 e per Fe
-  sit 0.8–1.5 Å from the nucleus in CHGCAR that the free atom holds inside
-  0.8 Å, so the difference measures the POTCAR, not bonding. The same bias
-  enters Hirshfeld *charges* from CHGCAR, which therefore warn (the partition
-  itself remains a valid smooth partition).
+- **CHGCAR with all-electron free-atom valence** is consistent only outside
+  the PAW augmentation spheres. Inside them CHGCAR is pseudized: on 121 VASP
+  CHGCARs, 87% (median) of ∫|Δρ| lies inside the spheres, which fill 45% of
+  the volume, although the charge inside them is conserved to 0.6%. So
+  |Δρ|-weighted whole-cell descriptors are dominated by the pseudization.
+  Hirshfeld *charges* from CHGCAR are affected too (the sign of the charge
+  transfer followed electronegativity in only 58% of 31 binaries) and warn;
+  the partition itself remains a valid smooth partition.
 - **CHGCAR with isolated-atom CHGCARs** run with the same POTCARs is
   consistent — the pseudization cancels:
 
@@ -798,10 +818,12 @@ rep = convergence_report(eng, factors=(1.0, 0.8, 0.6), rtol=0.02)
 print(format_report(rep))
 ```
 
-On a 48³ fcc FeCoNiCr grid, 26 of 97 descriptors move by more than 2% at 80%
-resolution, including `lnf` (10%) and the critical-point counts; run the
-report on representative production grids before relying on Laplacian- or
-ELF-based descriptors.
+On 30 random VASP CHGCARs, a median 20% of the reported quantities move by
+more than 2% at 80% resolution — most of all the critical-point counts, the
+ellipticity statistics and the charge anisotropy — while radial moments,
+percolation thresholds, energy densities and the interstitial floor change by
+about 0.1% or less. Run the report on representative production grids before
+relying on Laplacian-, ELF- or topology-based descriptors.
 
 ### 9.3 Strain response (entry 107)
 
@@ -832,9 +854,10 @@ strain_response("eps-0.01/CHGCAR", "eps+0.01/CHGCAR", eps=0.01)
   Laplacian has an absolute round-off floor, so voxel-count `lnf` is
   unreliable with `spectral` in near-empty regions (vacuum, voids); use `fd`
   or `lnf_rho` there.
-- A double-width, non-periodic Laplacian stencil (a first-derivative routine
-  applied twice) gives `lnf` up to ~25% below the converged value; measured
-  comparisons are in `docs/numerics.md`.
+- Voxel-count `lnf` differs between Laplacian discretizations by ~2% for the
+  median structure and up to ~30% for individual ones; the charge-weighted
+  `lnf_rho` is several times more robust. Measured comparisons are in
+  `docs/numerics.md`.
 - PAW pseudo-densities can be negative near nuclei; `rho_min` may be negative,
   and negative values are clipped to 0 only where a formula requires a
   positive density (ELF_D, F3, F5, F6).
@@ -852,17 +875,18 @@ Each departure is documented at the point of use and in the registry notes.
 | 93 Euler check | grid-adequacy flag | implementation self-check | identically 0 for a consistent PL census |
 | 94 non-nuclear maxima | fixed cutoff | per-element max(c₁, R_PAW); plus persistence-filtered `n_NNM_persistent` | PAW atoms can have maxima only on a shell inside R_PAW; raw counts pick up ripple |
 | 96–97 density floor | min over the cell | kept, plus `rho_min_int` over r > max(c₂, R_PAW) | PAW pseudo-density is negative near many nuclei |
-| 40–47 deformation | CHGCAR or AECCAR | AECCAR (NaN otherwise) | CHGCAR minus all-electron free atoms measures pseudization |
-| 100 Becke | default smooth partition | opt-in; Hirshfeld is the default | weights converge only algebraically in periodic solids (max error ~2e-2 with 60 neighbours, ~1e-3 with 300); Hirshfeld converges exponentially (~1e-5 at 6.5 Å) |
+| 40–47 deformation | CHGCAR or AECCAR | whole cell from AECCAR (NaN otherwise); `*_def_out` from CHGCAR outside the PAW spheres | inside the PAW spheres, CHGCAR minus all-electron free atoms is dominated by pseudization (87% of ∫\|Δρ\|) |
+| 100 Becke | default smooth partition | opt-in; Hirshfeld is the default | weights converge only algebraically in periodic solids (max error 1.6e-2 with 60 neighbours, 1.0e-3 with 300 on FeNi₃); Hirshfeld converges exponentially (3e-6 at 6.5 Å) |
 
 Robust companions added: `lnf_rho`, `moment_ratio_scale_free`,
 `zeta_over_sigma_r`, `laplacian_std_valence`, `lap_concentration_valence`,
 `ellip_bond_median`, `n_NNM_significant`, `n_NNM_persistent`, `Q_NNM_persistent`,
-`rho_min_int`, `rho_min_int_ratio`.
+`rho_min_int`, `rho_min_int_ratio`, and the outside-PAW deformation variants
+`*_def_out`.
 
 ## 12. Validation
 
-164 tests (`pytest`), organized by what they check against:
+166 tests (`pytest`), organized by what they check against:
 
 - **Closed forms.** Slater 1s and Gaussian superpositions with exact values
   (`pydemi.testing.analytic`): moments, shell fractions, Laplacian sign
@@ -905,8 +929,11 @@ Hirshfeld partition; drop families you do not need with `--families`.
 
 ## 14. Limitations
 
-- Family A needs AECCAR0 + AECCAR2 (or `IsolatedAtomReference`); without them
-  it returns NaN.
+- The whole-cell Family A entries need AECCAR0 + AECCAR2 (or
+  `IsolatedAtomReference`); without them they are NaN. The `*_def_out`
+  variants work from the CHGCAR but only see the region outside the PAW
+  spheres (21–76% of the cell, 5th–95th percentile over the 6,059-structure
+  dataset; median 53%).
 - Family D needs calibration files fitted on reference compounds you have
   computed; the literature table is supplied, the densities are not.
 - Half of the Phillips table (`recalled` rows) has not been checked against a

@@ -58,7 +58,8 @@ def resample_engine(engine: Engine, spacing: Optional[float] = None,
     ``shape`` (for the fields on the main grid) or ``scale`` (multiplies each
     field's own shape). Fields on other grids (e.g. ELFCAR) keep their
     ratio to the main grid. Derived fields (ELF_D, potentials,
-    promolecules) are not copied; they are recomputed on demand.
+    promolecules) are not copied; they are recomputed on demand. Structure,
+    method, shells, spin mode, ZVAL, PAW radii and reference carry over.
     """
     if sum(x is not None for x in (spacing, shape, scale)) != 1:
         raise ValueError("give exactly one of spacing, shape or scale")
@@ -74,6 +75,7 @@ def resample_engine(engine: Engine, spacing: Optional[float] = None,
     new = Engine(engine.structure, method=engine.method, shells=engine.shells,
                  spin_mode=engine.spin_mode, zval=engine.zval,
                  reference=engine._reference)
+    new.paw_radii = engine.paw_radii
     for name in engine.field_names:
         if name.startswith(derived):
             continue

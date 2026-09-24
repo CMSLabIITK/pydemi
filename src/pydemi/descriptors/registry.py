@@ -307,6 +307,24 @@ _ENTRIES = [
                    "int drho dV, electrons", "should be ~0; large means wrong reference counts"),
     DescriptorInfo("def_all_electron", None, "A", METADATA, "AE",
                    "1 if AECCAR0 + AECCAR2 was the field"),
+] + [
+    DescriptorInfo(f"{base}_out", entry, "A", VARIANT, "CHG REF STRUCT",
+                   f"{formula}, over voxels outside the PAW spheres (r > R_PAW)",
+                   "pydemi addition: CHGCAR is not pseudized there; no AECCAR needed")
+    for base, entry, formula in (
+        ("m1_def", 40, "sum |drho| r / sum |drho|"),
+        ("m2_def", 41, "sum |drho| r^2 / sum |drho|"),
+        ("sigma_r2_def", 42, "m2_def_out - m1_def_out^2"),
+        ("f_bond_def", 43, "bond share of accumulated charge"),
+        ("f_int_def", 44, "interstitial share of accumulated charge"),
+        ("f_bond_dep", 45, "bond share of depleted charge"),
+        ("bond_charge_transfer", 46, "int_bond drho dV, electrons"),
+        ("def_polarity", 47, "int |drho| dV / Q_tot"))
+] + [
+    DescriptorInfo("def_out_volume_fraction", None, "A", METADATA, "STRUCT",
+                   "fraction of the cell outside the PAW spheres"),
+    DescriptorInfo("def_out_radii_from_paw", None, "A", METADATA, "POTCAR/OUTCAR",
+                   "1 if R_PAW came from RCORE, 0 if from covalent radii"),
     # ---------------- Family D and entry 106: calibrated quantities ----------------
     DescriptorInfo("grid_ionicity", 60, "D", DESCRIPTOR, "CHG LIT",
                    "sigmoid(b . z(features)), fitted to Phillips f_i",
@@ -357,12 +375,13 @@ _ENTRIES = [
                    "non-nuclear maxima whose basin holds >= 0.01 e",
                    "pydemi addition: robust to low-amplitude ripple"),
     DescriptorInfo("n_NNM_persistent", 94, "G", VARIANT, "CHG STRUCT",
-                   "non-nuclear maxima with relative persistence (peak - merge) / peak >= 0.1",
+                   "non-nuclear maxima with relative persistence (peak - merge) / peak >= 0.1 "
+                   "and merged basin charge >= 0.01 e",
                    "pydemi addition: removes ripple, including flat free-electron seas"),
     DescriptorInfo("Q_NNM", 95, "G", DESCRIPTOR, "CHG STRUCT",
                    "charge in the steepest-ascent basins of the non-nuclear maxima"),
     DescriptorInfo("Q_NNM_persistent", 95, "G", VARIANT, "CHG STRUCT",
-                   "charge of the persistent non-nuclear maxima, ripple basins merged in",
+                   "charge of the counted persistent non-nuclear maxima, ripple basins merged in",
                    "pydemi addition"),
     DescriptorInfo("paw_radii_known", None, "G", METADATA, "POTCAR/OUTCAR",
                    "1 if the non-nuclear-maximum cutoffs used PAW RCORE values"),

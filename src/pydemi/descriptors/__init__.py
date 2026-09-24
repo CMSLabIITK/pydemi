@@ -21,7 +21,8 @@ from .anisotropy import anisotropy_family
 from .bonds import bond_census, bond_family
 from .topology import morse_census, percolation_levels, topology_family
 from .composition import composition_features, crystal_system, tier2
-from .deformation import deformation_density, deformation_family, promolecule
+from .deformation import (deformation_density, deformation_family,
+                          deformation_outside_paw, promolecule)
 from .elf import elf_family, elf_fidelity
 from .hessian import ellipticity_family, nci_family
 from .information import information_family
@@ -64,8 +65,9 @@ _RUNNERS = {
     "H": partition_family,
     "G": topology_family,
     "I2": lambda e, f, s: bond_family(e, f),
-    # AECCAR when loaded, else NaN: the CHGCAR route must be asked for directly
-    "A": lambda e, f, s: deformation_family(e, None, s),
+    # AECCAR when loaded, else NaN (the whole-cell CHGCAR route must be asked
+    # for directly); plus the CHGCAR variant outside the PAW spheres
+    "A": lambda e, f, s: {**deformation_family(e, None, s), **deformation_outside_paw(e, s)},
 }
 
 
@@ -118,7 +120,8 @@ __all__ = [
     "information_family", "anisotropy_family", "site_family", "partition_family",
     "site_charges", "spin_family", "site_moments", "topology_family",
     "morse_census", "percolation_levels", "bond_family", "bond_census",
-    "deformation_family", "deformation_density", "promolecule", "elf_fidelity",
+    "deformation_family", "deformation_density", "deformation_outside_paw",
+    "promolecule", "elf_fidelity",
     "hirshfeld_charges",
     "describe", "names", "REGISTRY", "DescriptorInfo", "FAMILIES",
     "DESCRIPTOR", "VARIANT", "CROSS_TERM", "PREPROCESSING", "METADATA",

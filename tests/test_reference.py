@@ -1,6 +1,8 @@
 """Phase 5: free-atom solver, reference densities, deformation density (A),
 Hirshfeld partition (101) and ELF_D fidelity (73)."""
 
+import warnings
+
 import numpy as np
 import pytest
 
@@ -9,7 +11,8 @@ from pydemi.atoms.reference import (AtomicLDAReference, IsolatedAtomReference,
                                     default_zval, read_potcar_zval)
 from pydemi.atoms.solver import RadialGrid, _solve_l, solve_atom
 from pydemi.descriptors import compute_descriptors, names
-from pydemi.descriptors.deformation import deformation_family, form_factor, promolecule
+from pydemi.descriptors.deformation import (deformation_family, deformation_outside_paw,
+                                           form_factor, promolecule)
 from pydemi.descriptors.elf import elf_fidelity, resample
 from pydemi.descriptors.sites import hirshfeld_charges, site_charges
 from pydemi.io.vasp import write_volumetric
@@ -136,6 +139,36 @@ def test_deformation_sees_bond_charge():
     assert d["bond_charge_transfer"] > 0.05
     assert d["f_bond_def"] > 0.5
     assert 0 < d["def_polarity"] < 0.2
+
+
+def test_outside_paw_variant():
+    # atoms 2.4 A apart with 0.2 e moved into the bond midpoint region; the
+    # PAW spheres (0.9 A) exclude the atomic cores but not the bond centre
+    s = Structure(np.eye(3) * 6.0, ["Na", "Na"], [[0.3, 0.5, 0.5], [0.7, 0.5, 0.5]])
+    ref = GaussianReference({"Na": 1.5}, {"Na": 2.0})
+    grid = Grid(s.lattice, (40, 40, 40))
+    atoms, _, _ = GaussianSuperposition(s, 1.5, 2.0).on_grid(grid, False)
+    mid, _, _ = GaussianSuperposition(Structure(s.lattice, ["X"], [[0.5, 0.5, 0.5]]),
+                                      3.0, 0.2).on_grid(grid, False)
+    eng = Engine(s, {"rho": atoms * 0.95 + mid}, reference=ref, zval={"Na": 2.0})
+    eng.paw_radii = {"Na": 0.9}
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")            # the variant never warns
+        d = deformation_outside_paw(eng)
+    assert d["def_out_radii_from_paw"] == 1
+    r = eng.geometry().distance
+    assert d["def_out_volume_fraction"] == pytest.approx(np.mean(r > 0.9))
+    assert d["bond_charge_transfer_out"] > 0.05 and d["f_bond_def_out"] > 0.5
+    # no deformation at all -> zero polarity, undefined shares
+    same = Engine(s, {"rho": atoms}, reference=ref, zval={"Na": 2.0})
+    same.paw_radii = {"Na": 0.9}
+    z = deformation_outside_paw(same)
+    assert z["def_polarity_out"] < 1e-5
+    # without PAW data the covalent radius is used, and without rho all NaN
+    same.paw_radii = None
+    assert deformation_outside_paw(same)["def_out_radii_from_paw"] == 0
+    only_ae = Engine(s, {"rho_ae": atoms}, reference=ref)
+    assert np.isnan(deformation_outside_paw(only_ae)["m1_def_out"])
 
 
 def test_chgcar_route_is_opt_in_and_warns_with_all_electron_reference(tmp_path):
