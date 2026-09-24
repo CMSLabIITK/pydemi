@@ -261,8 +261,9 @@ class BondCensus:
 
     i: I64
     j: I64
-    shift: I64          # (n_bonds, 3) lattice translation of j's image
+    shift: I64          # (n_bonds, 3) lattice translation of j's image (stored coordinates)
     length: F64
+    shift_wrapped: I64  # the same translation for positions wrapped into [0, 1)
 
     def midpoints_frac(self, structure: Structure) -> F64:
         f = structure.frac_coords
@@ -298,12 +299,14 @@ def bond_census(structure: Structure, tol: float) -> BondCensus:
     keys = sorted(pairs)
     if not keys:
         z = np.zeros(0, dtype=np.int64)
-        return BondCensus(z, z, np.zeros((0, 3), dtype=np.int64), np.zeros(0))
+        empty = np.zeros((0, 3), dtype=np.int64)
+        return BondCensus(z, z, empty, np.zeros(0), empty)
     ii = np.array([k[0] for k in keys], dtype=np.int64)
     jj = np.array([k[1] for k in keys], dtype=np.int64)
     # shifts are relative to the wrapped positions; express them for the stored coordinates
-    tt = (np.array([k[2] for k in keys]) - wrap[jj] + wrap[ii]).astype(np.int64)
-    return BondCensus(ii, jj, tt, np.array([pairs[k] for k in keys]))
+    tw = np.array([k[2] for k in keys], dtype=np.int64)
+    tt = (tw - wrap[jj] + wrap[ii]).astype(np.int64)
+    return BondCensus(ii, jj, tt, np.array([pairs[k] for k in keys]), tw)
 
 
 def bond_census_of(vd: VolumetricData, tol: float) -> BondCensus:
@@ -311,4 +314,49 @@ def bond_census_of(vd: VolumetricData, tol: float) -> BondCensus:
     if key not in vd.cache:
         vd.cache[key] = bond_census(vd.structure, tol)
     out: BondCensus = vd.cache[key]
+    return out
+
+
+def pair_regions(shape: Sequence[int], structure: Structure, chunk: int = 1 << 20
+                 ) -> tuple[I64, I64, I64]:
+    """Second-order Voronoi assignment: for every voxel, its two nearest atom images.
+
+    Returns (atom_a, atom_b, relative shift t (N, 3)) with the pair written
+    canonically as in :class:`BondCensus` (wrapped positions): the region of
+    pair (i, j, t) holds the voxels whose nearest two images are atom i and
+    atom j shifted by t. These regions tile the cell.
+    """
+    x = cart_coords(shape, structure.lattice).reshape(-1, 3)
+    reps = (1, 1, 1)
+    while True:
+        pts, owner, shift = image_points(structure, reps)
+        tree = cKDTree(pts)
+        d = np.empty((len(x), 2))
+        idx = np.empty((len(x), 2), dtype=np.int64)
+        for s in range(0, len(x), chunk):
+            dd, ii = tree.query(x[s:s + chunk], k=2)
+            d[s:s + chunk], idx[s:s + chunk] = dd, ii
+        needed = reps_for(float(d[:, 1].max()), structure.lattice)
+        if all(a <= b for a, b in zip(needed, reps)):
+            break
+        reps = (max(needed[0], reps[0]), max(needed[1], reps[1]), max(needed[2], reps[2]))
+    a, b = owner[idx[:, 0]], owner[idx[:, 1]]
+    t = shift[idx[:, 1]] - shift[idx[:, 0]]
+    # canonical orientation: (i, j, t) <= (j, i, -t) lexicographically
+    swap = (b < a) | ((b == a) & _lex_less(-t, t))
+    i = np.where(swap, b, a)
+    j = np.where(swap, a, b)
+    t = np.where(swap[:, None], -t, t)
+    return i, j, t
+
+
+def _lex_less(u: I64, v: I64) -> NDArray[np.bool_]:
+    """Row-wise lexicographic u < v."""
+    out = np.zeros(len(u), dtype=bool)
+    decided = np.zeros(len(u), dtype=bool)
+    for c in range(u.shape[1]):
+        lt = (u[:, c] < v[:, c]) & ~decided
+        gt = (u[:, c] > v[:, c]) & ~decided
+        out |= lt
+        decided |= lt | gt
     return out

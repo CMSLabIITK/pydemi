@@ -525,3 +525,182 @@ def rho_mid_std(vd: VolumetricData) -> Result:
     """rho_mid_std = std of rho at nearest-neighbour bond midpoints"""
     x = _rho_mid(vd)
     return x if isinstance(x, Sentinel) else float(np.std(x))
+
+
+# ----------------------------------------------------------------------
+# deformation density
+# ----------------------------------------------------------------------
+
+from ..core.geometry import pair_regions  # noqa: E402
+from ..fields.deformation import promolecule as _promolecule  # noqa: E402
+from ..fields.deformation import reference_tables  # noqa: E402
+
+
+def deformation_reference(vd: VolumetricData) -> str:
+    """The reference actually used: 'aeccar0', 'tabulated' or 'custom' (resolves 'auto')."""
+    ref = options(vd).deformation_reference
+    if ref == "auto":
+        return "aeccar0" if vd.core_density is not None else "tabulated"
+    if ref == "aeccar0" and vd.core_density is None:
+        raise ValueError("deformation_reference='aeccar0' needs AECCAR0 + AECCAR2 "
+                         "(read_vasp(..., aeccar0=, aeccar2=))")
+    return ref
+
+
+def promolecule_density(vd: VolumetricData) -> FloatArray:
+    """The promolecule on the density grid for the reference in use (cached)."""
+    ref = deformation_reference(vd)
+    key = ("promolecule", ref, options(vd).custom_reference)
+    if key not in vd.cache:
+        ae = vd.density_source == "all_electron"
+        if ref == "aeccar0":
+            assert vd.core_density is not None
+            tables = reference_tables(vd.structure, "tabulated", "valence", vd.zval)
+            vd.cache[key] = vd.core_density.data + _promolecule(vd.shape, vd.structure, tables)
+        else:
+            tables = reference_tables(vd.structure, ref, "total" if ae else "valence", vd.zval,
+                                      options(vd).custom_reference)
+            vd.cache[key] = _promolecule(vd.shape, vd.structure, tables)
+    out: FloatArray = vd.cache[key]
+    return out
+
+
+def delta_rho(vd: VolumetricData) -> FloatArray:
+    """delta_rho = rho - promolecule."""
+    return np.asarray(vd.rho.data - promolecule_density(vd))
+
+
+register_field("delta_rho", delta_rho)
+
+
+@metadata_hook
+def _deformation_metadata(vd: VolumetricData) -> dict[str, Any]:
+    if "bonding" not in options(vd).domains:
+        return {}
+    d = delta_rho(vd)
+    return {"deformation_reference": deformation_reference(vd),
+            "def_charge_mismatch": float(np.sum(d) * vd.rho.dV)}
+
+
+def _drho_parts(vd: VolumetricData) -> tuple[FloatArray, FloatArray, FloatArray]:
+    d = delta_rho(vd)
+    return d, np.abs(d), geometry(vd).distance
+
+
+@register(name="m1_def", domain="bonding", field="delta_rho", requires=["promolecule", "geometry"],
+          units="Angstrom", range=(0.0, np.inf), sentinel_cases={"zero_deformation": 0.0})
+def m1_def(vd: VolumetricData) -> Result:
+    """m1_def = sum_k |drho_k| r_k / sum_k |drho_k|,  drho = rho - promolecule"""
+    d, a, r = _drho_parts(vd)
+    return finite_or(radial_moment(d, r, 1, "abs"), 0.0, "zero_deformation")
+
+
+@register(name="m2_def", domain="bonding", field="delta_rho", requires=["promolecule", "geometry"],
+          units="Angstrom^2", range=(0.0, np.inf), sentinel_cases={"zero_deformation": 0.0})
+def m2_def(vd: VolumetricData) -> Result:
+    """m2_def = sum_k |drho_k| r_k^2 / sum_k |drho_k|"""
+    d, a, r = _drho_parts(vd)
+    return finite_or(radial_moment(d, r, 2, "abs"), 0.0, "zero_deformation")
+
+
+@register(name="sigma_r2_def", domain="bonding", field="delta_rho",
+          requires=["promolecule", "geometry"], units="Angstrom^2", range=(0.0, np.inf),
+          sentinel_cases={"zero_deformation": 0.0})
+def sigma_r2_def(vd: VolumetricData) -> Result:
+    """sigma_r2_def = m2_def - m1_def^2"""
+    d, a, r = _drho_parts(vd)
+    m1v = radial_moment(d, r, 1, "abs")
+    return finite_or(radial_moment(d, r, 2, "abs") - m1v * m1v, 0.0, "zero_deformation")
+
+
+def _accumulated_share(vd: VolumetricData, shell: "NDArray[np.bool_]") -> Result:
+    d = delta_rho(vd)
+    pos = d > 0
+    if not pos.any():
+        return Sentinel(0.0, "no_accumulation")
+    return float(np.sum(d[shell & pos]) / np.sum(d[pos]))
+
+
+@register(name="f_bond_def", domain="bonding", field="delta_rho", requires=["promolecule", "shells"],
+          units="dimensionless", range=(0.0, 1.0), sentinel_cases={"no_accumulation": 0.0})
+def f_bond_def(vd: VolumetricData) -> Result:
+    """f_bond_def = sum_{k in bond, drho > 0} drho_k / sum_{drho > 0} drho_k"""
+    return _accumulated_share(vd, masks(vd).bond)
+
+
+@register(name="f_int_def", domain="bonding", field="delta_rho", requires=["promolecule", "shells"],
+          units="dimensionless", range=(0.0, 1.0), sentinel_cases={"no_accumulation": 0.0})
+def f_int_def(vd: VolumetricData) -> Result:
+    """f_int_def = sum_{k in int, drho > 0} drho_k / sum_{drho > 0} drho_k"""
+    return _accumulated_share(vd, masks(vd).interstitial)
+
+
+@register(name="f_bond_dep", domain="bonding", field="delta_rho", requires=["promolecule", "shells"],
+          units="dimensionless", range=(0.0, 1.0), sentinel_cases={"no_depletion": 0.0})
+def f_bond_dep(vd: VolumetricData) -> Result:
+    """f_bond_dep = sum_{k in bond, drho < 0} |drho_k| / sum_{drho < 0} |drho_k|"""
+    d = delta_rho(vd)
+    neg = d < 0
+    if not neg.any():
+        return Sentinel(0.0, "no_depletion")
+    return float(np.sum(-d[masks(vd).bond & neg]) / np.sum(-d[neg]))
+
+
+@register(name="def_polarity", domain="bonding", field="delta_rho", requires=["promolecule"],
+          units="dimensionless", range=(0.0, np.inf), sentinel_cases={"zero_density": 0.0})
+def def_polarity(vd: VolumetricData) -> Result:
+    """def_polarity = sum_k |drho_k| dV / Q_tot,  Q_tot = sum_k rho_k dV"""
+    Q = float(np.sum(vd.rho.data))
+    if Q == 0.0:
+        return Sentinel(0.0, "zero_density")
+    return float(np.sum(np.abs(delta_rho(vd))) / Q)
+
+
+def pair_charge_transfer(vd: VolumetricData) -> "FloatArray | Sentinel":
+    """int drho dV over the region between each nearest-neighbour pair (electrons).
+
+    The region of pair (i, j) is the set of voxels whose two nearest nuclei
+    are i and j (second-order Voronoi cell); pairs from the bond census.
+    """
+    census = bond_census_of(vd, BOND_TOL)
+    if census.length.size == 0:
+        return Sentinel(0.0, "no_bonds")
+    key = ("pair_regions",)
+    if key not in vd.cache:
+        vd.cache[key] = pair_regions(vd.shape, vd.structure)
+    a, b, t = vd.cache[key]
+    d = delta_rho(vd).ravel() * vd.rho.dV
+    n = vd.structure.n_atoms
+    def code(i: "NDArray[np.int64]", j: "NDArray[np.int64]", s: "NDArray[np.int64]"
+             ) -> "NDArray[np.int64]":
+        s = s + 50
+        return np.asarray(((i * n + j) * 101 + s[:, 0]) * 101 * 101 + s[:, 1] * 101 + s[:, 2])
+    voxel_code = code(a, b, t)
+    pair_code = code(census.i, census.j, census.shift_wrapped)
+    uniq, inv = np.unique(voxel_code, return_inverse=True)
+    sums = np.bincount(inv, weights=d)
+    pos = np.searchsorted(uniq, pair_code)
+    pos = np.minimum(pos, uniq.size - 1)
+    found = uniq[pos] == pair_code
+    return np.where(found, sums[pos], 0.0)
+
+
+@register(name="bond_charge_transfer_pair_mean", domain="bonding", field="delta_rho",
+          requires=["promolecule", "bond_census"], units="electrons",
+          sentinel_cases={"no_bonds": 0.0})
+def bond_charge_transfer_pair_mean(vd: VolumetricData) -> Result:
+    """bond_charge_transfer_pair_mean = mean over nearest-neighbour pairs of int_{region(i,j)} drho dV
+
+    region(i, j): voxels whose two nearest nuclei are i and j.
+    """
+    x = pair_charge_transfer(vd)
+    return x if isinstance(x, Sentinel) else float(np.mean(x))
+
+
+@register(name="bond_charge_transfer_pair_std", domain="bonding", field="delta_rho",
+          requires=["promolecule", "bond_census"], units="electrons", range=(0.0, np.inf),
+          sentinel_cases={"no_bonds": 0.0})
+def bond_charge_transfer_pair_std(vd: VolumetricData) -> Result:
+    """bond_charge_transfer_pair_std = std over nearest-neighbour pairs of int_{region(i,j)} drho dV"""
+    x = pair_charge_transfer(vd)
+    return x if isinstance(x, Sentinel) else float(np.std(x))
