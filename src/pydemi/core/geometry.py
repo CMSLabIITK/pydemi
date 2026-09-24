@@ -244,3 +244,71 @@ def shells_of(vd: VolumetricData, shells: Shells) -> ShellMasks:
         vd.cache[key] = shell_masks(geometry_of(vd), vd.structure, shells)
     result: ShellMasks = vd.cache[key]
     return result
+
+
+# ----------------------------------------------------------------------
+# nearest-neighbour bond census
+# ----------------------------------------------------------------------
+
+@dataclass(frozen=True, eq=False)
+class BondCensus:
+    """First-shell neighbour pairs: atom j (any image, shift t) of atom i.
+
+    j is a neighbour of i when |R_j + t - R_i| <= (1 + tol) d_i, with d_i the
+    distance from i to its closest neighbour -- a per-atom first shell, the
+    unambiguous convention in multi-element cells. Each pair is counted once.
+    """
+
+    i: I64
+    j: I64
+    shift: I64          # (n_bonds, 3) lattice translation of j's image
+    length: F64
+
+    def midpoints_frac(self, structure: Structure) -> F64:
+        f = structure.frac_coords
+        return np.asarray(0.5 * (f[self.i] + f[self.j] + self.shift), dtype=np.float64)
+
+
+def bond_census(structure: Structure, tol: float) -> BondCensus:
+    n = structure.n_atoms
+    frac = structure.frac_coords
+    wrap = np.floor(frac)
+    centres = (frac - wrap) @ structure.lattice.matrix
+    reps = (1, 1, 1)
+    while True:
+        pts, owner, shift = image_points(structure, reps)
+        tree = cKDTree(pts)
+        d2, _ = tree.query(centres, k=2)
+        d_min = np.asarray(d2)[:, 1]
+        needed = reps_for((1.0 + tol) * float(d_min.max()), structure.lattice)
+        if all(a <= b for a, b in zip(needed, reps)):
+            break
+        reps = (max(needed[0], reps[0]), max(needed[1], reps[1]), max(needed[2], reps[2]))
+    pairs: dict[tuple[int, int, tuple[int, int, int]], float] = {}
+    for i in range(n):
+        for k in tree.query_ball_point(centres[i], (1.0 + tol) * d_min[i] + 1e-9):
+            j = int(owner[k])
+            t = tuple(int(x) for x in shift[k])
+            length = float(np.linalg.norm(pts[k] - centres[i]))
+            if length < 1e-9:
+                continue
+            neg = (-t[0], -t[1], -t[2])
+            key = (i, j, (t[0], t[1], t[2])) if (i, j, t) <= (j, i, neg) else (j, i, neg)
+            pairs[key] = length
+    keys = sorted(pairs)
+    if not keys:
+        z = np.zeros(0, dtype=np.int64)
+        return BondCensus(z, z, np.zeros((0, 3), dtype=np.int64), np.zeros(0))
+    ii = np.array([k[0] for k in keys], dtype=np.int64)
+    jj = np.array([k[1] for k in keys], dtype=np.int64)
+    # shifts are relative to the wrapped positions; express them for the stored coordinates
+    tt = (np.array([k[2] for k in keys]) - wrap[jj] + wrap[ii]).astype(np.int64)
+    return BondCensus(ii, jj, tt, np.array([pairs[k] for k in keys]))
+
+
+def bond_census_of(vd: VolumetricData, tol: float) -> BondCensus:
+    key = ("bond_census", float(tol))
+    if key not in vd.cache:
+        vd.cache[key] = bond_census(vd.structure, tol)
+    out: BondCensus = vd.cache[key]
+    return out
