@@ -1,0 +1,10 @@
+N = 200 random structures of the 6,059-structure dataset
+lnf      np_gradient_twice  |rel. diff to spectral|: median 0.0199  95th pct 0.0883  max 0.2084
+lnf      wide_periodic      |rel. diff to spectral|: median 0.0096  95th pct 0.0301  max 0.0685
+lnf      fd                 |rel. diff to spectral|: median 0.0020  95th pct 0.0159  max 0.3153
+lnf_rho  np_gradient_twice  |rel. diff to spectral|: median 0.0100  95th pct 0.0289  max 0.1032
+lnf_rho  wide_periodic      |rel. diff to spectral|: median 0.0072  95th pct 0.0199  max 0.0360
+lnf_rho  fd                 |rel. diff to spectral|: median 0.0013  95th pct 0.0057  max 0.0189
+zeta     np_gradient        |rel. diff to spectral|: median 0.0085  95th pct 0.0643  max 0.3372
+zeta     fd                 |rel. diff to spectral|: median 0.0047  95th pct 0.0165  max 0.0422
+max |integral of fd Laplacian| (e/A^2 * A^3): 3.0294438363549204e-14

@@ -1,0 +1,153 @@
+\documentclass[11pt,a4paper]{article}
+
+% --- Packages ---
+\usepackage[utf8]{inputenc}
+\usepackage[margin=1in]{geometry}
+\usepackage[breaklinks=true,colorlinks,citecolor=blue,linkcolor=blue,urlcolor=blue]{hyperref}
+\usepackage[table,xcdraw]{xcolor}
+\usepackage{epsfig, mathrsfs, latexsym, subfigure, marginnote, gensymb, amsmath}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{adjustbox}
+\usepackage{doi}
+
+% Package to handle multiple authors and affiliations cleanly in the article class
+\usepackage{authblk} 
+
+% --- Metadata ---
+\title{\textbf{pydemi: A Dual-Input Python Framework for Charge-Density-Derived Materials Descriptors via DFT and Machine Learning}}
+
+\author[1]{Shubham Kumar Maurya}
+\author[1]{Somnath Bhowmick\thanks{bsomnath@iitk.ac.in}}
+\affil[1]{Department of Materials Science \& Engineering, Indian Institute of Technology Kanpur, Kanpur 208016, India}
+
+\date{\today}
+
+% --- Document Start ---
+\begin{document}
+
+\maketitle
+
+% --- ABSTRACT -------------------------------------------------------------
+\begin{abstract}
+The electronic charge density $\rho(\mathbf{r})$ computed by density-functional
+theory (DFT) encodes the bonding that materials-property models try to learn,
+yet it is rarely used directly as a model input: machine-learning (ML)
+featurizers are mostly built on composition and structure, and density-based
+analyses such as the quantum theory of atoms in molecules are applied one
+structure at a time. We present pydemi, an open-source Python framework that
+turns volumetric charge densities into physically interpretable descriptors in
+a single batch pipeline. pydemi is organized around one grid engine: a periodic
+geometry pass and a small set of cached fields --- the density, the
+magnetization, an electron localization function reconstructed from the
+density, the electrostatic potential and the deformation density --- processed
+by shared moment, shell-fraction, anisotropy, partition and topology
+operations. The current release computes 212 scalar descriptors in 17
+families, ranging from radial moments and Laplacian statistics to
+site-resolved variance decompositions, spin-density measures, percolation
+thresholds and a persistence-filtered census of critical points, each
+documented in a machine-readable registry. pydemi reads densities from VASP
+and, through cube and XSF files, from other plane-wave codes, and is designed
+with a second input path for charge densities predicted by ML directly from
+crystal structures.
+% TODO: revise the previous sentence once the CIF -> CHGCAR model is integrated.
+We show that common numerical shortcuts change key descriptors substantially
+--- a non-periodic, double-width Laplacian stencil lowers the fraction of
+charge-concentration voxels by 23\% for an fcc FeCoNiCr alloy --- and that
+projector-augmented-wave pseudo-densities require dedicated definitions: 61\%
+of the densities in a 6,059-structure VASP dataset are negative near a
+nucleus, and pseudized atoms can lack a density maximum at the nucleus
+altogether. The implementation is validated by 164 automated tests against
+analytic densities, exact identities and reference data, and processes the
+full dataset without failure.
+\end{abstract}
+
+% ==========================================================================
+% OUTLINE -- each section lists what it will contain; replace the notes with
+% text as the sections are written.
+% ==========================================================================
+
+\section{Introduction}
+% - Charge density as the fundamental DFT output (Hohenberg-Kohn); why it is
+%   an attractive, physically grounded source of ML features.
+% - Current practice: composition/structure featurizers (Magpie/matminer),
+%   graph networks; density analyses (QTAIM, Bader, critic2) run per
+%   structure, not as batch featurizers.
+% - Gap: no batch, grid-based, interpretable, numerically controlled
+%   density featurizer; ML-predicted densities make such descriptors
+%   available without DFT (the dual-input motivation).
+% - Contributions: (i) one grid engine for many fields; (ii) 212 descriptors
+%   in 17 families with a registry; (iii) measured numerical and PAW pitfalls
+%   and the definitions that avoid them; (iv) validation suite; (v) dataset
+%   application; (vi) open-source release.
+
+\section{Framework design}
+\subsection{Input paths}
+% - Input 1, DFT: VASP CHGCAR (all spin blocks), AECCAR0+2, ELFCAR, LOCPOT;
+%   ZVAL and PAW radii from POTCAR/OUTCAR; cube and XSF for other codes.
+% - Input 2, ML: charge densities predicted from CIF files.
+%   TODO: to be written when the model is integrated.
+\subsection{The grid engine}
+% - Engine/Field/Grid; periodic derivatives with the exact metric tensor
+%   (fd and spectral); packed Hessian and eigenvalues.
+% - Geometry pass: nearest-atom distance, direction and index with a
+%   provably complete periodic image search (KD-tree).
+% - Shells (core/bond/interstitial) and partitions (nearest, power diagram,
+%   Hirshfeld; Becke opt-in) behind one pair interface.
+% - Figure: architecture / data-flow diagram.
+\subsection{Descriptor registry and naming}
+% - Kinds (descriptor, variant, cross-term, preprocessing, metadata);
+%   naming rules that keep a column's meaning fixed.
+\subsection{Free-atom references}
+% - Spherical LDA atom solver (validated against NIST); ZVAL-consistent
+%   valence references; isolated-atom route for PAW consistency.
+
+\section{Descriptor families}
+% - Table: the 17 families, entries, required inputs.
+% - One short subsection per group: density moments and shells; Laplacian
+%   and ELF; potential and NCI; energy densities and information measures;
+%   anisotropy tensor; site-resolved statistics and variance decomposition;
+%   spin density; partition variants; topology (percolation, PL Morse
+%   census, persistence); bond midpoints; deformation density; calibrated
+%   baselines (Phillips ionicity, Cohen, rho-based B0).
+
+\section{Numerical considerations}
+% - Laplacian stencils and boundaries: lnf 0.159 / 0.178 / 0.206 / 0.211
+%   (table); spectral round-off floor in empty regions.
+% - lap_concentration is identically 1/2 for periodic densities.
+% - Partition convergence: Becke algebraic vs Hirshfeld exponential
+%   (figure: weight error vs neighbour count / cutoff).
+% - PAW pseudo-densities: negative densities (61% of CHGCARs), pseudized
+%   nuclei without maxima (CaSi3Pt), deformation density vs all-electron
+%   free atoms (~3 e per Fe displaced), Hirshfeld charge bias.
+% - Ripple and topological persistence (YMg3: 124 -> 0; Mg3(TiAl9)2).
+% - Per-structure grid-convergence report (48^3: 26 of 97 descriptors
+%   change by > 2% at 80% resolution).
+
+\section{Validation}
+% - Analytic Slater/Gaussian densities with closed forms; exact identities
+%   (Euler characteristic, variance decomposition, partitions of unity);
+%   reference data (NIST LDA atoms, matminer, Cohen moduli); units checks.
+% - Table: validation checks and achieved accuracy.
+
+\section{Application to a 6,059-structure DFT dataset}
+% - Dataset: composition space, spin-polarized VASP runs, grid sizes.
+% - Throughput (~56 structures/min on 24 cores), zero failures, coverage of
+%   each family, distributions of selected descriptors.
+% - TODO: property-prediction results (elastic moduli) if they are to be
+%   included.
+
+\section{Machine-learning input path}
+% TODO: CIF -> predicted CHGCAR model, integration into pydemi, and a
+% DFT-vs-ML comparison of descriptors (to be written when available).
+
+\section{Software availability}
+% - Installation, Python API, command line, batch processing, license,
+%   repository URL (TODO).
+
+\section{Conclusions}
+
+\section*{Acknowledgements}
+% TODO
+
+\end{document}
