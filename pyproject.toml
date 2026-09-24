@@ -1,0 +1,30 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "pydemi"
+version = "0.0.1"
+description = "A grid engine for physically interpretable charge-density descriptors (rho, magnetization, ELF, electrostatic potential)."
+readme = "README.md"
+license = "MIT"
+authors = [{ name = "Shubham Maurya, CMS Lab, IIT Kanpur" }]
+requires-python = ">=3.10"
+dependencies = [
+    "numpy>=1.24",
+    "scipy>=1.10",
+    "spglib>=2.0",
+    "pymatgen>=2023.3.10",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=7.0"]
+
+[project.scripts]
+pydemi = "pydemi.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/pydemi"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

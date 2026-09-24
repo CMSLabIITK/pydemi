@@ -1,0 +1,74 @@
+# Phillips spectroscopic ionicity f_i (J. C. Phillips, Rev. Mod. Phys. 42, 317 (1970);
+# Bonds and Bands in Semiconductors (1973)), compiled for pydemi.
+# status: verified = matches a secondary table citing Phillips (see source);
+#         recalled = compiled from memory of Phillips' tables, NOT yet checked
+#                    against a source -- verify before publication.
+# cohen_lambda: Cohen's class (0 = IV, 1 = III-V, 2 = II-VI), blank outside his scope.
+formula,f_i,structure,cohen_lambda,status,source
+C,0.0,diamond,0,verified,definition (homopolar)
+Si,0.0,diamond,0,verified,definition (homopolar)
+Ge,0.0,diamond,0,verified,definition (homopolar)
+Sn,0.0,diamond,0,verified,definition (homopolar)
+SiC,0.177,zincblende,0,recalled,Phillips 1970
+BN,0.256,zincblende,1,verified,Sci. Adv. 9 eadf8706 (2023)
+BP,0.006,zincblende,1,recalled,Phillips 1970
+AlN,0.449,wurtzite,1,verified,arXiv:1509.01457 Table 1
+AlP,0.307,zincblende,1,verified,arXiv:1509.01457 Table 1; Sci. Adv. 9 eadf8706 (2023)
+AlAs,0.274,zincblende,1,verified,arXiv:1509.01457 Table 1
+AlSb,0.250,zincblende,1,verified,arXiv:1509.01457 Table 1
+GaN,0.500,wurtzite,1,verified,arXiv:1509.01457 Table 1
+GaP,0.327,zincblende,1,verified,arXiv:1509.01457 Table 1 (0.374 is also quoted in the literature; check)
+GaAs,0.310,zincblende,1,verified,arXiv:1509.01457 Table 1
+GaSb,0.261,zincblende,1,verified,arXiv:1509.01457 Table 1
+InN,0.578,wurtzite,1,verified,arXiv:1509.01457 Table 1
+InP,0.421,zincblende,1,verified,arXiv:1509.01457 Table 1
+InAs,0.357,zincblende,1,verified,arXiv:1509.01457 Table 1
+InSb,0.321,zincblende,1,verified,arXiv:1509.01457 Table 1
+BeO,0.602,wurtzite,2,recalled,Phillips 1970
+BeS,0.312,zincblende,2,recalled,Phillips 1970
+BeSe,0.299,zincblende,2,recalled,Phillips 1970
+BeTe,0.169,zincblende,2,recalled,Phillips 1970
+MgS,0.786,zincblende,2,verified,arXiv:1509.01457 Table 2; Sci. Adv. 9 eadf8706 (2023)
+MgSe,0.790,zincblende,2,verified,arXiv:1509.01457 Table 2; Sci. Adv. 9 eadf8706 (2023)
+MgTe,0.554,wurtzite,2,verified,arXiv:1509.01457 Table 2
+ZnO,0.616,wurtzite,2,verified,arXiv:1509.01457 Table 2
+ZnS,0.623,zincblende,2,verified,arXiv:1509.01457 Table 2; Sci. Adv. 9 eadf8706 (2023)
+ZnSe,0.630,zincblende,2,verified,arXiv:1509.01457 Table 2
+ZnTe,0.609,zincblende,2,verified,arXiv:1509.01457 Table 2
+CdS,0.685,wurtzite,2,verified,arXiv:1509.01457 Table 2
+CdSe,0.699,wurtzite,2,verified,arXiv:1509.01457 Table 2
+CdTe,0.717,zincblende,2,recalled,Phillips 1970
+HgS,0.790,zincblende,2,recalled,Phillips 1970
+HgSe,0.680,zincblende,2,recalled,Phillips 1970
+HgTe,0.650,zincblende,2,recalled,Phillips 1970
+SrS,0.914,rocksalt,,verified,arXiv:1509.01457 Table 2
+SrSe,0.917,rocksalt,,verified,arXiv:1509.01457 Table 2
+SrTe,0.903,rocksalt,,verified,arXiv:1509.01457 Table 2
+CuF,0.766,zincblende,,recalled,Phillips 1970
+CuCl,0.746,zincblende,,recalled,Phillips 1970
+CuBr,0.735,zincblende,,recalled,Phillips 1970
+CuI,0.692,zincblende,,recalled,Phillips 1970
+AgI,0.770,zincblende,,recalled,Phillips 1970
+LiF,0.915,rocksalt,,verified,Sci. Adv. 9 eadf8706 (2023)
+LiCl,0.903,rocksalt,,verified,Sci. Adv. 9 eadf8706 (2023)
+LiBr,0.899,rocksalt,,verified,Sci. Adv. 9 eadf8706 (2023)
+LiI,0.890,rocksalt,,verified,Sci. Adv. 9 eadf8706 (2023)
+NaF,0.946,rocksalt,,recalled,Phillips 1970
+NaCl,0.935,rocksalt,,recalled,Phillips 1970
+NaBr,0.934,rocksalt,,recalled,Phillips 1970
+NaI,0.927,rocksalt,,recalled,Phillips 1970
+KF,0.955,rocksalt,,recalled,Phillips 1970
+KCl,0.953,rocksalt,,recalled,Phillips 1970
+KBr,0.952,rocksalt,,recalled,Phillips 1970
+KI,0.950,rocksalt,,recalled,Phillips 1970
+RbF,0.960,rocksalt,,recalled,Phillips 1970
+RbCl,0.955,rocksalt,,recalled,Phillips 1970
+RbBr,0.957,rocksalt,,recalled,Phillips 1970
+RbI,0.951,rocksalt,,recalled,Phillips 1970
+MgO,0.841,rocksalt,,recalled,Phillips 1970
+CaO,0.913,rocksalt,,recalled,Phillips 1970
+SrO,0.926,rocksalt,,recalled,Phillips 1970
+BaO,0.931,rocksalt,,recalled,Phillips 1970
+AgF,0.894,rocksalt,,recalled,Phillips 1970
+AgCl,0.856,rocksalt,,recalled,Phillips 1970
+AgBr,0.850,rocksalt,,recalled,Phillips 1970
