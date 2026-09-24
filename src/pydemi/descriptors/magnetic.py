@@ -15,7 +15,7 @@ M_net are vector sums, and spin_frustration uses vector norms.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Callable
 
 import numpy as np
 from numpy.typing import NDArray
@@ -82,3 +82,102 @@ def site_moment_magnitudes(vd: VolumetricData) -> F64:
 def _magnetic_metadata(vd: VolumetricData) -> dict[str, Any]:
     M_abs, M_net = total_moments(vd)
     return {"magnetic": is_magnetic(vd), "M_abs": M_abs, "M_net": M_net}
+
+
+# ----------------------------------------------------------------------
+# descriptors
+# ----------------------------------------------------------------------
+
+from ..operators.fractions import shell_fraction  # noqa: E402
+from ..operators.moments import radial_moment  # noqa: E402
+from .registry import Result, Sentinel, geometry, masks, register  # noqa: E402
+
+_NM = {"non_magnetic": 0.0}
+
+
+def _magnetic(fn: "Callable[[VolumetricData], Result]") -> "Callable[[VolumetricData], Result]":
+    def wrapped(vd: VolumetricData) -> Result:
+        return fn(vd) if is_magnetic(vd) else Sentinel(0.0, "non_magnetic")
+    wrapped.__doc__ = fn.__doc__
+    return wrapped
+
+
+def _reg(name: str, units: str, requires: list[str], rng: tuple[float, float] = (0.0, np.inf)
+         ) -> "Callable[[Callable[[VolumetricData], Result]], Callable[[VolumetricData], Result]]":
+    def deco(fn: "Callable[[VolumetricData], Result]") -> "Callable[[VolumetricData], Result]":
+        register(name=name, domain="magnetic", field="magnetization", requires=requires,
+                 units=units, range=rng, sentinel_cases=_NM, doc=fn.__doc__)(_magnetic(fn))
+        return fn
+    return deco
+
+
+@_reg("M_abs_per_atom", "mu_B/atom", ["magnetization"])
+def M_abs_per_atom(vd: VolumetricData) -> Result:
+    """M_abs_per_atom = sum_k |m_k| dV / n_atoms
+
+    The intensive version of M_abs = sum_k |m_k| dV (which is in the metadata).
+    """
+    return total_moments(vd)[0] / vd.structure.n_atoms
+
+
+@_reg("M_net_per_atom", "mu_B/atom", ["magnetization"])
+def M_net_per_atom(vd: VolumetricData) -> Result:
+    """M_net_per_atom = |sum_k m_k dV| / n_atoms
+
+    The intensive version of M_net = |sum_k m_k dV| (in the metadata); vector
+    norm for non-collinear runs.
+    """
+    return total_moments(vd)[1] / vd.structure.n_atoms
+
+
+@_reg("m1_spin", "Angstrom", ["magnetization", "geometry"])
+def m1_spin(vd: VolumetricData) -> Result:
+    """m1_spin = sum_k |m_k| r_k / sum_k |m_k|"""
+    return radial_moment(abs_m(vd), geometry(vd).distance, 1, "abs")
+
+
+@_reg("sigma_r2_spin", "Angstrom^2", ["magnetization", "geometry"])
+def sigma_r2_spin(vd: VolumetricData) -> Result:
+    """sigma_r2_spin = sum_k |m_k| r_k^2 / sum_k |m_k| - m1_spin^2"""
+    r = geometry(vd).distance
+    a = radial_moment(abs_m(vd), r, 1, "abs")
+    return radial_moment(abs_m(vd), r, 2, "abs") - a * a
+
+
+@_reg("f_bond_spin", "dimensionless", ["magnetization", "geometry", "shells"], (0.0, 1.0))
+def f_bond_spin(vd: VolumetricData) -> Result:
+    """f_bond_spin = sum_{k in bond} |m_k| / sum_k |m_k|"""
+    return shell_fraction(abs_m(vd), masks(vd).bond)
+
+
+@_reg("mu_site_std", "mu_B", ["magnetization", "partition"])
+def mu_site_std(vd: VolumetricData) -> Result:
+    """mu_site_std = std over i of mu_i,  mu_i = sum_k w_i(k) m_k dV
+
+    Non-collinear: sqrt(mean_i |mu_i - mean mu|^2) with vector moments.
+    """
+    mu = site_moments(vd).reshape(vd.structure.n_atoms, -1)
+    return float(np.sqrt(np.mean(np.sum((mu - mu.mean(axis=0)) ** 2, axis=1))))
+
+
+@_reg("spin_frustration", "dimensionless", ["magnetization", "partition"], (0.0, 1.0))
+def spin_frustration(vd: VolumetricData) -> Result:
+    """spin_frustration = 1 - |sum_i mu_i| / sum_i |mu_i|
+
+    0 for a ferromagnet, 1 for a perfectly compensated antiferromagnet;
+    vector norms for non-collinear runs.
+    """
+    mu = site_moments(vd).reshape(vd.structure.n_atoms, -1)
+    denom = float(np.linalg.norm(mu, axis=1).sum())
+    if denom == 0.0:
+        return Sentinel(0.0, "non_magnetic")
+    return 1.0 - float(np.linalg.norm(mu.sum(axis=0))) / denom
+
+
+@_reg("spin_charge_correlation", "dimensionless", ["magnetization"], (-1.0, 1.0))
+def spin_charge_correlation(vd: VolumetricData) -> Result:
+    """spin_charge_correlation = Pearson r(rho_k, |m_k|) over voxels"""
+    a, b = vd.rho.data.ravel(), abs_m(vd).ravel()
+    if np.std(a) == 0.0 or np.std(b) == 0.0:
+        return Sentinel(0.0, "non_magnetic")
+    return float(np.corrcoef(a, b)[0, 1])
