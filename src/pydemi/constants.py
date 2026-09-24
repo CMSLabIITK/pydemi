@@ -120,6 +120,6 @@ ION_GAUSSIAN_WIDTH: float = 0.5
 # relative tolerances
 # ----------------------------------------------------------------------
 
-#: a gradient sum below this fraction of sum |rho| / (cell length) counts as zero
-#: (uniform-density sentinel)
-UNIFORM_GRADIENT_TOL: float = 1e-10
+#: a field whose range max - min is below this fraction of max |f| is uniform
+#: (the uniform-density sentinel case, spec §10)
+UNIFORM_TOL: float = 1e-12
