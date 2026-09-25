@@ -1,0 +1,41 @@
+                 descriptor variant   n  median_rel  p90_rel  spearman
+0             zeta_site_std     fd2  60      0.0077   0.0281    0.9997
+1             zeta_site_std     fd4  60      0.0001   0.0010    1.0000
+2             zeta_site_std     fd8  60      0.0000   0.0001    1.0000
+3   zeta_within_element_var     fd2  59      0.0295   0.5935    0.9980
+4   zeta_within_element_var     fd4  59      0.0010   0.0914    1.0000
+5   zeta_within_element_var     fd8  59      0.0002   0.0836    1.0000
+6  zeta_between_element_var     fd2  60      0.0153   0.0563    0.9997
+7  zeta_between_element_var     fd4  60      0.0002   0.0021    1.0000
+8  zeta_between_element_var     fd8  60      0.0000   0.0003    1.0000
+                   descriptor         variant   n  median_rel  p90_rel  spearman
+0             f_bond_site_std     abs_0.6_1.3  60      0.4223   0.7663    0.5980
+1             f_bond_site_std     abs_1.0_1.8  60      0.2495   0.5765    0.8274
+2             f_bond_site_std  scaled_0.6_1.3  60      0.3383   0.6560    0.5775
+3   f_bond_within_element_var     abs_0.6_1.3  59      0.6286   0.9759    0.9401
+4   f_bond_within_element_var     abs_1.0_1.8  59      0.7499   0.9895    0.8823
+5   f_bond_within_element_var  scaled_0.6_1.3  59      0.5958   0.9720    0.9494
+6  f_bond_between_element_var     abs_0.6_1.3  60      0.6422   0.9567    0.6033
+7  f_bond_between_element_var     abs_1.0_1.8  60      0.4367   0.8215    0.8297
+8  f_bond_between_element_var  scaled_0.6_1.3  60      0.5810   0.8919    0.5780
+                   descriptor    variant   n  median_rel  p90_rel  spearman
+0                 m1_site_std  supercell  12         0.0    0.000       1.0
+1       m1_within_element_var  supercell   9         0.0    0.000       1.0
+2      m1_between_element_var  supercell  12         0.0    0.000       1.0
+3             f_bond_site_std  supercell  12         0.0    0.000       1.0
+4   f_bond_within_element_var  supercell   9         0.0    0.000       1.0
+5  f_bond_between_element_var  supercell  12         0.0    0.000       1.0
+6               zeta_site_std  supercell  12         0.0    0.000       1.0
+7     zeta_within_element_var  supercell   9         0.0    0.063       1.0
+8    zeta_between_element_var  supercell  12         0.0    0.000       1.0
+                            count          mean           std     min     50%       90%           max
+descriptor                                                                                           
+f_bond_between_element_var   30.0  1.750000e-02  2.050000e-02  0.0000  0.0095    0.0516  7.570000e-02
+f_bond_site_std              30.0  1.270000e-02  2.310000e-02  0.0002  0.0059    0.0301  1.229000e-01
+f_bond_within_element_var    30.0  1.294442e+22  7.089948e+22  0.0263  0.7485  102.6165  3.883325e+23
+m1_between_element_var       30.0  2.240000e-02  3.990000e-02  0.0000  0.0066    0.0479  1.970000e-01
+m1_site_std                  30.0  2.220000e-02  6.060000e-02  0.0000  0.0035    0.0304  3.238000e-01
+m1_within_element_var        30.0  3.414711e+21  1.870314e+22  0.0029  0.6332    3.4515  1.024413e+23
+zeta_between_element_var     30.0  4.710000e-02  1.026000e-01  0.0000  0.0106    0.1734  4.719000e-01
+zeta_site_std                30.0  7.200000e-02  2.852000e-01  0.0000  0.0059    0.0655  1.563200e+00
+zeta_within_element_var      30.0  3.242482e+18  1.775981e+19  0.0047  0.6608    5.5994  9.727446e+19
