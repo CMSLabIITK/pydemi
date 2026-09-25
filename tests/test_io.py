@@ -227,6 +227,46 @@ def test_read_vasp_assembles_a_run(tmp_path):
     assert read_potcar_rcore(tmp_path / "POTCAR") == [2.2, 1.52]
 
 
+# ZVAL of the standard (unsuffixed) PBE PAW datasets, as read from the OUTCARs of a
+# 4,901-run VASP dataset
+STANDARD_ZVAL = {"O": 6, "Si": 4, "Fe": 8, "Cu": 11, "Zn": 12, "Cd": 12, "Hg": 12, "Pt": 10,
+                 "Au": 11, "Ga": 3, "Ge": 4, "As": 5, "Se": 6, "Br": 7, "In": 3, "Sn": 4,
+                 "Sb": 5, "Te": 6, "I": 7, "Tl": 3, "Pb": 4, "Bi": 5, "La": 11, "Ce": 12,
+                 "Er": 22, "Yb": 24, "Lu": 25, "Th": 12, "U": 14, "Pu": 16}
+
+
+@pytest.mark.parametrize("element", sorted(STANDARD_ZVAL))
+def test_default_zval_matches_standard_paw_datasets(element):
+    from pydemi.data import default_zval
+    assert default_zval(element) == STANDARD_ZVAL[element]
+
+
+def _meta(vd):
+    from pydemi import featurize
+    return featurize(vd, domains=["magnetic"], extensions=["paw"], return_metadata=True)[1]
+
+
+def test_paw_tables_for_runs_without_potcar(tmp_path):
+    """zval / paw_radii tables fill in for a missing POTCAR/OUTCAR; the run's own file wins."""
+    s = _structure()
+    write_volumetric(tmp_path / "CHGCAR", s, [rng.random((6, 6, 6))])
+    vd = read_vasp(tmp_path / "CHGCAR")
+    assert vd.zval is None and _meta(vd)["zval_source"] == "default"
+
+    vd = read_vasp(tmp_path / "CHGCAR", zval={"Fe": 16.0, "O": 6.0, "Sb": 5.0},
+                   paw_radii={"Fe": 1.2})
+    assert vd.zval == {"Fe": 16.0, "O": 6.0} and vd.paw_radii == {"Fe": 1.2}
+    meta = _meta(vd)
+    assert meta["zval_source"] == "table" and meta["paw_radii_source"] == "table+covalent"
+    assert _meta(read_vasp(tmp_path / "CHGCAR", zval={"Fe": 16.0}))["zval_source"] == "table+default"
+
+    (tmp_path / "POTCAR").write_text(POTCAR)
+    vd = read_vasp(tmp_path / "CHGCAR", zval={"Fe": 16.0, "O": 6.0}, paw_radii={"Fe": 1.2})
+    assert vd.zval == {"Fe": 14.0, "O": 6.0} and np.isclose(vd.paw_radii["Fe"], 2.2 * BOHR_ANGSTROM)
+    meta = _meta(vd)
+    assert meta["zval_source"] == "potcar" and meta["paw_radii_source"] == "potcar"
+
+
 # ---------------------------------------------------------------- cube, xsf
 
 KNOWN_CUBE = """known cube: 10 bohr cube, 2x2x2, 0.1 e/bohr^3 everywhere

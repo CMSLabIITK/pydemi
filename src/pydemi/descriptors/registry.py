@@ -260,14 +260,48 @@ def metadata_hook(fn: MetadataFn) -> MetadataFn:
 # PAW augmentation radii (for the ``paw`` extension)
 # ----------------------------------------------------------------------
 
+def _source_label(vd: VolumetricData, key: str, file_label: str) -> str:
+    return "table" if vd.sources.get(key) == "table" else file_label
+
+
 def augmentation_radii(vd: VolumetricData) -> tuple["np.ndarray", str]:
     """(per-atom PAW augmentation radius R_PAW in Angstrom, source).
 
-    RCORE from the POTCAR / OUTCAR (``source="potcar"``) or, when unknown, the
-    covalent radius (``source="covalent"``). Inside R_PAW a VASP CHGCAR is
-    pseudized; outside it equals the all-electron valence density.
+    RCORE from the POTCAR / OUTCAR (``source="potcar"``) or a per-element
+    table passed to ``read_vasp`` (``"table"``); elements without one fall
+    back to the covalent radius (``"covalent"``, or e.g. ``"table+covalent"``
+    when only some are covered). Inside R_PAW a VASP CHGCAR is pseudized;
+    outside it equals the all-electron valence density.
     """
     from ..data import covalent_radius
-    if vd.paw_radii is not None:
-        return np.array([vd.paw_radii[s] for s in vd.structure.species]), "potcar"
-    return np.array([covalent_radius(s) for s in vd.structure.species]), "covalent"
+    known = vd.paw_radii or {}
+    radii = np.array([known[s] if s in known else covalent_radius(s) for s in vd.structure.species])
+    if not known:
+        return radii, "covalent"
+    label = _source_label(vd, "paw_radii", "potcar")
+    return radii, label if set(vd.structure.elements) <= set(known) else label + "+covalent"
+
+
+def zval_source(vd: VolumetricData) -> str:
+    """Where the valence electron counts of a pseudo-density came from.
+
+    "potcar" / "outcar" (the run's own file), "table" (``read_vasp(zval=)``),
+    "given" (set on the object), "default" (:func:`pydemi.data.default_zval`),
+    with "+default" when only some elements are covered; "not_used" for an
+    all-electron density, whose reference counts are atomic numbers.
+    """
+    from pathlib import Path
+    if vd.density_source == "all_electron":
+        return "not_used"
+    if not vd.zval:
+        return "default"
+    src = vd.sources.get("zval", "")
+    name = Path(src).name.upper() if src and src != "table" else ""
+    label = ("table" if src == "table" else "potcar" if name.startswith("POTCAR")
+             else "outcar" if name.startswith("OUTCAR") else "given")
+    return label if set(vd.structure.elements) <= set(vd.zval) else label + "+default"
+
+
+@metadata_hook
+def _zval_metadata(vd: VolumetricData) -> dict[str, Any]:
+    return {"zval_source": zval_source(vd)}

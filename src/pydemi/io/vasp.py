@@ -25,7 +25,7 @@ from __future__ import annotations
 import re
 import warnings
 from pathlib import Path
-from typing import Optional, Sequence, Union
+from typing import Mapping, Optional, Sequence, Union
 
 import numpy as np
 from numpy.typing import NDArray
@@ -257,7 +257,9 @@ def _find_paw_source(chgcar: PathLike) -> Optional[Path]:
 def read_vasp(chgcar: PathLike, elf: Optional[PathLike] = None, locpot: Optional[PathLike] = None,
               aeccar0: Optional[PathLike] = None, aeccar2: Optional[PathLike] = None,
               potcar: Union[PathLike, str, None] = "auto",
-              species: Optional[Sequence[str]] = None) -> VolumetricData:
+              species: Optional[Sequence[str]] = None,
+              zval: Optional[Mapping[str, float]] = None,
+              paw_radii: Optional[Mapping[str, float]] = None) -> VolumetricData:
     """One VASP run as :class:`VolumetricData`.
 
     ``chgcar`` supplies the structure and, for spin-polarized runs, the
@@ -272,6 +274,13 @@ def read_vasp(chgcar: PathLike, elf: Optional[PathLike] = None, locpot: Optional
     CHGCAR and reads the ZVAL and RCORE of each PAW dataset from it
     (``None`` skips this). ZVAL sets the valence electron count of the
     free-atom reference; RCORE the PAW augmentation radius.
+
+    ``zval`` (electrons) and ``paw_radii`` (Angstrom) are per-element
+    tables for runs without a POTCAR or OUTCAR -- e.g. the values of the
+    same POTCAR set read from the other runs of a dataset. The run's own
+    files take precedence; elements neither covers fall back to
+    :func:`pydemi.data.default_zval` and the covalent radius. The source
+    of each is recorded in ``sources`` ("zval", "paw_radii").
     """
     source: Optional[Path] = None
     if potcar == "auto":
@@ -318,6 +327,14 @@ def read_vasp(chgcar: PathLike, elf: Optional[PathLike] = None, locpot: Optional
         if len(rcore) == len(elements):
             vd.paw_radii = {e: r * BOHR_ANGSTROM for e, r in zip(elements, rcore)}
             vd.sources["paw_radii"] = str(source)
+    for key, table in (("zval", zval), ("paw_radii", paw_radii)):
+        have = getattr(vd, key)
+        if table is None or have is not None:
+            continue
+        found = {e: float(table[e]) for e in vd.structure.elements if e in table}
+        if found:
+            setattr(vd, key, found)
+            vd.sources[key] = "table"
     vd.__post_init__()                          # re-validate the assembled fields
     return vd
 

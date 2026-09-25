@@ -129,13 +129,24 @@ band-limited data) and `"fd"` (central differences, order 2/4/6/8, default 4).
 | AECCAR0 + AECCAR2 | `read_all_electron` | sum = all-electron density, `density_source="all_electron"`; AECCAR0 kept as `core_density` |
 | ELFCAR | elf | not volume-scaled; resampled trilinearly onto the density grid (stays in [0, 1]) |
 | LOCPOT | potential | eV, not volume-scaled |
-| POTCAR / OUTCAR | ZVAL, RCORE | found next to the CHGCAR by `read_vasp` (`potcar="auto"`) |
+| POTCAR / OUTCAR | ZVAL, RCORE | found next to the CHGCAR by `read_vasp` (`potcar="auto"`); without either, per-element tables `read_vasp(zval=, paw_radii=)` / `--paw-table`, then the fallback below |
 | `*.cube` | rho | bohr and e/bohr^3 converted to Angstrom and e/Angstrom^3 on read |
 | `*.xsf` | rho | Angstrom; periodic duplicate plane dropped |
 
 `pydemi.read(path)` sniffs the format; `read_vasp(chgcar, elf=, locpot=,
 aeccar0=, aeccar2=)` assembles one VASP run. A pymatgen `Structure` is
 accepted wherever a structure is.
+
+ZVAL (the electrons a pseudo-density holds per atom) sets the free-atom
+reference, the Hirshfeld Z_i and the ionic charges; `zval_source` in the
+metadata says where it came from (`potcar`, `outcar`, `table`, `default`).
+The fallback `pydemi.data.default_zval` reproduces the standard PBE PAW
+datasets (p-block without the filled d10, lanthanides and actinides with
+the outer s2 p6), 78 of the 87 elements of the 6,059-structure dataset; it
+cannot know the semicore choices (K_pv vs K_sv, Ca_pv, Sr_sv, Y_sv, Zr_sv,
+Nb_pv, ...). A run without POTCAR or OUTCAR should get a table from the
+other runs of the same POTCAR set; a wrong count shows as a large
+`def_charge_mismatch` (integer multiples of the missing electrons).
 
 Internal units: Angstrom, electrons / Angstrom^3, eV. ELF_D, g, v, H, the NCI
 thresholds and the information measures are evaluated in atomic units, with

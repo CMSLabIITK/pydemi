@@ -26,12 +26,13 @@ PathLike = Union[str, Path]
 COMPANIONS = {"elf": "ELFCAR", "locpot": "LOCPOT", "aeccar0": "AECCAR0", "aeccar2": "AECCAR2"}
 
 
-def _read(path: Path, companions: bool) -> Any:
+def _read(path: Path, companions: bool, read_options: Optional[dict[str, Any]] = None) -> Any:
     from .io.registry import read, sniff
     if path.is_dir():
         path = path / "CHGCAR"
-    kwargs: dict[str, Any] = {}
-    if companions and sniff(path) == "chgcar":
+    is_vasp = sniff(path) == "chgcar"
+    kwargs: dict[str, Any] = dict(read_options or {}) if is_vasp else {}
+    if companions and is_vasp:
         for key, name in COMPANIONS.items():
             if (path.parent / name).exists():
                 kwargs[key] = path.parent / name
@@ -41,12 +42,13 @@ def _read(path: Path, companions: bool) -> Any:
     return read(path, **kwargs)
 
 
-def _one(path: str, companions: bool, options: dict[str, Any]) -> dict[str, Any]:
+def _one(path: str, companions: bool, options: dict[str, Any],
+         read_options: Optional[dict[str, Any]] = None) -> dict[str, Any]:
     from . import __version__
     from .descriptors import featurize
     t0 = time.perf_counter()
     try:
-        vd = _read(Path(path), companions)
+        vd = _read(Path(path), companions, read_options)
         feats, meta = featurize(vd, return_metadata=True, **options)
         return {"path": path, **feats, **meta}
     except Exception as exc:                                   # noqa: BLE001 -- recorded
@@ -57,6 +59,7 @@ def _one(path: str, companions: bool, options: dict[str, Any]) -> dict[str, Any]
 
 def featurize_batch(paths: Iterable[PathLike], n_workers: int = 8, on_error: str = "record",
                     progress: bool = True, companions: bool = False,
+                    read_options: Optional[dict[str, Any]] = None,
                     **featurize_kwargs: Any) -> Any:
     """Featurize every structure in ``paths`` (CHGCAR / cube / xsf files or run directories).
 
@@ -64,7 +67,10 @@ def featurize_batch(paths: Iterable[PathLike], n_workers: int = 8, on_error: str
     NaN), "raise" (stop at the first failure) or "skip" (drop the row).
     ``companions=True`` also reads ELFCAR, LOCPOT and AECCAR0/2 found next to
     each CHGCAR; the default reads the density only, so every row is computed
-    from the same inputs. Other keyword arguments go to :func:`pydemi.featurize`.
+    from the same inputs. ``read_options`` go to :func:`pydemi.read_vasp` for
+    VASP files -- e.g. ``{"zval": {...}, "paw_radii": {...}}`` tables for runs
+    without a POTCAR or OUTCAR. Other keyword arguments go to
+    :func:`pydemi.featurize`.
     """
     import pandas as pd
 
@@ -87,10 +93,10 @@ def featurize_batch(paths: Iterable[PathLike], n_workers: int = 8, on_error: str
 
     if workers == 1:
         for i, p in enumerate(items):
-            handle(i, _one(p, companions, featurize_kwargs), i + 1)
+            handle(i, _one(p, companions, featurize_kwargs, read_options), i + 1)
     else:
         with ProcessPoolExecutor(workers) as pool:
-            futures = {pool.submit(_one, p, companions, featurize_kwargs): i
+            futures = {pool.submit(_one, p, companions, featurize_kwargs, read_options): i
                        for i, p in enumerate(items)}
             for done, fut in enumerate(as_completed(futures), start=1):
                 handle(futures[fut], fut.result(), done)

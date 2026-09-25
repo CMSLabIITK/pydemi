@@ -60,6 +60,14 @@ def test_batch_skip_and_raise(tmp_path):
                                domains=["bonding"])
 
 
+def test_batch_passes_read_options(tmp_path):
+    paths = _runs(tmp_path, 1)
+    df = pydemi.featurize_batch(paths, n_workers=1, progress=False, domains=["magnetic"],
+                                read_options={"zval": {"Fe": 16.0, "O": 6.0}})
+    ok = df[df["error"] == ""]
+    assert len(ok) == 1 and ok["zval_source"].iloc[0] == "table"
+
+
 # ---------------------------------------------------------------- CLI
 
 def test_cli_commands(tmp_path):
@@ -73,6 +81,12 @@ def test_cli_commands(tmp_path):
     assert main(["batch", str(tmp_path), "--glob", "*/CHGCAR", "--out", str(tmp_path / "b.csv"),
                  "--workers", "1", "--domains", "bonding", "--quiet"]) == 0
     assert (tmp_path / "b.csv").read_text().count("\n") == 3          # header + 2 rows
+    (tmp_path / "paw.json").write_text(json.dumps({"Fe": {"zval": 16, "rcore_bohr": 2.2},
+                                                   "O": {"zval": 6}}))
+    assert main(["featurize", good, "--out", str(tmp_path / "g.json"), "--domains", "magnetic",
+                 "--extensions", "paw", "--paw-table", str(tmp_path / "paw.json")]) == 0
+    meta = json.loads((tmp_path / "g.json").read_text())["metadata"]
+    assert meta["zval_source"] == "table" and meta["paw_radii_source"] == "table+covalent"
     assert main(["sweep", good, "--param", "c2", "--range", "1.2:1.6:0.2",
                  "--out", str(tmp_path / "s.csv"), "--domains", "bonding"]) == 0
     assert (tmp_path / "s.csv").read_text().count("\n") == 4

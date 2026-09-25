@@ -7,6 +7,10 @@ Command line (spec §12):
     pydemi batch ./runs --glob "*/CHGCAR" --out features.csv --workers 8 --domains bonding,magnetic
     pydemi catalogue --out catalogue.csv
     pydemi sweep CHGCAR --param c2 --range 1.0:2.5:0.05 --out sweep.csv
+
+``--paw-table FILE.json`` gives per-element PAW data for runs without a
+POTCAR or OUTCAR: ``{"Sb": {"zval": 5, "rcore_bohr": 2.3}, ...}`` (either
+key may be left out). The run's own POTCAR / OUTCAR takes precedence.
 """
 
 from __future__ import annotations
@@ -34,6 +38,8 @@ def _options(p: argparse.ArgumentParser) -> None:
     p.add_argument("--derivative-backend", default="fft", choices=["fft", "fd"])
     p.add_argument("--fd-order", type=int, default=4)
     p.add_argument("--float32", action="store_true")
+    p.add_argument("--paw-table", default=None,
+                   help="JSON {element: {zval, rcore_bohr}} for runs without POTCAR/OUTCAR")
 
 
 def _kwargs(a: argparse.Namespace) -> dict[str, Any]:
@@ -49,10 +55,28 @@ def _kwargs(a: argparse.Namespace) -> dict[str, Any]:
     return kw
 
 
+def _read_options(a: argparse.Namespace) -> dict[str, Any]:
+    """``read_vasp`` tables from ``--paw-table``."""
+    if not a.paw_table:
+        return {}
+    from .constants import BOHR_ANGSTROM
+    table = json.loads(Path(a.paw_table).read_text())
+    out: dict[str, Any] = {}
+    zval = {e: float(v["zval"]) for e, v in table.items() if "zval" in v}
+    radii = {e: float(v["rcore_bohr"]) * BOHR_ANGSTROM for e, v in table.items() if "rcore_bohr" in v}
+    if zval:
+        out["zval"] = zval
+    if radii:
+        out["paw_radii"] = radii
+    return out
+
+
 def _read_one(a: argparse.Namespace) -> Any:
-    from .io.registry import read
+    from .io.registry import read, sniff
     extra = {k: getattr(a, k) for k in ("elf", "locpot", "aeccar0", "aeccar2")
              if getattr(a, k, None)}
+    if sniff(a.path) == "chgcar":
+        extra.update(_read_options(a))
     return read(a.path, **extra)
 
 
@@ -122,7 +146,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             print(f"no files match {a.glob!r} under {a.root}", file=sys.stderr)
             return 1
         df = featurize_batch(paths, n_workers=a.workers, on_error=a.on_error,
-                             progress=not a.quiet, companions=a.companions, **_kwargs(a))
+                             progress=not a.quiet, companions=a.companions,
+                             read_options=_read_options(a), **_kwargs(a))
         df.to_csv(a.out, index=False)
         n_err = int((df["error"] != "").sum())
         print(f"wrote {a.out}: {len(df)} structures, {n_err} errors", file=sys.stderr)

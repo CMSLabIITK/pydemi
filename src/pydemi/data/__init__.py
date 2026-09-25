@@ -71,14 +71,27 @@ def configuration(symbol: str) -> list[tuple[int, int, float]]:
 
 
 def default_zval(symbol: str) -> float:
-    """Electrons outside the preceding noble-gas core; a filled f14 shell counts as core.
+    """Valence electrons of the standard VASP PAW dataset, from the configuration alone.
 
-    Matches most, but not all, VASP POTCARs (Na_pv, K_sv, Ga_d differ): read
-    ZVAL from the POTCAR or OUTCAR when available.
+    Electrons outside the preceding noble-gas core, minus a filled f14 shell
+    and, for the p-block (valence p electrons present), minus the filled
+    (n-1)d10 shell: Ga -> 3, Sn -> 4, Sb -> 5, Bi -> 5; Zn keeps its 3d10
+    (12). Lanthanides and actinides keep the core's outer s2 p6 and their f
+    shell, as the standard datasets do: La -> 11, Er -> 22, Lu -> 25, U -> 14.
+    A last resort -- the semicore datasets of the s-block and early d-block
+    (K_pv or K_sv, Ca_pv or Ca_sv, Y_sv, Zr_sv, Nb_pv, ...) are a per-run
+    choice, so read ZVAL from the POTCAR or OUTCAR, or pass a table
+    (``read_vasp(..., zval=...)``), whenever the run used such datasets.
     """
     z = atomic_number(symbol)
     core_z = max((n for n in _NOBLE_Z if n < z), default=0)
     core = set() if core_z == 0 else {(n, l) for n, l, _ in configuration(symbol_of(core_z))}
-    val = sum(occ for n, l, occ in configuration(symbol)
-              if (n, l) not in core and not (l == 3 and math.isclose(occ, 14.0)))
+    shells = [(n, l, occ) for n, l, occ in configuration(symbol) if (n, l) not in core]
+    n_top = max((n for n, l, _ in shells if l <= 1), default=0)
+    p_block = any(l == 1 and n == n_top and occ > 0 for n, l, occ in shells)
+    if 57 <= z <= 71 or 89 <= z <= 103:
+        return float(sum(occ for _, _, occ in shells) + 8)
+    val = sum(occ for n, l, occ in shells
+              if not (l == 3 and math.isclose(occ, 14.0))
+              and not (p_block and l == 2 and n == n_top - 1 and math.isclose(occ, 10.0)))
     return float(val)
