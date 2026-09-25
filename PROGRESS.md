@@ -13,7 +13,7 @@ library see [README.md](README.md).
 | Item | State |
 |---|---|
 | Governing specification | `prompt.md` (professor-verified), since 2026-09-24 |
-| Library | **rebuilt to prompt.md**: all 12 milestones of its §14 done, on branch `prompt-spec` |
+| Library | **rebuilt to prompt.md**: all 12 milestones of its §14 done; merged into `main` 2026-09-25 (not pushed) |
 | Descriptors | 220 by default (36 bonding, 21 structural, 8 magnetic, 23 heterogeneity, 132 compositional) + 12 in the off-by-default `paw` extension |
 | Tests | 862 pass; `mypy --strict` clean on io, core, fields, operators |
 | Dataset rerun | 6,059 structures, 0 errors, 105 min on 24 workers (`results/prompt_spec/`) |
@@ -114,7 +114,8 @@ Output `descriptors_6000_data_aug13.csv`; comparison with the earlier run in
 - [x] Rerun the 6,059-structure dataset with the new pydemi (section 3).
 - [ ] Decide on ellip_bond_avg / std (not robust to the derivative scheme)
       and on reporting the census counts given euler_consistency.
-- [ ] Merge the `prompt-spec` branch into `main` when approved (not pushed).
+- [x] Merge the `prompt-spec` branch into `main` (2026-09-25; local, not pushed).
+- [ ] Push `main` to GitHub (only when the user asks).
 - [ ] Optional: a new code guide for the rebuilt package (the old one is in
       `legacy/docs/`).
 - [ ] Optional: speed up the second-order Voronoi pair regions (2.3 s of 8.4 s

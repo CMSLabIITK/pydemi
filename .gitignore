@@ -4,3 +4,4 @@ __pycache__/
 .venv/
 .env
 pydemi — Consolidated Descriptor Reference.pdf
+results/prompt_spec/chunks/
