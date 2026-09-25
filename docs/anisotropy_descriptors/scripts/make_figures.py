@@ -3,7 +3,7 @@
 Inputs (../data/): anisotropy_dataset.csv (classes.py), analytic_*.csv (analytic_examples.py),
 slices.npz (slices.py), region_shares.csv (region_shares.py); and, from the repository,
 paper/analysis/out/convergence.csv; derivative_sensitivity.csv (derivative_sensitivity.py) and
-ml_scores_scratch.csv (ChargE3Net test-set scores, copied from the ML evaluation). Figures whose inputs are missing are skipped with a note.
+ml_scores_{scratch,finetune}.csv (ChargE3Net test-set scores, copied from the ML evaluation). Figures whose inputs are missing are skipped with a note.
 
 Usage:  python make_figures.py
 """
@@ -20,7 +20,7 @@ HERE = Path(__file__).resolve().parent
 DATA, FIG = HERE.parent / "data", HERE.parent / "figures"
 REPO = HERE.parents[2]
 CONV = REPO / "paper" / "analysis" / "out" / "convergence.csv"
-ML_SCORE = DATA / "ml_scores_scratch.csv"
+ML_SCORES = {"from scratch": DATA / "ml_scores_scratch.csv", "fine-tuned": DATA / "ml_scores_finetune.csv"}
 NAMES = ["zeta", "zeta_ELF", "T_eigenvalues_t1", "T_eigenvalues_t2", "T_eigenvalues_t3", "charge_FA"]
 SHORT = {"zeta": r"$\zeta$", "zeta_ELF": r"$\zeta_{\mathrm{ELF}}$", "T_eigenvalues_t1": "$t_1$",
          "T_eigenvalues_t2": "$t_2$", "T_eigenvalues_t3": "$t_3$", "charge_FA": "FA"}
@@ -278,12 +278,14 @@ def robustness_table():
                 v = df[f"{n}@{tag}"]
                 rel = (v - ref).abs() / np.maximum(np.maximum(v.abs(), ref.abs()), 1e-12)
                 rows[n][f"{lab} (median rel. change)"] = rel.median()
-    if ML_SCORE.exists():
-        s = pd.read_csv(ML_SCORE).set_index("descriptor")
+    for lab, f in ML_SCORES.items():
+        if not f.exists():
+            continue
+        s = pd.read_csv(f).set_index("descriptor")
         for n in NAMES:
             if n in s.index:
-                rows[n]["ML vs DFT Spearman"] = s.loc[n, "spearman"]
-                rows[n]["ML vs DFT (median rel. error)"] = s.loc[n, "median_rel"]
+                rows[n][f"ML {lab} vs DFT Spearman"] = s.loc[n, "spearman"]
+                rows[n][f"ML {lab} vs DFT (median rel. error)"] = s.loc[n, "median_rel"]
     t = pd.DataFrame(rows).T
     t.to_csv(DATA / "robustness.csv")
     return t
@@ -305,10 +307,14 @@ def fig_robustness():
     ax[0].set_xticks(x, [SHORT[n] for n in NAMES])
     ax[0].axhline(0.01, color="k", lw=0.6, ls="--")
     ax[0].legend(frameon=False, fontsize=7)
-    if "ML vs DFT Spearman" in t:
-        ax[1].bar(x, t["ML vs DFT Spearman"].astype(float), color="C5")
+    sp = [c for c in t.columns if c.endswith("vs DFT Spearman")]
+    for k, c in enumerate(sp):
+        ax[1].bar(x + (k - (len(sp) - 1) / 2) * 0.8 / len(sp), t[c].astype(float), 0.8 / len(sp),
+                  color=("0.6", "C5")[k % 2], label=c.replace("ML ", "").replace(" vs DFT Spearman", ""))
+    if sp:
         ax[1].set(ylim=(0, 1.02), ylabel="Spearman", title="(b) ML density (ChargE3Net) vs DFT, 605 tests")
         ax[1].set_xticks(x, [SHORT[n] for n in NAMES])
+        ax[1].legend(frameon=False, fontsize=7, loc="lower left")
     fig.tight_layout()
     save(fig, "fig10_robustness")
 

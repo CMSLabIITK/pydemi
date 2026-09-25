@@ -830,8 +830,12 @@ those from the DFT densities (`data/ml_scores_scratch.csv`).
   denominator amplifies the error.
 * `f_bond_dep_out` is the weakest (Spearman 0.93): its outside depletion is often tiny
   (303 structures have none, §8.1).
-* The fine-tuned model's full-grid test was still running when this was written.
-  `make_figures.py` adds its bars to Fig. 13 when `data/ml_scores_finetune.csv` exists.
+* **Fine-tuned model** (fine-tuned from the Materials Project checkpoint; mean NMAPE
+  0.72% against 0.96%; `data/ml_scores_finetune.csv`, grey and coloured bars in Fig. 13).
+  It improves 14 of the 15 descriptors, all to Spearman ≥ 0.995 except `f_bond_dep_out`
+  (0.93 → 0.96): e.g. `m1_def` 0.56% → 0.45%, `f_bond_def` 1.9% → 1.2%,
+  `f_bond_def_out` 0.52% → 0.41%, `def_polarity` 0.78% → 0.59%. The deformation family
+  is among the best-transferring families of the paper's Section 7.
 
 ---
 

@@ -2,8 +2,8 @@
 (Fig. 3), stability map (Fig. 4) and dataset overview (Fig. 6).
 
 Inputs: out/convergence.csv, out/derivatives_summary.csv, out/partitions_summary.csv
-(analyses a, b, e), out/ml_scores_scratch.csv (the ML evaluation's DFT-vs-ChargE3Net
-scores), docs/catalogue.csv, the rerun table, and the region-share / bottleneck tables
+(analyses a, b, e), out/ml_scores_finetune.csv (o_ml_analysis.py: DFT versus fine-tuned
+ChargE3Net), docs/catalogue.csv, the rerun table, and the region-share / bottleneck tables
 of the per-family reports in docs/.
 
 Usage:  python l_main_figures.py   -> ../figures/fig_architecture.pdf, fig_paw.pdf,
@@ -127,10 +127,10 @@ def fig_stability():
     part = pd.read_csv(OUT / "partitions_summary.csv").drop_duplicates()
     becke = part[part["partition"] == "becke"].set_index("descriptor")["median"]
     hirsh = part[part["partition"] == "hirshfeld"].set_index("descriptor")["median"]
-    ml = pd.read_csv(OUT / "ml_scores_scratch.csv").set_index("descriptor")["median_rel"]
+    ml = pd.read_csv(OUT / "ml_scores_finetune.csv").set_index("descriptor")["median_rel"]
     deriv_based = set(fd4.index) | {n for n in names if n.startswith("zeta_")}
     part_based = set(part["descriptor"])
-    cols = ["grid 80%", "FD4 vs FFT", "FD2 vs FFT", "Becke", "Hirshfeld", "ML (from scratch)"]
+    cols = ["grid 80%", "FD4 vs FFT", "FD2 vs FFT", "Becke", "Hirshfeld", "ML (fine-tuned)"]
     M = np.full((len(names), len(cols)), np.nan)
     NA = np.zeros_like(M, dtype=bool)
     for i, n in enumerate(names):

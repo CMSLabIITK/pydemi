@@ -1,0 +1,112 @@
+\begin{table}[p]
+\centering
+\caption{Descriptors of the predicted densities against those of the DFT densities of the 605 test structures (part 1 of 2), ordered by the fine-tuned model's Spearman rank correlation $\rho_s$ across structures: median (and, for the fine-tuned model, 90th-percentile) relative error $|a-b|/\max(|a|,|b|)$ in per cent, $\rho_s$, $R^2$ and $\rho_s$ after renormalizing the prediction to $N=\sum Z_{\mathrm{val}}$ (\texttt{paper/analysis/o\_ml\_analysis.py}).}
+\label{tab:si-ml}
+\scriptsize
+\begin{tabular}{lrrrrrrr}
+\toprule
+ & \multicolumn{2}{c}{from scratch} & \multicolumn{5}{c}{fine-tuned} \\
+Descriptor & med.\ (\%) & $\rho_s$ & med.\ (\%) & p90 (\%) & $\rho_s$ & $R^2$ & $\rho_s$ (renorm.) \\
+\midrule
+\texttt{f\_core} & 0.14 & 0.9999 & 0.10 & 0.37 & 1.0000 & 1.000 & 1.0000 \\
+\texttt{disequilibrium} & 0.26 & 0.9999 & 0.19 & 0.56 & 1.0000 & 1.000 & 1.0000 \\
+\texttt{f\_bond} & 0.13 & 0.9999 & 0.09 & 0.27 & 1.0000 & 1.000 & 1.0000 \\
+\texttt{m1} & 0.08 & 0.9999 & 0.06 & 0.15 & 0.9999 & 1.000 & 0.9999 \\
+\texttt{V\_spread} & 0.29 & 0.9999 & 0.30 & 1.83 & 0.9999 & 1.000 & 0.9999 \\
+\texttt{m2} & 0.16 & 0.9999 & 0.11 & 0.31 & 0.9999 & 1.000 & 0.9999 \\
+\texttt{shannon\_entropy} & 0.32 & 0.9999 & 0.22 & 0.77 & 0.9999 & 1.000 & 0.9999 \\
+\texttt{V\_int\_min} & 0.33 & 0.9998 & 0.23 & 0.85 & 0.9999 & 1.000 & 0.9999 \\
+\texttt{m1\_site\_min} & 0.10 & 0.9997 & 0.07 & 0.22 & 0.9999 & 1.000 & 0.9999 \\
+\texttt{f\_bond\_site\_min} & 0.20 & 0.9998 & 0.15 & 0.51 & 0.9999 & 1.000 & 0.9999 \\
+\texttt{LMC\_complexity} & 0.11 & 0.9998 & 0.08 & 0.27 & 0.9999 & 1.000 & 0.9999 \\
+\texttt{m1\_between\_element\_var} & 0.84 & 0.9998 & 0.83 & 3.92 & 0.9998 & 0.999 & 0.9998 \\
+\texttt{m1\_site\_std} & 0.45 & 0.9998 & 0.45 & 2.28 & 0.9998 & 1.000 & 0.9998 \\
+\texttt{m1\_site\_range} & 0.49 & 0.9998 & 0.48 & 2.24 & 0.9998 & 1.000 & 0.9998 \\
+\texttt{m1\_site\_max} & 0.11 & 0.9998 & 0.09 & 0.31 & 0.9998 & 1.000 & 0.9998 \\
+\texttt{f\_bond\_site\_max} & 0.15 & 0.9998 & 0.12 & 0.45 & 0.9998 & 1.000 & 0.9998 \\
+\texttt{f\_int} & 0.61 & 0.9997 & 0.41 & 1.29 & 0.9998 & 1.000 & 0.9998 \\
+\texttt{rho\_mid\_mean} & 0.52 & 0.9996 & 0.45 & 1.39 & 0.9998 & 1.000 & 0.9998 \\
+\texttt{f\_bond\_between\_element\_var} & 0.93 & 0.9997 & 0.90 & 5.08 & 0.9998 & 0.999 & 0.9998 \\
+\texttt{f\_bond\_site\_std} & 0.50 & 0.9997 & 0.47 & 2.86 & 0.9997 & 1.000 & 0.9997 \\
+\texttt{rho\_perc\_b} & 0.80 & 0.9992 & 0.69 & 2.36 & 0.9997 & 0.999 & 0.9997 \\
+\texttt{rho\_perc\_a} & 0.79 & 0.9991 & 0.68 & 2.21 & 0.9997 & 0.999 & 0.9997 \\
+\texttt{f\_bond\_site\_range} & 0.52 & 0.9996 & 0.49 & 2.84 & 0.9996 & 0.999 & 0.9996 \\
+\texttt{rho\_int\_mean} & 0.67 & 0.9993 & 0.43 & 1.29 & 0.9996 & 0.999 & 0.9996 \\
+\texttt{G\_over\_rho} & 0.24 & 0.9995 & 0.26 & 0.95 & 0.9995 & 0.095 & 0.9995 \\
+\texttt{rho\_perc\_c} & 0.94 & 0.9986 & 0.69 & 2.35 & 0.9995 & 0.999 & 0.9995 \\
+\texttt{sigma\_r2} & 0.21 & 0.9992 & 0.15 & 0.50 & 0.9994 & 0.998 & 0.9994 \\
+\texttt{f\_bond\_def\_out} & 0.52 & 0.9982 & 0.41 & 3.21 & 0.9993 & 0.998 & 0.9991 \\
+\texttt{rho\_mid\_std} & 2.50 & 0.9983 & 1.83 & 42 & 0.9991 & 1.000 & 0.9991 \\
+\texttt{f\_int\_def\_out} & 2.10 & 0.9975 & 1.30 & 19 & 0.9991 & 0.998 & 0.9990 \\
+\texttt{sigma\_r2\_def\_out} & 1.67 & 0.9978 & 1.05 & 4.38 & 0.9990 & 0.996 & 0.9990 \\
+\texttt{m2\_def\_out} & 0.51 & 0.9972 & 0.34 & 1.34 & 0.9990 & 0.993 & 0.9990 \\
+\texttt{m1\_def\_out} & 0.27 & 0.9974 & 0.17 & 0.66 & 0.9990 & 0.996 & 0.9990 \\
+\texttt{m1\_def} & 0.56 & 0.9971 & 0.45 & 1.34 & 0.9979 & 0.994 & 0.9980 \\
+\texttt{m2\_def} & 1.06 & 0.9968 & 0.91 & 2.53 & 0.9978 & 0.991 & 0.9978 \\
+\texttt{H\_bond\_mean} & 0.46 & 0.9976 & 0.40 & 1.27 & 0.9978 & 0.996 & 0.9978 \\
+\texttt{sigma\_r2\_def} & 1.22 & 0.9951 & 0.87 & 2.89 & 0.9975 & 0.985 & 0.9975 \\
+\texttt{f\_int\_def} & 3.52 & 0.9946 & 2.81 & 22 & 0.9973 & 0.995 & 0.9973 \\
+\texttt{zeta\_site\_max} & 2.66 & 0.9957 & 2.00 & 8.00 & 0.9965 & 0.992 & 0.9965 \\
+\texttt{def\_polarity} & 0.78 & 0.9945 & 0.59 & 2.07 & 0.9965 & 0.993 & 0.9964 \\
+\texttt{f\_bond\_def} & 1.90 & 0.9928 & 1.23 & 5.16 & 0.9964 & 0.996 & 0.9961 \\
+\texttt{def\_polarity\_out} & 2.41 & 0.9949 & 1.90 & 5.93 & 0.9963 & 0.995 & 0.9962 \\
+\texttt{zeta\_site\_std} & 3.32 & 0.9960 & 2.51 & 14 & 0.9962 & 0.993 & 0.9962 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[p]
+\centering
+\caption{Descriptors of the predicted densities against those of the DFT densities of the 605 test structures (part 2 of 2), ordered by the fine-tuned model's Spearman rank correlation $\rho_s$ across structures: median (and, for the fine-tuned model, 90th-percentile) relative error $|a-b|/\max(|a|,|b|)$ in per cent, $\rho_s$, $R^2$ and $\rho_s$ after renormalizing the prediction to $N=\sum Z_{\mathrm{val}}$ (\texttt{paper/analysis/o\_ml\_analysis.py}).}
+\scriptsize
+\begin{tabular}{lrrrrrrr}
+\toprule
+ & \multicolumn{2}{c}{from scratch} & \multicolumn{5}{c}{fine-tuned} \\
+Descriptor & med.\ (\%) & $\rho_s$ & med.\ (\%) & p90 (\%) & $\rho_s$ & $R^2$ & $\rho_s$ (renorm.) \\
+\midrule
+\texttt{zeta\_site\_range} & 3.44 & 0.9959 & 2.73 & 14 & 0.9962 & 0.992 & 0.9962 \\
+\texttt{zeta\_between\_element\_var} & 6.16 & 0.9960 & 4.77 & 26 & 0.9961 & 0.991 & 0.9961 \\
+\texttt{f\_NCI} & 1.09 & 0.9953 & 0.95 & 5.34 & 0.9959 & 0.992 & 0.9959 \\
+\texttt{f\_bond\_within\_element\_var} & 4.78 & 0.9952 & 3.03 & 28 & 0.9957 & 0.993 & 0.9957 \\
+\texttt{f\_bond\_dep} & 3.00 & 0.9946 & 2.13 & 8.69 & 0.9955 & 0.995 & 0.9953 \\
+\texttt{rho\_min\_ratio} & 6.49 & 0.9947 & 4.81 & 36 & 0.9951 & 0.993 & 0.9951 \\
+\texttt{rho\_min\_int\_ratio} & 3.25 & 0.9931 & 2.14 & 12 & 0.9951 & 0.993 & 0.9951 \\
+\texttt{bond\_charge\_transfer\_pair\_std} & 3.92 & 0.9847 & 2.56 & 11 & 0.9949 & 0.996 & 0.9960 \\
+\texttt{m1\_within\_element\_var} & 5.74 & 0.9937 & 2.98 & 25 & 0.9939 & 0.981 & 0.9939 \\
+\texttt{rho\_min} & 6.42 & 0.9903 & 4.74 & 36 & 0.9934 & 0.989 & 0.9934 \\
+\texttt{rho\_min\_int} & 3.37 & 0.9917 & 2.20 & 11 & 0.9932 & 0.986 & 0.9932 \\
+\texttt{zeta} & 2.40 & 0.9879 & 1.91 & 8.48 & 0.9926 & 0.997 & 0.9926 \\
+\texttt{ELF\_bond\_avg} & 1.47 & 0.9915 & 1.12 & 5.49 & 0.9915 & 0.983 & 0.9914 \\
+\texttt{ELF\_core\_valence\_contrast} & 2.00 & 0.9929 & 1.83 & 7.70 & 0.9912 & 0.971 & 0.9912 \\
+\texttt{f\_H\_negative} & 0.77 & 0.9867 & 0.71 & 3.56 & 0.9905 & 0.988 & 0.9905 \\
+\texttt{zeta\_within\_element\_var} & 12 & 0.9848 & 10 & 62 & 0.9889 & 0.978 & 0.9889 \\
+\texttt{f\_ELF\_localized} & 6.03 & 0.9824 & 4.91 & 25 & 0.9837 & 0.967 & 0.9837 \\
+\texttt{zeta\_site\_min} & 4.80 & 0.9812 & 4.34 & 18 & 0.9820 & 0.994 & 0.9820 \\
+\texttt{lap\_concentration\_valence} & 4.95 & 0.9795 & 6.46 & 78 & 0.9768 & 0.972 & 0.9768 \\
+\texttt{f\_bond\_dep\_out} & 2.58 & 0.9343 & 1.36 & 13 & 0.9625 & 0.932 & 0.9541 \\
+\texttt{sign\_lambda2\_rho\_mean} & 24 & 0.9482 & 21 & 112 & 0.9585 & 0.948 & 0.9582 \\
+\texttt{NCI\_attractive} & 7.83 & 0.9333 & 6.28 & 19 & 0.9576 & 0.906 & 0.9575 \\
+\texttt{bond\_charge\_transfer\_pair\_mean} & 24 & 0.9433 & 22 & 95 & 0.9535 & 0.913 & 0.9861 \\
+\texttt{lnf\_charge\_weighted} & 1.18 & 0.9517 & 1.02 & 4.30 & 0.9528 & 0.851 & 0.9528 \\
+\texttt{fisher\_information} & 0.91 & 0.9361 & 0.64 & 13 & 0.9505 & 0.351 & 0.9505 \\
+\texttt{n\_saddle2} & 13 & 0.9546 & 15 & 47 & 0.9463 & 0.665 & 0.9463 \\
+\texttt{Q\_NNM} & 0.00 & 0.9251 & 0.00 & 13 & 0.9358 & 0.922 & 0.9358 \\
+\texttt{n\_saddle1} & 14 & 0.9449 & 14 & 49 & 0.9330 & 0.701 & 0.9330 \\
+\texttt{T\_eigenvalues\_t3} & 0.04 & 0.9359 & 0.05 & 0.30 & 0.9167 & 0.987 & 0.9168 \\
+\texttt{perc\_anisotropy} & 19 & 0.9013 & 18 & 100 & 0.9027 & 0.998 & 0.9030 \\
+\texttt{n\_NNM} & 0.00 & 0.8692 & 0.00 & 60 & 0.8976 & -0.740 & 0.8976 \\
+\texttt{charge\_FA} & 60 & 0.9265 & 58 & 100 & 0.8962 & 0.989 & 0.8962 \\
+\texttt{lnf} & 9.68 & 0.8742 & 6.16 & 33 & 0.8934 & 0.718 & 0.8934 \\
+\texttt{T\_eigenvalues\_t1} & 0.05 & 0.9141 & 0.07 & 0.31 & 0.8704 & 0.992 & 0.8705 \\
+\texttt{n\_max} & 20 & 0.8514 & 35 & 75 & 0.7688 & -0.210 & 0.7688 \\
+\texttt{T\_eigenvalues\_t2} & 0.03 & 0.7073 & 0.05 & 0.23 & 0.7511 & 0.988 & 0.7511 \\
+\texttt{Q\_NNM\_paw} & 0.00 & 0.6427 & 0.00 & 0.40 & 0.6773 & 0.977 & 0.6773 \\
+\texttt{n\_NNM\_paw} & 0.00 & 0.6078 & 0.00 & 0.00 & 0.6490 & -2.967 & 0.6490 \\
+\texttt{ellip\_bond\_avg} & 39 & 0.5731 & 35 & 75 & 0.6181 & -2.761 & 0.6207 \\
+\texttt{n\_min} & 33 & 0.6175 & 38 & 78 & 0.5716 & -1.171 & 0.5716 \\
+\texttt{ellip\_bond\_std} & 70 & 0.3025 & 66 & 96 & 0.3469 & -4.807 & 0.4121 \\
+\texttt{zeta\_ELF} & 78 & 0.2195 & 77 & 88 & 0.2581 & -19 & 0.2581 \\
+\bottomrule
+\end{tabular}
+\end{table}
+

@@ -1,0 +1,52 @@
+test structures: 605
+grid NMAPE from scratch: mean 0.957%, median 0.793%, p90 1.732%, max 10.44% (YbPrZn2_225); time/structure median 39.1 s, mean 59.4 s
+grid NMAPE fine-tuned: mean 0.717%, median 0.578%, p90 1.174%, max 10.35% (YbPrZn2_225); time/structure median 36.7 s, mean 54.5 s
+probe NMAPE scratch: mean 0.96%, median 0.78%, max 10.0% (YbPrZn2_225)
+probe NMAPE finetuned: mean 0.72%, median 0.59%, max 10.0% (YbPrZn2_225)
+probe NMAPE mp_as_is: mean 46.08%, median 32.34%, max 350.0% (Mg3Tl_194)
+DFT single point (OUTCAR, 486 test structures): elapsed median 154 s on median 40 cores, 1.62 core-hours (p90 11.12)
+pydemi on a predicted density (bonding+structural+heterogeneity, paw): median 5.1 s, p90 15.2 s, one core
+fine-tuned better than scratch on the grid: 473/605
+  from scratch: f-element structures 156: median NMAPE 0.833% vs 0.776% others; of the 20 worst, 7 contain f elements
+  fine-tuned: f-element structures 156: median NMAPE 0.716% vs 0.554% others; of the 20 worst, 11 contain f elements
+electron count scratch: median |dN|/N 0.142%, p90 0.481%, max 3.88% (Li_229); signed median +0.012%
+electron count finetune: median |dN|/N 0.133%, p90 0.355%, max 1.52% (Ba3N_193); signed median +0.019%
+pydemi errors on predicted densities: {'scratch': np.int64(0), 'scratch_renorm': np.int64(0), 'finetune': np.int64(0), 'finetune_renorm': np.int64(0)}
+
+scratch: 85 descriptors; Spearman >= 0.99: 55, >= 0.95: 64, < 0.8: 7; median over descriptors of median rel. error 1.06%; of p90 6.30%
+scratch_renorm: 85 descriptors; Spearman >= 0.99: 55, >= 0.95: 65, < 0.8: 7; median over descriptors of median rel. error 1.01%; of p90 6.04%
+finetune: 85 descriptors; Spearman >= 0.99: 58, >= 0.95: 68, < 0.8: 8; median over descriptors of median rel. error 0.90%; of p90 5.08%
+finetune_renorm: 85 descriptors; Spearman >= 0.99: 58, >= 0.95: 68, < 0.8: 8; median over descriptors of median rel. error 0.83%; of p90 5.08%
+fine-tuned Spearman higher than scratch for 74/85; median rel. error lower for 72/85
+renormalization (fine-tuned): Spearman change median +0.0000, largest gain +0.0651 (ellip_bond_std), largest loss -0.0084 (f_bond_dep_out)
+
+lowest Spearman, fine-tuned:
+                    n  median_rel  p90_rel  spearman       r2
+descriptor                                                   
+zeta_ELF          605      0.7697   0.8828    0.2581 -19.4455
+ellip_bond_std    605      0.6615   0.9601    0.3469  -4.8074
+n_min             605      0.3750   0.7778    0.5716  -1.1709
+ellip_bond_avg    605      0.3486   0.7503    0.6181  -2.7607
+n_NNM_paw         605      0.0000   0.0000    0.6490  -2.9673
+Q_NNM_paw         605      0.0000   0.0040    0.6773   0.9765
+T_eigenvalues_t2  605      0.0005   0.0023    0.7511   0.9876
+n_max             605      0.3529   0.7500    0.7688  -0.2103
+T_eigenvalues_t1  605      0.0007   0.0031    0.8704   0.9916
+lnf               605      0.0616   0.3273    0.8934   0.7184
+charge_FA         605      0.5776   1.0000    0.8962   0.9887
+n_NNM             605      0.0000   0.6000    0.8976  -0.7395
+perc_anisotropy   605      0.1807   1.0000    0.9027   0.9979
+T_eigenvalues_t3  605      0.0005   0.0030    0.9167   0.9868
+n_saddle1         605      0.1355   0.4908    0.9330   0.7005
+
+per-structure median descriptor error (fine-tuned, 68 descriptors with Spearman >= 0.95): median 0.657%, p90 1.493%; Spearman with grid NMAPE 0.587
+
+by chemical class (n; median grid NMAPE scratch / fine-tuned; median descriptor error fine-tuned):
+  elemental: 13; 0.805 / 0.644%; 1.021%
+  intermetallic: 316; 0.639 / 0.568%; 0.644%
+  boride/carbide: 39; 1.062 / 0.720%; 0.713%
+  hydride: 8; 2.293 / 1.030%; 1.579%
+  pnictide: 68; 0.974 / 0.653%; 0.678%
+  chalcogenide: 55; 1.053 / 0.659%; 0.609%
+  oxide: 58; 0.845 / 0.500%; 0.565%
+  halide: 48; 0.778 / 0.543%; 0.810%

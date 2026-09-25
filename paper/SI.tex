@@ -886,11 +886,82 @@ element throughout (main text, Section~4.3).
 \section{Machine-learning details}
 \label{sec:si-ml}
 
-% To be written with main-text Section 7: ChargE3Net architecture and training
-% on the dataset (split, grids, probe sampling), fine-tuning from the Materials
-% Project checkpoint, probe versus full-grid NMAPE for the three models,
-% the descriptor-level DFT-vs-ML table for every descriptor, and the failure
-% cases (f-electron compounds).
+\subsection{Models and training}
+The density models are ChargE3Net~\cite{koker2024}, run with the published
+code and its default architecture: three equivariant interaction layers with
+500 channels up to $l_{\max}=4$, 20 Gaussian radial basis functions and a 4\,\AA{}
+cutoff, trained with an L1 loss on the density at
+probe points (200 per structure per step for training, 400 for validation,
+1,000 for the probe tests), Adam and a power-decay learning-rate schedule. The
+6,059 VASP total densities (the magnetization is not used) were split into
+5,152 training, 302 validation and 605 test structures. The model
+trained from scratch ran for 200,000 steps from a learning rate of
+$5\times10^{-3}$ (67\,h); the fine-tuned model started from the published
+checkpoint trained on Materials Project densities, with the step counter,
+optimizer state and schedule reset, and ran for 50,000 steps from
+$5\times10^{-4}$ (18\,h). Both used a batch of 8 structures on one NVIDIA RTX
+A5000. Their best validation NMAPE, from probes, was 1.21\% and 0.83\%.
+
+\subsection{Density errors}
+The published Materials Project checkpoint, applied without fine-tuning, has a
+mean probe NMAPE of 46\% on the test structures (median 32\%, largest 350\%):
+for elements whose PAW dataset in the Materials Project differs from ours
+(for example Rh\_pv, In\_d, Ge\_d against the standard datasets used here),
+it predicts the density of a different number of valence electrons. The
+full-grid NMAPE of the two trained models agrees with the probe estimate
+(from scratch: mean 0.96\%, median 0.79\%, 90th percentile 1.73\%; fine-tuned:
+0.72\%, 0.58\%, 1.17\%). The largest error, for both, is that of YbPrZn$_2$
+(10.4\% and 10.3\%). The 156 test structures with lanthanides or actinides
+have a median error of 0.72\% against 0.55\% for the others with the
+fine-tuned model, and 11 of its 20 largest errors. By chemical class
+(Fig.~\ref{fig:si-ml-classes}a), fine-tuning helps most for hydrides (median
+2.29\% to 1.03\%), oxides (0.85\% to 0.50\%) and chalcogenides (1.05\% to
+0.66\%), and least for intermetallics (0.64\% to 0.57\%), which make up half
+of the test set. The predicted electron count deviates
+from $\sum Z_{\mathrm{val}}$ by a median of 0.13\% (90th percentile 0.36\%,
+largest 1.5\%, Ba$_3$N) for the fine-tuned model and 0.14\% (largest 3.9\%,
+bcc Li) for the model trained from scratch. A full-grid prediction took a
+median of 37\,s per structure (mean 55\,s) on the GPU, which was shared with
+other jobs; the DFT single points of the 486 test structures with an OUTCAR
+took a median of 154\,s on 40 cores (1.6 core-hours).
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth]{figures/si/fig_si_ml_classes.pdf}
+\caption{Errors of the predicted densities by chemical class (number of test
+structures in parentheses): (a) full-grid NMAPE, (b) per-structure median
+relative error over the 68 descriptors with $\rho_s\geq0.95$ for the
+fine-tuned model. Boxes: quartiles; whiskers: 1.5 interquartile ranges.}
+\label{fig:si-ml-classes}
+\end{figure}
+
+\subsection{Descriptor errors}
+The DFT and predicted densities of each test structure go through the same
+path (\texttt{paper/analysis/n\_ml\_descriptors.py}): the density on the DFT
+grid, the valence counts and PAW radii of the dataset table, the bonding,
+structural and heterogeneity domains with the \texttt{paw} extension, and
+default options. The DFT reference is therefore the total density of the
+same grid, not the spin-resolved CHGCAR, and the magnetic domain is left out.
+Every descriptor is scored by its median and 90th-percentile relative error
+$|a-b|/\max(|a|,|b|)$ over the structures, the Spearman correlation $\rho_s$
+and $R^2$ across structures (Table~\ref{tab:si-ml}). Two descriptors are not
+scored: \texttt{lap\_concentration}, which is exactly $\tfrac12$ on a periodic
+grid, and \texttt{def\_out\_volume\_fraction}, which depends only on the
+structure and the PAW radii. Rescaling the prediction to the nominal electron
+count, which a workflow that starts from the structure alone would do, leaves
+$\rho_s$ essentially unchanged (median change below $10^{-4}$; largest gain
+0.065 for \texttt{ellip\_bond\_std}, largest loss 0.008 for
+\texttt{f\_bond\_dep\_out}) and lowers the median relative error over the
+descriptors from 0.90\% to 0.83\%.
+
+The structures with the largest per-structure descriptor error are
+YbPrZn$_2$ (20\%), Ba$_3$N (9.7\%) and Yb$_2$MgIn (9.2\%); 21 structures exceed
+2\%. Two of the three contain Yb, and Ba$_3$N has the largest charge error of
+the fine-tuned model. By class (Fig.~\ref{fig:si-ml-classes}b), the
+descriptor error is lowest for oxides and chalcogenides (median 0.57\% and
+0.61\%) and highest for hydrides (1.6\%) and elemental solids (1.0\%).
+
+\input{si/ml_table}
 
 \bibliographystyle{unsrt}
 \bibliography{references}

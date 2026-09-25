@@ -2,7 +2,7 @@
 
 Inputs (../data/): analytic_*.csv, ionicity_dataset.csv, phillips_matched.csv,
 calibration_fits.csv, ionicity_predictions.csv, potential_sample.csv, examples.csv,
-sites_examples.csv, bonds_examples.csv, ml_scores_scratch.csv, ml_ionicity_scratch.csv;
+sites_examples.csv, bonds_examples.csv, ml_scores_{scratch,finetune}.csv, ml_ionicity_{scratch,finetune}.csv;
 paper/analysis/out/convergence.csv and derivatives_summary.csv.
 
 Usage:  python make_figures.py
@@ -234,8 +234,10 @@ def fig_robustness():
     conv = conv[conv["descriptor"].isin(names) & np.isfinite(conv["rel_change_x0.8"])]
     der = pd.read_csv(PAPER / "derivatives_summary.csv")
     der = der[der["descriptor"].isin(["lnf", "lap_concentration_valence"])]
-    ml = pd.read_csv(DATA / "ml_scores_scratch.csv").set_index("descriptor")
-    mi = pd.read_csv(DATA / "ml_ionicity_scratch.csv")
+    ml = {lab: pd.read_csv(DATA / f"ml_scores_{t}.csv").set_index("descriptor")
+          for lab, t in (("from scratch", "scratch"), ("fine-tuned", "finetune")) if (DATA / f"ml_scores_{t}.csv").exists()}
+    mi = {lab: pd.read_csv(DATA / f"ml_ionicity_{t}.csv")
+          for lab, t in (("from scratch", "scratch"), ("fine-tuned", "finetune")) if (DATA / f"ml_ionicity_{t}.csv").exists()}
     fig, ax = plt.subplots(1, 4, figsize=(15, 3.6))
     g = conv.groupby("descriptor")["rel_change_x0.8"]
     x = np.arange(len(names))
@@ -251,10 +253,16 @@ def fig_robustness():
     ax[1].set(yscale="log", ylabel="median relative change vs FFT", title="(b) derivative scheme (200 structures)")
     ax[1].legend(frameon=False, fontsize=6.5)
     mn = ["V_spread", "rho_mid_mean", "rho_mid_std", "lap_concentration_valence", "f_int", "lnf"]
-    ax[2].bar(np.arange(len(mn)), ml.loc[mn, "median_rel"], color="C2")
+    for k, (lab, m) in enumerate(ml.items()):
+        ax[2].bar(np.arange(len(mn)) + (k - (len(ml) - 1) / 2) * 0.4, m.loc[mn, "median_rel"], 0.4,
+                  color=("0.6", "C2")[k % 2], label=lab)
+    ax[2].legend(frameon=False, fontsize=6.5)
     ax[2].set_xticks(np.arange(len(mn)), mn, rotation=45, ha="right", fontsize=7)
     ax[2].set(yscale="log", ylabel="median |relative error|", title="(c) from ChargE3Net densities (605)")
-    ax[3].scatter(mi["grid_ionicity_dft"], mi["grid_ionicity_ml"], s=6, alpha=0.5)
+    for k, (lab, m) in enumerate(mi.items()):
+        ax[3].scatter(m["grid_ionicity_dft"], m["grid_ionicity_ml"], s=6, alpha=0.5, color=("0.6", "C0")[k % 2],
+                      label=lab)
+    ax[3].legend(frameon=False, fontsize=6.5)
     ax[3].plot([0, 1], [0, 1], "k-", lw=0.6)
     ax[3].set(xlabel="grid_ionicity from the DFT density", ylabel="from the predicted density",
               title="(d) grid_ionicity, DFT vs ML")

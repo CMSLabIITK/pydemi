@@ -45,7 +45,8 @@ Main findings:
    numerically converged. Its highest values are for Ca₂N (0.54), Ho₂C and Dy₂C (0.53–0.55)
    and Lu. Yet it changes by 18–26% between derivative schemes without converging. It carries
    a baseline of 0.0003–0.24 for a perfectly spherical atom, where the exact value is 0. It is
-   the least ML-predictable of the 86 non-constant descriptors tested (Spearman 0.22). **Recommendation:**
+   the least ML-predictable of the 85 non-constant descriptors tested (Spearman 0.22 from scratch,
+   0.26 fine-tuned). **Recommendation:**
    tag it `fragile`, like the ellipticity statistics and saddle counts.
 5. **The four descriptors are largely independent** of one another and of the other
    descriptors. The largest rank correlation of `zeta` with any other descriptor is 0.67
@@ -600,16 +601,17 @@ nuclei (section 6.1), and to Hf and its compounds.
 FD of order 2, 4, 8 (100 random structures), the diagonal-Laplacian shortcut, and a
 Fourier-coarsened grid with 80% of the points per axis (30 structures). The dashed line
 marks 1%. (b) Spearman rank correlation between values from ML-predicted densities
-(ChargE3Net trained from scratch) and from DFT densities, on 605 test structures.
+(ChargE3Net trained from scratch, grey, and fine-tuned from the Materials Project
+checkpoint) and from DFT densities, on 605 test structures.
 
-| Descriptor | FFT–FD2 | FFT–FD4 | FFT–FD8 | diagonal Laplacian | grid 100→80% | ML vs DFT, Spearman | ML vs DFT, median rel. error |
+| Descriptor | FFT–FD2 | FFT–FD4 | FFT–FD8 | diagonal Laplacian | grid 100→80% | ML vs DFT, Spearman (scratch / fine-tuned) | ML vs DFT, median rel. error (scratch / fine-tuned) |
 |---|---|---|---|---|---|---|---|
-| `zeta` | 4.6×10⁻³ | 1.1×10⁻⁴ | 8.9×10⁻⁶ | 0 | 5.2×10⁻³ | 0.988 | 2.4% |
-| `zeta_ELF` | 0.22 | 0.21 | 0.18 | 0.26 | 0.25 | **0.22** | 78% |
-| `T_eigenvalues_t1` | 2.0×10⁻⁴ | 7.6×10⁻⁶ | 5.8×10⁻⁸ | 0 | 2.5×10⁻⁸ | 0.914 | 0.05% |
-| `T_eigenvalues_t2` | 1.9×10⁻⁴ | 7.4×10⁻⁶ | 4.1×10⁻⁸ | 0 | 2.1×10⁻⁸ | 0.707 | 0.03% |
-| `T_eigenvalues_t3` | 2.0×10⁻⁴ | 8.4×10⁻⁶ | 4.9×10⁻⁸ | 0 | 2.1×10⁻⁸ | 0.936 | 0.04% |
-| `charge_FA` | 0.14 | 5.8×10⁻³ | 6.1×10⁻⁵ | 0 | 8.0×10⁻⁶ | 0.926 | 60% |
+| `zeta` | 4.6×10⁻³ | 1.1×10⁻⁴ | 8.9×10⁻⁶ | 0 | 5.2×10⁻³ | 0.988 / 0.993 | 2.4% / 1.9% |
+| `zeta_ELF` | 0.22 | 0.21 | 0.18 | 0.26 | 0.25 | **0.22 / 0.26** | 78% / 77% |
+| `T_eigenvalues_t1` | 2.0×10⁻⁴ | 7.6×10⁻⁶ | 5.8×10⁻⁸ | 0 | 2.5×10⁻⁸ | 0.914 / 0.870 | 0.05% / 0.07% |
+| `T_eigenvalues_t2` | 1.9×10⁻⁴ | 7.4×10⁻⁶ | 4.1×10⁻⁸ | 0 | 2.1×10⁻⁸ | 0.707 / 0.751 | 0.03% / 0.05% |
+| `T_eigenvalues_t3` | 2.0×10⁻⁴ | 8.4×10⁻⁶ | 4.9×10⁻⁸ | 0 | 2.1×10⁻⁸ | 0.936 / 0.917 | 0.04% / 0.05% |
+| `charge_FA` | 0.14 | 5.8×10⁻³ | 6.1×10⁻⁵ | 0 | 8.0×10⁻⁶ | 0.926 / 0.896 | 60% / 58% |
 
 (Median relative differences; the Spearman rank correlations between schemes are ≥ 0.998
 for `zeta`, T and FA at FD4 and above, and 0.80–0.94 for `zeta_ELF`.)
@@ -626,7 +628,15 @@ for `zeta`, T and FA at FD4 and above, and 0.80–0.94 for `zeta_ELF`.)
   keep their ranking (0.91–0.94; 0.71 for t₂, which varies least across structures), but
   FA has a 60% relative error. A predicted density is not exactly
   symmetric, so a cubic structure acquires a small nonzero FA. `zeta_ELF` is the least
-  reproducible of the 86 non-constant descriptors tested.
+  reproducible of the 85 non-constant descriptors tested, and it is biased: the fine-tuned
+  model gives a median of 0.43 (10th–90th percentile 0.34–0.47) against 0.09 (0.05–0.21)
+  from DFT, and a larger value for every one of the 605 structures (paper Fig. 8i).
+* **Fine-tuned model.** Fine-tuning (mean NMAPE 0.72% against 0.96%) improves `zeta`
+  (0.993, 1.9%) and hardly changes `zeta_ELF` (0.26). The T eigenvalues and FA are
+  predicted to R² ≥ 0.98 by both models, but their ranks move by a few hundredths either
+  way (t₁ 0.91 → 0.87, t₂ 0.71 → 0.75): they vary by only 2–4% across the test set,
+  so their rank correlation is not a stable measure. A better density does not rescue a
+  quantity built on third derivatives.
 
 ---
 
@@ -639,7 +649,7 @@ for `zeta`, T and FA at FD4 and above, and 0.80–0.94 for `zeta_ELF`.)
 | **Symmetry check** of relaxed structures | `charge_FA` | T = I/3 in cubic symmetry; uniaxial forms in the uniaxial systems | cubic floor < 10⁻⁴; flags structures whose label overstates their symmetry (§7.3) |
 | **Electronic symmetry breaking** (orbital order, f-electron states) | `charge_FA` | the density loses the lattice symmetry | magnetic cubic Yb, Dy, Pr compounds up to 4×10⁻³ (§7.3) |
 | **Electride screening** | `zeta_ELF` (with care) | interstitial ELF maxima away from nuclei | Ca₂N, Ho₂C, Dy₂C at the top; a numerical baseline of the same size (§4.3) |
-| **Features that survive an ML density** | `zeta`, t₁, t₃, FA ranking | smooth, first-derivative quantities | Spearman 0.91–0.99 (§8) |
+| **Features that survive an ML density** | `zeta`, t₁, t₃, FA ranking | smooth, first-derivative quantities | Spearman 0.87–0.99 (§8) |
 
 For models, the three robust ones (`zeta`, the T eigenvalues, `charge_FA`) add
 information that the composition and the other density descriptors do not carry (rank
@@ -654,7 +664,7 @@ than FA. Remember that only two of the three T eigenvalues are independent.
    - 18–26% change between derivative schemes, not converging;
    - 25% change on an 80% grid;
    - a spherical-atom baseline of up to 0.24;
-   - ML rank correlation 0.22.
+   - ML rank correlation 0.22 (0.26 with the fine-tuned model), with a systematic upward bias.
 
    These are the same criteria that led to tagging `ellip_bond_avg`, `ellip_bond_std`,
    `n_saddle1` and `n_saddle2` (decision of 2026-09-25). `zeta_ELF` meets them as clearly,
@@ -699,8 +709,8 @@ pymatgen, spglib, matplotlib). One thread per worker:
 
 Other inputs: `results/prompt_spec/descriptors_6000_data_aug13.csv` (the dataset rerun),
 `paper/analysis/out/convergence.csv` (the 80% grid test, `paper/analysis/e_convergence.py`)
-and `data/ml_scores_scratch.csv` (the descriptor-level DFT-vs-ML comparison of the
-ChargE3Net test set; provisional until the fine-tuned model has been evaluated).
+and `data/ml_scores_scratch.csv`, `data/ml_scores_finetune.csv` (the descriptor-level
+DFT-vs-ML comparison of the ChargE3Net test set, from `paper/analysis/o_ml_analysis.py`).
 `summary_by_class.csv` and `summary_by_system.csv` hold the tables of §7.
 
 Figures are in `figures/` as PNG (200 dpi) and PDF (vector, for LaTeX). To reuse this

@@ -600,8 +600,10 @@ test structures) against those from DFT (`data/ml_scores_scratch.csv`):
 * **`perc_anisotropy` has large relative errors but R² 0.996.** Its large values (layered
   and chain structures) are predicted well. The many values near 0 are noise-level in
   both the DFT and the ML density, so their relative errors are meaningless.
-* The fine-tuned model's full-grid test was still running when this was written.
-  `make_figures.py` adds its bars when `data/ml_scores_finetune.csv` exists.
+* **Fine-tuned model** (`data/ml_scores_finetune.csv`; mean NMAPE 0.72% against 0.96%).
+  All nine improve: the levels to 0.68–0.69% median error and Spearman 0.9995–0.9997,
+  `rho_min_ratio` 6.5% → 4.8%, `rho_min_int_ratio` 3.3% → 2.1%. `perc_anisotropy` stays
+  at Spearman 0.90 (R² 0.998) for the reason above.
 
 ---
 

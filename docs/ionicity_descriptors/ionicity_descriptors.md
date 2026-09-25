@@ -550,9 +550,14 @@ Notes:
   structures where these values are near zero.
 * `lnf` is poorly predicted. It counts voxels by the sign of ∇²ρ, which is sensitive to
   small density errors in near-zero-Laplacian regions.
-* The fine-tuned model's full-grid test was still running when this was written. Adding
-  `data/ml_scores_finetune.csv`, and running `ml_ionicity.py` on the fine-tuned table,
-  updates Fig. 8.
+* **Fine-tuned model** (`data/ml_scores_finetune.csv`, `data/ml_ionicity_finetune.csv`,
+  Fig. 8c–d; mean NMAPE 0.72% against 0.96%). `f_int`, `rho_mid_mean` and `rho_mid_std`
+  improve (0.61% → 0.41%, 0.52% → 0.45%, 2.5% → 1.8%), `V_spread` is unchanged (0.3%),
+  `lnf` improves but stays weak (9.7% → 6.2%, Spearman 0.89), and
+  `lap_concentration_valence` is slightly worse (5.0% → 6.5%). The reconstructed
+  `grid_ionicity` agrees to a median 0.95% (Spearman 0.985, against 0.982); its outliers
+  in Fig. 8d are structures where `lnf` is badly predicted (median `lnf` error 46% for the
+  20 largest `grid_ionicity` errors, against 6% overall; Sr₁₉₄: `lnf` 0.05 → 0.30).
 
 ---
 

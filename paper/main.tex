@@ -49,7 +49,11 @@ units, range and documented values for degenerate cases, and each tested for
 invariance under supercell expansion, translation and rotation. pydemi reads
 densities from VASP and, through cube and XSF files, from other plane-wave
 codes, and is designed with a second input path for charge densities
-predicted by ML directly from crystal structures.
+predicted by ML directly from crystal structures. With ChargE3Net models
+trained on the dataset, 68 of the 85 non-constant descriptors of the bonding,
+structural and heterogeneity domains computed from predicted densities keep a
+rank correlation of at least 0.95 with their DFT values; the critical-point
+census and descriptors built on higher derivatives do not transfer.
 % TODO: revise the previous sentence once the CIF -> CHGCAR model is integrated.
 On a 6,059-structure VASP dataset we quantify how numerical choices affect
 the descriptors. Projector-augmented-wave pseudo-densities require dedicated
@@ -261,7 +265,7 @@ Fourier-coarsened to 80\% of its points per axis (30 structures), when the FFT
 derivatives are replaced by fourth- or second-order central differences (200
 structures; 60 for the site statistics of $\zeta$), when the nearest-atom partition is replaced by Becke or
 Hirshfeld weights (300 structures), and when the descriptors are computed from
-a density predicted by the from-scratch ChargE3Net model instead of the DFT
+a density predicted by the fine-tuned ChargE3Net model instead of the DFT
 density (605 test structures; Section~\ref{sec:ml}). Dots mark choices a
 descriptor does not depend on; grey marks combinations not tested (the
 magnetic descriptors are not available from the predicted densities). Large
@@ -571,12 +575,104 @@ the 132 Magpie composition features over the 6,059 structures.}
 
 \section{Machine-learning input path}
 \label{sec:ml}
-% TODO: CIF -> predicted CHGCAR model, integration into pydemi, and a
-% DFT-vs-ML comparison of descriptors (to be written when available).
+A density predicted by a machine-learning model enters pydemi through the same
+data model as a DFT density, as a grid of the valence pseudo-density on the
+cell of the structure, and every descriptor that needs only the total density
+is computed from it without change. We used ChargE3Net~\cite{koker2024}, an
+E(3)-equivariant network that predicts the density at arbitrary points from
+the atomic structure, with the published code and architecture unchanged
+(three interaction layers, $l_{\max}=4$, 4\,\AA{} cutoff). Two models were
+trained on the VASP densities of the dataset, with 5,152 structures for
+training, 302 for validation and 605 for testing: one from scratch (200,000
+steps) and one fine-tuned for 50,000 steps from the published checkpoint
+trained on the Materials Project densities. The published checkpoint itself
+is not usable on this dataset (probe NMAPE 46\% on the test set), because
+several of its PAW datasets, and hence its valence counts, differ from ours.
+The models were evaluated on the full DFT grids of the 605 test structures;
+details are given in Section~S6 of the Supporting Information.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth]{figures/fig_ml.pdf}
+\caption{Descriptors of predicted densities (605 test structures). (a) Density
+error (NMAPE) of the fine-tuned against the from-scratch ChargE3Net model per
+structure; red: structures containing lanthanides or actinides. (b) Rank
+agreement between the descriptors of the DFT and the predicted densities,
+$1-\rho_s$, for the 85 non-constant descriptors of the bonding, structural and
+heterogeneity domains; dotted lines mark $\rho_s=0.99$ and $0.95$. (c) Median
+relative error per structure over the 68 descriptors with $\rho_s\geq0.95$
+against the density error. (d--i) Fine-tuned against DFT values for four
+descriptors that transfer and two that do not.}
+\label{fig:ml}
+\end{figure}
+
+The fine-tuned model has a mean NMAPE of 0.72\% (median 0.58\%) against 0.96\%
+(0.79\%) for the model trained from scratch, and is more accurate on 473 of the
+605 structures (Fig.~\ref{fig:ml}a). Structures with lanthanides or actinides
+are predicted less accurately (median 0.72\% against 0.55\%) and include the
+worst case, YbPrZn$_2$ (10.3\%). The predicted densities do not conserve
+charge exactly (median $|\Delta N|/N$ 0.13\%, largest 1.5\%); pydemi reads all
+605 without error.
+
+The descriptors computed from the predicted densities fall into two groups
+(Fig.~\ref{fig:ml}b). For 68 of the 85 non-constant descriptors the rank
+correlation with the DFT values across the test structures is at least 0.95
+and for 58 it is at least 0.99, with a median relative error of 0.9\% over the
+85; they include the region shares and moments, the deformation family, the
+percolation levels and all 18 heterogeneity descriptors
+(Fig.~\ref{fig:ml}d--g). The other 17, 13 of them from the structural domain,
+fall into three classes. The critical-point census (counts of maxima, minima and saddle
+points, and the non-nuclear maxima and their charges) responds to shallow
+spurious extrema in flat, low-density regions (Fig.~\ref{fig:ml}h). Quantities
+built from higher derivatives, the bond ellipticities, the negative-Laplacian
+fraction and above all $\zeta_{\mathrm{ELF}}$, the gradient anisotropy of the
+reconstructed ELF, which involves third derivatives of $\rho$, amplify the
+short-wavelength error of the prediction; $\zeta_{\mathrm{ELF}}$ is
+systematically too large, with a median of 0.43 against 0.09 and a larger
+value for every test structure (Fig.~\ref{fig:ml}i). The eigenvalues of the gradient tensor vary by only
+2--4\% across the test set, and its fractional anisotropy and the percolation
+anisotropy are zero or close to zero for many structures, so their ranks are
+fragile although the values are predicted accurately ($R^2\geq0.98$). All 68
+descriptors that transfer are tagged robust and the four scored descriptors
+tagged fragile are among the 17: robustness to the numerical choices of
+Section~\ref{sec:numerics:convergence} is necessary for transfer here, but not
+sufficient. Fine-tuning improves the rank agreement of 74 of the 85
+descriptors, and rescaling the prediction to the nominal electron count
+changes it little (median change below $10^{-4}$). Per structure, the median
+descriptor error over the 68 transferable descriptors is 0.66\% and follows
+the density error (Spearman 0.59; Fig.~\ref{fig:ml}c); it exceeds 5\% only
+for YbPrZn$_2$, Yb$_2$MgIn and Ba$_3$N.
+
+Two limitations remain. The models predict the total density only, so the
+magnetic domain is not available from them. And in this evaluation the
+density was predicted on the grid of the DFT calculation; the prediction
+itself needs only the structure and a set of points, but choosing the grid
+from the structure alone, which completes the path from a crystal structure
+to descriptors, is not yet part of pydemi. The prediction took a median of
+37\,s per structure on one shared GPU and pydemi a further 5\,s on one core,
+against a median of 154\,s on 40 cores for the DFT single point that
+produced the reference density.
+% TODO: CIF-only inference (grid from the structure) and the reader for
+% predicted densities; update this paragraph when they are integrated.
 
 \section{Software availability}
-% - Installation, Python API, command line, batch processing, license,
-%   repository URL (TODO).
+pydemi is written in Python ($\geq$3.10). The numerical core requires only
+NumPy, SciPy and pandas; pymatgen, spglib and matminer are optional and are
+needed only for the compositional domain. The source code, the 876 tests, the
+documentation generated from the registry, the per-family descriptor reports
+and the scripts that regenerate every number, table and figure of this paper
+from the dataset are available at
+\url{https://github.com/shubhamkmaurya03/pydemi} under the MIT licence. The
+package is installed with \texttt{pip install .} (or \texttt{".[full]"} with
+the optional dependencies) and is used through the Python functions
+\texttt{read}, \texttt{featurize}, \texttt{featurize\_batch},
+\texttt{catalogue} and \texttt{sensitivity\_sweep}, or through the command line
+(\texttt{pydemi featurize}, \texttt{batch}, \texttt{catalogue},
+\texttt{sweep}). Batch runs write one row per structure, with the
+\texttt{\_\_flag} columns and the run metadata, and by default continue past
+structures that fail, recording the error.
+% TODO: archived release (DOI) and the availability of the dataset and of the
+% ML predictions (to be decided with the dataset owner).
 
 \section{Conclusions}
 

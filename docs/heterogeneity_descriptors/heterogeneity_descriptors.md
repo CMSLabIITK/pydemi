@@ -697,8 +697,12 @@ value. Source: `data/ml_scores_scratch.csv`.
   rank agreement. For symmetric structures, both the DFT and ML values sit in the same
   noise band, which inflates the rank agreement. Their predictability should not be
   over-read.
-* The fine-tuned model's full-grid test was still running when this was written.
-  `make_figures.py` adds its bars when `data/ml_scores_finetune.csv` exists.
+* **Fine-tuned model** (`data/ml_scores_finetune.csv`; mean NMAPE 0.72% against 0.96%).
+  Spearman improves or stays equal for all 18, and the relative errors fall most where the
+  scratch model was weakest: the within terms (m1 5.7% → 3.0%, f_bond 4.8% → 3.0%,
+  ζ 12% → 10%) and the ζ statistics (`zeta_site_std` 3.3% → 2.5%). All 18 reach
+  Spearman ≥ 0.98; of the three domains scored (bonding 38 of 42, structural 12 of 25),
+  it is the only one in which every descriptor transfers.
 
 ---
 
