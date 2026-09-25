@@ -546,5 +546,5 @@ ellipticity spread (2%), whose lambda1/lambda2 - 1 diverges as lambda2 -> 0
 - Hirshfeld partition: F. L. Hirshfeld, Theor. Chim. Acta 44, 129 (1977).
 - Piecewise-linear critical points: T. Banchoff, Amer. Math. Monthly 77, 475 (1970).
 
-Licence: MIT (as declared in `pyproject.toml`). Author: **Shubham Maurya**,
+Licence: MIT (`LICENSE`; declared in `pyproject.toml`). Author: **Shubham Maurya**,
 CMS Lab, IIT Kanpur.

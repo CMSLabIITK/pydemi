@@ -169,6 +169,6 @@ Output `descriptors_6000_data_aug13.csv`; comparison with the earlier run in
 
 ### 5.4 Decisions for the user / PI
 - [ ] Verify the DOIs in `paper/references.bib`.
-- [ ] Confirm the MIT licence (no LICENSE file yet).
+- [x] MIT licence: `LICENSE` added (2026-09-25).
 - [ ] Journal choice (Computer Physics Communications or Computational
       Materials Science recommended for the current scope).
