@@ -1,11 +1,12 @@
 """
-pydemi.atoms.solver
--------------------
+tools/atomic_solver.py
+----------------------
 Spherical, non-spin-polarized, non-relativistic LDA free-atom solver
-(Hartree atomic units throughout). It supplies the free-atom reference
-densities behind the deformation density (Family A) and Hirshfeld
-partition (entry 101) -- the "tabulated atomic-DFT radial densities" route
-of the reference, computed on demand instead of shipped as a table.
+(Hartree atomic units throughout). ``tools/generate_free_atom_tables.py``
+runs it once for Z = 1-96 and ships the radial densities as
+``pydemi/data/free_atoms.npz``, the free-atom references behind the
+promolecule, the deformation density and the Hirshfeld partition; the
+package itself never calls the solver.
 
 Radial equation on a logarithmic grid
 -------------------------------------

@@ -25,6 +25,16 @@ reports the value and sets the companion flag ``<name>__flag`` -- never a
 bare NaN. The only NaN allowed is a within-element variance when no element
 has two sites, which comes with the per-element site counts (spec §10).
 
+Stability
+---------
+``stability="fragile"`` marks a descriptor that is computed exactly as
+specified but is not numerically converged on typical VASP grids: its value
+changes by more than ~10% between derivative schemes or when the grid is
+coarsened to 80% (measured on the 6,059-structure dataset; see
+paper/analysis). Fragile descriptors stay in the default ``featurize``
+output; ``descriptor_names(..., include_fragile=False)`` gives the
+model-ready set without them.
+
 Intensivity
 -----------
 Every registered descriptor must be intensive: unchanged when the cell is
@@ -47,7 +57,8 @@ from ..fields.density import Derivatives, abs_m, derivatives, rho
 from ..io.base import FloatArray, VolumetricData
 
 DOMAINS = ("bonding", "structural", "magnetic", "heterogeneity", "compositional")
-EXTENSIONS = ("paw",)
+EXTENSIONS = ("paw", "robust")
+STABILITY = ("robust", "fragile")
 PARTITIONS = ("nearest", "power", "becke", "hirshfeld")
 DEFORMATION_REFERENCES = ("auto", "aeccar0", "tabulated", "custom")
 ELF_SOURCES = ("auto", "reconstruct", "file")
@@ -149,6 +160,7 @@ class DescriptorSpec:
     extension: Optional[str]
     func: DescriptorFn = field(compare=False)
     doc: str = ""
+    stability: str = "robust"
 
     @property
     def formula(self) -> str:
@@ -163,8 +175,8 @@ def register(name: str, domain: str, field: str, requires: Iterable[str], units:
              range: tuple[float, float] = (-np.inf, np.inf), intensive: bool = True,
              sentinel_cases: Optional[Mapping[str, float]] = None,
              references: Iterable[str] = (), adopted: bool = False,
-             extension: Optional[str] = None, doc: Optional[str] = None
-             ) -> Callable[[DescriptorFn], DescriptorFn]:
+             extension: Optional[str] = None, doc: Optional[str] = None,
+             stability: str = "robust") -> Callable[[DescriptorFn], DescriptorFn]:
     """Register a descriptor function (decorator)."""
     if domain not in DOMAINS:
         raise ValueError(f"{name}: unknown domain {domain!r}")
@@ -173,6 +185,8 @@ def register(name: str, domain: str, field: str, requires: Iterable[str], units:
                          "normalize it (per volume, per atom, or by a total) first")
     if extension is not None and extension not in EXTENSIONS:
         raise ValueError(f"{name}: unknown extension {extension!r}")
+    if stability not in STABILITY:
+        raise ValueError(f"{name}: stability must be one of {list(STABILITY)}, got {stability!r}")
 
     def deco(fn: DescriptorFn) -> DescriptorFn:
         if name in REGISTRY:
@@ -182,7 +196,7 @@ def register(name: str, domain: str, field: str, requires: Iterable[str], units:
             range=(float(range[0]), float(range[1])), intensive=intensive,
             sentinel_cases=dict(sentinel_cases or {}), references=tuple(references),
             adopted=adopted, extension=extension, func=fn,
-            doc=doc if doc is not None else (fn.__doc__ or ""))
+            doc=doc if doc is not None else (fn.__doc__ or ""), stability=stability)
         return fn
     return deco
 
@@ -225,10 +239,23 @@ def field_values(vd: VolumetricData, name: str) -> FloatArray:
         raise KeyError(f"unknown field {name!r}; known: {sorted(_FIELDS)}") from None
 
 
+_OPTION_FREE_FIELDS = ("rho", "abs_m", "elf_file")
+
+
 def field_derivatives(vd: VolumetricData, name: str) -> Derivatives:
+    """Cached derivatives of a registered field.
+
+    A derived field (ELF_D, delta rho, ...) depends on the options that
+    produced it, so its cache entry is keyed by them too: featurizing one
+    object twice with, e.g., a different ``laplacian_method`` never reuses
+    stale derivatives.
+    """
     o = options(vd)
     backend = "fft" if o.derivative_backend == "fft" else "fd"
-    return derivatives(vd, name, _FIELDS[name], backend, o.fd_order)
+    key = name if name in _OPTION_FREE_FIELDS else (
+        f"{name}|{o.derivative_backend}{o.fd_order}|{o.laplacian_method}|{o.deformation_reference}"
+        f"|{o.custom_reference}|{o.elf_source}|{o.potential_source}")
+    return derivatives(vd, key, _FIELDS[name], backend, o.fd_order)
 
 
 def laplacian(vd: VolumetricData, name: str = "rho") -> FloatArray:
@@ -261,14 +288,16 @@ def metadata_hook(fn: MetadataFn) -> MetadataFn:
 # ----------------------------------------------------------------------
 
 def _source_label(vd: VolumetricData, key: str, file_label: str) -> str:
-    return "table" if vd.sources.get(key) == "table" else file_label
+    src = vd.sources.get(key)
+    return "table" if src == "table" else file_label if src else "given"
 
 
 def augmentation_radii(vd: VolumetricData) -> tuple["np.ndarray", str]:
     """(per-atom PAW augmentation radius R_PAW in Angstrom, source).
 
-    RCORE from the POTCAR / OUTCAR (``source="potcar"``) or a per-element
-    table passed to ``read_vasp`` (``"table"``); elements without one fall
+    RCORE from the POTCAR / OUTCAR (``source="potcar"``), a per-element
+    table passed to ``read_vasp`` (``"table"``) or radii set on the object
+    (``"given"``); elements without one fall
     back to the covalent radius (``"covalent"``, or e.g. ``"table+covalent"``
     when only some are covered). Inside R_PAW a VASP CHGCAR is pseudized;
     outside it equals the all-electron valence density.

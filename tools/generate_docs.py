@@ -22,10 +22,11 @@ def esc(s: str) -> str:
 
 def table(cat, domain: str, extension: str = "") -> str:
     rows = cat[(cat.domain == domain) & (cat.extension == extension)]
-    out = ["| Name | Units | Definition | Sentinel cases |", "|---|---|---|---|"]
+    out = ["| Name | Units | Definition | Sentinel cases | Stability |", "|---|---|---|---|---|"]
     for _, r in rows.iterrows():
+        stab = "**fragile**" if r["stability"] == "fragile" else "robust"
         out.append(f"| `{r['name']}` | {esc(r['units'])} | {esc(r['formula'])} | "
-                   f"{esc(r['sentinel_cases']) or '-'} |")
+                   f"{esc(r['sentinel_cases']) or '-'} | {stab} |")
     return "\n".join(out)
 
 
@@ -37,18 +38,22 @@ def main() -> None:
     text = readme.read_text()
     blocks = {f"{d}": table(cat, d) for d in ("bonding", "structural", "magnetic", "heterogeneity")}
     blocks["paw"] = "\n\n".join(table(cat, d, "paw") for d in ("bonding", "structural"))
+    blocks["robust"] = table(cat, "bonding", "robust")
     for key, body in blocks.items():
         text = re.sub(rf"(<!-- catalogue:{key}:start -->).*?(<!-- catalogue:{key}:end -->)",
                       lambda m: m.group(1) + "\n" + body + "\n" + m.group(2), text, flags=re.S)
     counts = cat[cat.extension == ""].groupby("domain").size().to_dict()
     total = int(sum(counts.values()))
     n_paw = int((cat.extension == "paw").sum())
+    n_robust = int((cat.extension == "robust").sum())
+    n_fragile = int(((cat.extension == "") & (cat.stability == "fragile")).sum())
     text = re.sub(r"<!-- counts -->.*?<!-- /counts -->",
                   f"<!-- counts -->{total} descriptors by default ("
                   + ", ".join(f"{counts[d]} {d}" for d in pydemi.descriptors.registry.DOMAINS)
-                  + f"), plus {n_paw} in the off-by-default PAW extension<!-- /counts -->", text)
+                  + f"; {n_fragile} of them tagged fragile), plus {n_paw} in the off-by-default "
+                  f"PAW extension and {n_robust} in the robust extension<!-- /counts -->", text)
     readme.write_text(text)
-    print(f"README tables and docs/catalogue.csv regenerated ({total} + {n_paw} descriptors)")
+    print(f"README tables and docs/catalogue.csv regenerated ({total} + {n_paw} + {n_robust} descriptors)")
 
 
 if __name__ == "__main__":

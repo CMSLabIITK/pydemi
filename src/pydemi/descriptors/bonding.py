@@ -283,24 +283,54 @@ def _ellipticity(vd: VolumetricData) -> "FloatArray | Sentinel":
 
 
 @register(name="ellip_bond_avg", domain="bonding", field="rho", requires=["hessian", "shells"],
-          units="dimensionless", range=(0.0, np.inf), sentinel_cases={"no_bond_voxels": 0.0})
+          units="dimensionless", range=(0.0, np.inf), sentinel_cases={"no_bond_voxels": 0.0},
+          stability="fragile")
 def ellip_bond_avg(vd: VolumetricData) -> Result:
     """ellip_bond_avg = mean of lambda1/lambda2 - 1 over {k in bond, lambda2 < 0}
 
-    lambda1 <= lambda2 <= lambda3 are the Hessian eigenvalues of rho. Near a
-    bond path with lambda2 -> 0- the ratio diverges, so the mean is dominated
-    by few voxels. No such voxel: 0.0, flagged.
+    lambda1 <= lambda2 <= lambda3 are the Hessian eigenvalues of rho. Where
+    lambda2 -> 0- the ratio diverges, so the mean is dominated by few voxels.
+    No such voxel: 0.0, flagged. Fragile: on the 6,059-structure dataset the
+    value changes by a median 22% between FFT and FD4 derivatives and 21%
+    on an 80% grid (48 structures); use ``ellip_bond_bounded_avg``
+    (extension "robust") where a converged ellipticity is needed.
     """
     e = _ellipticity(vd)
     return e if isinstance(e, Sentinel) else float(np.mean(e))
 
 
 @register(name="ellip_bond_std", domain="bonding", field="rho", requires=["hessian", "shells"],
-          units="dimensionless", range=(0.0, np.inf), sentinel_cases={"no_bond_voxels": 0.0})
+          units="dimensionless", range=(0.0, np.inf), sentinel_cases={"no_bond_voxels": 0.0},
+          stability="fragile")
 def ellip_bond_std(vd: VolumetricData) -> Result:
-    """ellip_bond_std = std of lambda1/lambda2 - 1 over {k in bond, lambda2 < 0}"""
+    """ellip_bond_std = std of lambda1/lambda2 - 1 over {k in bond, lambda2 < 0}
+
+    Fragile, for the reason given under ellip_bond_avg (median change 67%
+    between FFT and FD4, 62% on an 80% grid).
+    """
     e = _ellipticity(vd)
     return e if isinstance(e, Sentinel) else float(np.std(e))
+
+
+@register(name="ellip_bond_bounded_avg", domain="bonding", field="rho",
+          requires=["hessian", "shells"], units="dimensionless", range=(0.0, 1.0),
+          sentinel_cases={"no_bond_voxels": 0.0}, extension="robust")
+def ellip_bond_bounded_avg(vd: VolumetricData) -> Result:
+    """ellip_bond_bounded_avg = mean of 1 - lambda2/lambda1 over {k in bond, lambda2 < 0}
+
+    Per voxel 1 - lambda2/lambda1 = e / (1 + e) with e = lambda1/lambda2 - 1,
+    a monotone map of the ellipticity onto [0, 1): 0 for cylindrical
+    symmetry (lambda1 = lambda2), -> 1 as lambda2 -> 0-. It cannot diverge,
+    so voxels with lambda2 near zero no longer dominate the mean. On the
+    6,059-structure dataset it changes by a median 0.2% between FFT and FD4,
+    1.1% with FD2 and 0.2% on an 80% grid (48 structures). Extension
+    "robust" (off by default).
+    """
+    ev = _eigenvalues(vd)
+    sel = masks(vd).bond & (ev[..., 1] < 0)
+    if not sel.any():
+        return Sentinel(0.0, "no_bond_voxels")
+    return float(np.mean(1.0 - ev[..., 1][sel] / ev[..., 0][sel]))
 
 
 # ----------------------------------------------------------------------

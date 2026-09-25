@@ -21,9 +21,13 @@ comparison is strict.
              n_saddle2 += components(upper link) - 1.
 * euler_consistency = n_max - n_saddle2 + n_saddle1 - n_min. With the
   Freudenthal extrema this sum is identically 0 (chi(T^3) = 0, Banchoff);
-  with the 26-neighbour extrema it is 0 exactly when both neighbourhoods
-  find the same extrema, i.e. when the grid resolves every extremum, and
-  nonzero otherwise -- the grid-adequacy flag the specification asks for.
+  with the 26-neighbour extrema it equals
+  (n_max^26 - n_max^14) - (n_min^26 - n_min^14), the number of extrema whose
+  status depends on the stencil, so it is 0 exactly when both
+  neighbourhoods find the same extrema. This is the quality flag the
+  specification asks for; on VASP pseudo-densities it is nonzero for 91% of
+  a 6,059-structure dataset (median 5% of all critical points), set by
+  PAW-pseudized regions and low-amplitude ripple rather than by coarse grids.
 
 Basins
 ------

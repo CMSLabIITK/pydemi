@@ -19,7 +19,7 @@ from pydemi.validate.invariance import compare, rotate, rotation, supercell, tra
 LATTICE = Lattice(np.array([[3.9, 0.0, 0.0], [0.8, 4.1, 0.0], [0.6, 0.5, 4.3]]))
 FRAC = [[0.05, 0.10, 0.12], [0.52, 0.43, 0.58], [0.27, 0.71, 0.36]]
 SHAPE = (20, 21, 22)
-EXT = ("paw",)
+EXT = ("paw", "robust")
 
 
 @functools.lru_cache(maxsize=None)

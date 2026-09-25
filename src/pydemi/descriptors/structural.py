@@ -76,24 +76,39 @@ def census(vd: VolumetricData) -> dict[str, Any]:
     return out
 
 
-def _count(which: str, text: str) -> None:
+def _count(which: str, text: str, stability: str, note: str) -> None:
     def fn(vd: VolumetricData) -> Result:
         return float(census(vd)[which]) / vd.structure.volume
     register(name=which, domain="structural", field="rho", requires=["census"],
-             units="1/Angstrom^3", range=(0.0, np.inf),
+             units="1/Angstrom^3", range=(0.0, np.inf), stability=stability,
              doc=f"{which} = (number of {text}) / V_cell\n\nMaxima and minima by 26-neighbour "
                  "comparison with modular wrapping; saddles from the lower / upper link of the "
-                 "Freudenthal triangulation (see pydemi.operators.topology).")(fn)
+                 "Freudenthal triangulation (see pydemi.operators.topology)." + note)(fn)
 
 
-for _w, _t in (("n_max", "local maxima"), ("n_min", "local minima"),
-               ("n_saddle1", "index-1 saddles"), ("n_saddle2", "index-2 saddles")):
-    _count(_w, _t)
+_SADDLE_NOTE = (" Fragile: on the 6,059-structure dataset the saddle counts change by a median "
+                "17-20% when the grid is coarsened to 80% (30 structures).")
+for _w, _t, _s, _n in (("n_max", "local maxima", "robust", ""),
+                       ("n_min", "local minima", "robust", ""),
+                       ("n_saddle1", "index-1 saddles", "fragile", _SADDLE_NOTE),
+                       ("n_saddle2", "index-2 saddles", "fragile", _SADDLE_NOTE)):
+    _count(_w, _t, _s, _n)
 
 
 @metadata_hook
 def _census_metadata(vd: VolumetricData) -> dict[str, Any]:
-    """euler_consistency for every structure: nonzero = the grid does not resolve the topology."""
+    """euler_consistency = n_max - n_saddle2 + n_saddle1 - n_min (counts, not per volume).
+
+    Extrema come from 26 neighbours and saddles from the 14-neighbour
+    Freudenthal link. A census entirely on the Freudenthal link always
+    closes (Euler characteristic of the 3-torus = 0), so this equals
+    (n_max^26 - n_max^14) - (n_min^26 - n_min^14): the number of extrema
+    whose status depends on the stencil. Zero means every extremum is
+    resolved by both neighbourhoods; a nonzero value flags stencil-scale
+    features (PAW-pseudized regions, low-amplitude ripple), in which the
+    counts should be read with care. Nonzero for 91% of the 6,059-structure
+    dataset (median 5% of all critical points).
+    """
     return {"euler_consistency": int(census(vd)["euler_consistency"])}
 
 
@@ -288,7 +303,8 @@ def LMC_complexity(vd: VolumetricData) -> Result:
 from .registry import augmentation_radii  # noqa: E402
 
 
-def _outside_spheres(vd: VolumetricData, inner: float) -> "np.ndarray":
+def _outside_spheres(vd: VolumetricData, inner: "np.ndarray") -> "np.ndarray":
+    """Voxels farther than max(inner_i, R_PAW_i) from their nearest nucleus i (per-atom arrays)."""
     R, _ = augmentation_radii(vd)
     geo = geometry(vd)
     return np.asarray(geo.distance > np.maximum(inner, R)[geo.atom_index] + GEOMETRY_EPS)
@@ -301,7 +317,7 @@ def rho_min_int(vd: VolumetricData) -> Result:
 
     The interstitial density floor, out of reach of PAW pseudization.
     """
-    far = _outside_spheres(vd, options(vd).shells.c2)
+    far = _outside_spheres(vd, options(vd).shells.atom_cutoffs(vd.structure)[1])
     if not far.any():
         return Sentinel(0.0, "empty_region")
     return float(vd.rho.data[far].min())

@@ -74,8 +74,9 @@ def _per_site_mu(vd: VolumetricData) -> "F64 | Sentinel":
 
 
 def _stats(vd: VolumetricData, per_site: PerSite, base: str) -> "SiteStatistics | Sentinel":
-    key = ("site_stats", base, options(vd).partition, options(vd).shells.key(),
-           options(vd).derivative_backend)
+    o = options(vd)
+    key = ("site_stats", base, o.partition, o.shells.key(), o.derivative_backend, o.fd_order,
+           o.laplacian_method)
     if key not in vd.cache:
         x = per_site(vd)
         if isinstance(x, Sentinel):

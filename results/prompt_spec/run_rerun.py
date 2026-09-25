@@ -1,11 +1,13 @@
 """
 Rerun of the 6,059-structure dataset with the prompt.md build of pydemi.
 
-All domains + the paw extension, default options (FFT derivatives, nearest
+All domains + the paw and robust extensions, default options (FFT derivatives, nearest
 partition, shells 0.8/1.5, deformation reference auto -> tabulated),
 CHGCAR only (companions off, so every row comes from the same inputs).
 Runs without an OUTCAR take ZVAL / RCORE from dataset_paw_table.json
 (built from the dataset's 4,901 OUTCARs by tools/paw_table_from_outcars.py).
+
+The robust column was added after the first run by add_robust_ellipticity.py.
 
 Chunks of 500 are written to chunks/ and skipped when present (resumable);
 the merged table is descriptors_6000_data_aug13.csv.
@@ -46,7 +48,7 @@ def main() -> None:
         if out.exists():
             continue
         df = pydemi.featurize_batch(paths[k:k + CHUNK], n_workers=a.workers, progress=True,
-                                    read_options=read_options, extensions=["paw"])
+                                    read_options=read_options, extensions=["paw", "robust"])
         df.to_csv(out, index=False)
         print(f"chunk {k // CHUNK}: {len(df)} rows, {(df['error'] != '').sum()} errors, "
               f"{(time.time() - t0) / 60:.1f} min elapsed", flush=True)

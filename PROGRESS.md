@@ -93,31 +93,49 @@ Output `descriptors_6000_data_aug13.csv`; comparison with the earlier run in
   descriptors of the 1,158 no-OUTCAR runs (ZVAL fix; runs with an OUTCAR
   agree, Spearman 0.91-0.9996).
 - **Finding: ellipticity is not numerically robust.** ellip_bond_avg / std
-  change by 20-70% between FD2, FD4 and FFT on the dataset grids (Spearman
-  FD2 vs FFT 0.87 / 0.50), while zeta, fisher_information, charge_FA converge
-  (FD4 vs FFT 1e-4 to 6e-3). Needs a decision before these two are used or
-  reported.
+  change by a median 22% / 67% between FFT and FD4 and 21% / 62% on an 80%
+  grid (48 structures), while zeta, fisher_information, charge_FA converge
+  (FD4 vs FFT 1e-4 to 6e-3).
 - **Finding: the critical-point census rarely closes.** euler_consistency = 0
-  in 9.1% of structures (|.| <= 4 in 20%): on these pseudo-density grids the
-  counts n_max, n_min, n_saddle* are not topologically consistent.
+  in 9.1% of structures. It equals the number of extrema the 26- and
+  14-neighbour stencils classify differently (identity checked on 200
+  structures): a median 5% of all critical points, set by PAW-pseudized
+  regions and ripple, not by coarse grids.
+- **Decision (2026-09-25, E2 + E3 + C2 of the decision note).**
+  `ellip_bond_avg`, `ellip_bond_std`, `n_saddle1`, `n_saddle2` are tagged
+  `stability="fragile"` (still in the default output;
+  `descriptor_names(include_fragile=False)` gives the model-ready set of 216);
+  the off-by-default `robust` extension adds `ellip_bond_bounded_avg` =
+  mean(1 - lambda2/lambda1), converged to ~1% (added to the dataset table by
+  `add_robust_ellipticity.py`); `euler_consistency` is documented by its
+  identity. `Q_NNM` and `rho_perc_*` are the topological descriptors of record.
+- **Code-review fixes (same day).** Derivatives of derived fields and site
+  statistics were cached without every option they depend on (reusing one
+  object with another `laplacian_method` or `fd_order` gave stale values);
+  `rho_min_int` used c2 as a length with radius-scaled shells; `featurize`
+  hard-coded `fd_order=4`. Fixed, with regression tests that fail on the old
+  code (`tests/test_regressions.py`). The dataset rerun is unaffected (one
+  `featurize` call per fresh object, absolute shells).
 
 ## 4. Running
 
 - **ChargE3Net fine-tuning** (`~/charge3net/charge3net`,
   `scripts/run_finetune.sh`): started 2026-09-24 22:48 from the MP checkpoint,
-  50k steps (~16.5 h). Validation NMAPE 1.29% after ~5,200 steps, against
-  1.21% best for the from-scratch run after 200k steps.
+  50k steps. Validation NMAPE 0.84% at step 45,080 (best), against 1.21% best
+  for the from-scratch run after 200k steps. Test chain
+  (`scripts/eval_chain_after_finetune.sh`) starts when training exits:
+  probe tests of all three checkpoints, then the full-grid test of the
+  fine-tuned one (~8 h).
 
 ## 5. Remaining
 
 ### 5.1 Library
 - [x] Rerun the 6,059-structure dataset with the new pydemi (section 3).
-- [ ] Decide on ellip_bond_avg / std (not robust to the derivative scheme)
-      and on reporting the census counts given euler_consistency.
+- [x] Decide on ellip_bond_avg / std and the census counts (section 3: E2 + E3 + C2).
 - [x] Merge the `prompt-spec` branch into `main` (2026-09-25; local, not pushed).
 - [ ] Push `main` to GitHub (only when the user asks).
-- [ ] Optional: a new code guide for the rebuilt package (the old one is in
-      `legacy/docs/`).
+- [x] Code guide for the rebuilt package: `docs/CODE_GUIDE.md` (the old one
+      is `legacy/docs/CODE_GUIDE_pdf_spec.md`).
 - [ ] Optional: speed up the second-order Voronoi pair regions (2.3 s of 8.4 s
       on a symmetric 96^3 cell).
 

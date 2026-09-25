@@ -156,7 +156,7 @@ def test_paw_extension_is_off_by_default_and_uses_the_paw_radii():
     assert meta["paw_radii_source"] == "covalent"
     vd.paw_radii = {"Fe": 1.2, "O": 0.8}
     _, meta = pydemi.featurize(vd, extensions=["paw"], return_metadata=True)
-    assert meta["paw_radii_source"] == "potcar"
+    assert meta["paw_radii_source"] == "given"
 
 
 def test_rho_min_int_ignores_negative_pseudo_density_inside_the_spheres():
@@ -193,7 +193,7 @@ def test_uniform_density_no_bare_nan_in_any_domain():
     """Spec §10: every degenerate case gives a documented constant, never a bare NaN; the only
     NaN allowed is a within-element variance, which comes with its flag and the site counts."""
     feats, meta = pydemi.featurize(uniform(Structure(LAT, ["Fe", "O"], [[0, 0, 0], [0.5, 0.5, 0.5]]),
-                                           (12, 12, 12)), extensions=["paw"], return_metadata=True)
+                                           (12, 12, 12)), extensions=["paw", "robust"], return_metadata=True)
     for k, v in feats.items():
         if math.isnan(v):
             assert k.endswith("within_element_var") or k.startswith("magpie_"), k

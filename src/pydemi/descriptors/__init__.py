@@ -15,7 +15,7 @@ from typing import Any, Optional, Sequence, Union
 
 import numpy as np
 
-from ..constants import BECKE_CELLS, BECKE_K
+from ..constants import BECKE_CELLS, BECKE_K, FD_ORDER
 from ..core.geometry import Shells
 from ..io.base import VolumetricData
 from . import bonding, structural, magnetic, heterogeneity, compositional  # noqa: F401  (register descriptors)
@@ -35,7 +35,7 @@ def featurize(vd: VolumetricData, domains: Union[Sequence[str], str, None] = Non
               shells: Union[Shells, tuple[float, float], None] = None,
               deformation_reference: str = "auto", elf_source: str = "auto",
               laplacian_method: str = "metric", derivative_backend: str = "fft",
-              fd_order: int = 4, potential_source: str = "auto",
+              fd_order: int = FD_ORDER, potential_source: str = "auto",
               custom_reference: Optional[str] = None,
               extensions: Union[Sequence[str], str] = (), float32: bool = False,
               return_metadata: bool = False) -> Any:
@@ -99,9 +99,16 @@ def featurize(vd: VolumetricData, domains: Union[Sequence[str], str, None] = Non
 
 
 def descriptor_names(domains: Union[Sequence[str], str, None] = None,
-                     extensions: Union[Sequence[str], str] = ()) -> list[str]:
-    """Names of the descriptors ``featurize`` returns for these domains / extensions."""
-    return [s.name for s in selected(make_options(None, domains=domains, extensions=extensions))]
+                     extensions: Union[Sequence[str], str] = (),
+                     include_fragile: bool = True) -> list[str]:
+    """Names of the descriptors ``featurize`` returns for these domains / extensions.
+
+    ``include_fragile=False`` leaves out the descriptors registered as
+    ``stability="fragile"`` (not converged with respect to the derivative
+    scheme or the grid): the model-ready feature set.
+    """
+    return [s.name for s in selected(make_options(None, domains=domains, extensions=extensions))
+            if include_fragile or s.stability != "fragile"]
 
 
 def catalogue() -> Any:
@@ -113,6 +120,6 @@ def catalogue() -> Any:
                 "requires": ",".join(s.requires), "units": s.units,
                 "range_min": s.range[0], "range_max": s.range[1], "intensive": s.intensive,
                 "sentinel_cases": ";".join(f"{k}={v}" for k, v in s.sentinel_cases.items()),
-                "adopted": s.adopted, "extension": s.extension or "",
+                "adopted": s.adopted, "extension": s.extension or "", "stability": s.stability,
                 "formula": s.formula, "references": "; ".join(s.references)}
     return pd.DataFrame([row(s) for s in REGISTRY.values()])
