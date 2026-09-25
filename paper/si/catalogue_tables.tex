@@ -1,0 +1,150 @@
+\begin{table}[p]
+\centering
+\caption{Descriptor catalogue (part 1 of 3): every non-compositional descriptor of the registry, generated from \texttt{docs/catalogue.csv}. Domain: b bonding, s structural, m magnetic, h heterogeneity; extension: paw or robust (off by default). Sentinels are the documented values of degenerate cases; stability: r robust, f fragile.}
+\label{tab:si-catalogue}
+\scriptsize
+\begin{tabular}{p{3.3cm}cp{1.4cm}p{6.6cm}p{2.3cm}c}
+\toprule
+Name & Dom. & Units & Formula & Sentinels & Stab. \\
+\midrule
+\texttt{zeta} & b & -- & \texttt{1 - sum\_k |grad rho\_k . u\_k| / sum\_k |grad rho\_k|} & uniform\_density=0.0 & r \\
+\texttt{m1} & b & \AA & \texttt{sum\_k rho\_k r\_k / sum\_k rho\_k} & zero\_density=0.0 & r \\
+\texttt{m2} & b & \AA$^2$ & \texttt{sum\_k rho\_k r\_k\^{}2 / sum\_k rho\_k} & zero\_density=0.0 & r \\
+\texttt{sigma\_r2} & b & \AA$^2$ & \texttt{m2 - m1\^{}2} & zero\_density=0.0 & r \\
+\texttt{f\_core} & b & -- & \texttt{sum\_\{k: r <= c1\} rho\_k / sum\_k rho\_k} & zero\_density=0.0 & r \\
+\texttt{f\_bond} & b & -- & \texttt{sum\_\{k: c1 < r <= c2\} rho\_k / sum\_k rho\_k} & zero\_density=0.0 & r \\
+\texttt{f\_int} & b & -- & \texttt{sum\_\{k: r > c2\} rho\_k / sum\_k rho\_k} & zero\_density=0.0 & r \\
+\texttt{lnf} & b & -- & \texttt{(1/N) sum\_k 1(lap rho\_k < 0)} & uniform\_density=0.0 & r \\
+\texttt{lnf\_charge\_weighted} & b & -- & \texttt{sum\_\{lap rho\_k < 0\} rho\_k / sum\_k rho\_k} & uniform\_density=0.0; zero\_density=0.0 & r \\
+\texttt{lap\_concentration} & b & -- & \texttt{sum\_\{lap rho < 0\} |lap rho\_k| / sum\_k |lap rho\_k|} & uniform\_density=0.5 & r \\
+\texttt{lap\_concentration\_valence} & b & -- & \texttt{sum\_\{r > c1, lap rho < 0\} |lap rho\_k| / sum\_\{r > c1\} |lap rho\_k|} & uniform\_density=0.5; empty\_region=0.5 & r \\
+\texttt{ellip\_bond\_avg} & b & -- & \texttt{mean of lambda1/lambda2 - 1 over \{k in bond, lambda2 < 0\}} & no\_bond\_voxels=0.0 & f \\
+\texttt{ellip\_bond\_std} & b & -- & \texttt{std of lambda1/lambda2 - 1 over \{k in bond, lambda2 < 0\}} & no\_bond\_voxels=0.0 & f \\
+\texttt{f\_H\_negative} & b & -- & \texttt{(1/N\_bond) sum\_\{k in bond\} 1(H\_k < 0),  H = g + v} & empty\_region=0.0 & r \\
+\texttt{H\_bond\_mean} & b & Ha\,bohr$^{-3}$ & \texttt{<H\_k> over the bond shell,  H = g + v = (1/4) lap rho - g (a.u.)} & empty\_region=0.0 & r \\
+\texttt{G\_over\_rho} & b & Ha/e & \texttt{<g\_k / rho\_k> over the bond shell (a.u.)} & empty\_region=0.0 & r \\
+\texttt{f\_ELF\_localized} & b & -- & \texttt{(1/N\_bond) sum\_\{k in bond\} 1(ELF\_k > 0.5)} & empty\_region=0.0 & r \\
+\texttt{ELF\_bond\_avg} & b & -- & \texttt{<ELF\_k> over the bond shell} & empty\_region=0.0 & r \\
+\texttt{ELF\_core\_valence\_contrast} & b & -- & \texttt{<ELF>\_core / <ELF>\_bond} & empty\_region=0.0; zero\_denominator=0.0 & r \\
+\texttt{zeta\_ELF} & b & -- & \texttt{1 - sum\_k |grad ELF\_k . u\_k| / sum\_k |grad ELF\_k|} & uniform\_density=0.0 & r \\
+\texttt{f\_NCI} & b & -- & \texttt{(1/N) sum\_k 1(s\_k < 0.5 and rho\_k < 0.05 a.u.),  s = |grad rho| / (2 (3 pi\^{}2)\^{}(1/3) rho\^{}(4/3))} & uniform\_density=0.0 & r \\
+\texttt{NCI\_attractive} & b & -- & \texttt{fraction of NCI voxels with lambda2 < 0} & uniform\_density=0.0; no\_nci\_voxels=0.0 & r \\
+\texttt{sign\_lambda2\_rho\_mean} & b & e\,bohr$^{-3}$ & \texttt{mean of sign(lambda2) rho\_k over NCI voxels (rho in a.u.)} & uniform\_density=0.0; no\_nci\_voxels=0.0 & r \\
+\texttt{V\_spread} & b & eV & \texttt{std over sites i of V(R\_i)} & -- & r \\
+\texttt{V\_int\_min} & b & eV & \texttt{min over interstitial voxels of V\_k (cell average of V set to 0)} & empty\_region=0.0 & r \\
+\texttt{rho\_mid\_mean} & b & e\,\AA$^{-3}$ & \texttt{mean of rho at nearest-neighbour bond midpoints} & no\_bonds=0.0 & r \\
+\texttt{rho\_mid\_std} & b & e\,\AA$^{-3}$ & \texttt{std of rho at nearest-neighbour bond midpoints} & no\_bonds=0.0 & r \\
+\texttt{m1\_def} & b & \AA & \texttt{sum\_k |drho\_k| r\_k / sum\_k |drho\_k|,  drho = rho - promolecule} & zero\_deformation=0.0 & r \\
+\texttt{m2\_def} & b & \AA$^2$ & \texttt{sum\_k |drho\_k| r\_k\^{}2 / sum\_k |drho\_k|} & zero\_deformation=0.0 & r \\
+\texttt{sigma\_r2\_def} & b & \AA$^2$ & \texttt{m2\_def - m1\_def\^{}2} & zero\_deformation=0.0 & r \\
+\texttt{f\_bond\_def} & b & -- & \texttt{sum\_\{k in bond, drho > 0\} drho\_k / sum\_\{drho > 0\} drho\_k} & no\_accumulation=0.0 & r \\
+\texttt{f\_int\_def} & b & -- & \texttt{sum\_\{k in int, drho > 0\} drho\_k / sum\_\{drho > 0\} drho\_k} & no\_accumulation=0.0 & r \\
+\texttt{f\_bond\_dep} & b & -- & \texttt{sum\_\{k in bond, drho < 0\} |drho\_k| / sum\_\{drho < 0\} |drho\_k|} & no\_depletion=0.0 & r \\
+\texttt{def\_polarity} & b & -- & \texttt{sum\_k |drho\_k| dV / Q\_tot,  Q\_tot = sum\_k rho\_k dV} & zero\_density=0.0 & r \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[p]
+\centering
+\caption{Descriptor catalogue (part 2 of 3): every non-compositional descriptor of the registry, generated from \texttt{docs/catalogue.csv}. Domain: b bonding, s structural, m magnetic, h heterogeneity; extension: paw or robust (off by default). Sentinels are the documented values of degenerate cases; stability: r robust, f fragile.}
+\scriptsize
+\begin{tabular}{p{3.3cm}cp{1.4cm}p{6.6cm}p{2.3cm}c}
+\toprule
+Name & Dom. & Units & Formula & Sentinels & Stab. \\
+\midrule
+\texttt{bond\_charge\_transfer\_pair\_mean} & b & electrons & \texttt{mean over nearest-neighbour pairs of int\_\{region(i,j)\} drho dV} & no\_bonds=0.0 & r \\
+\texttt{bond\_charge\_transfer\_pair\_std} & b & electrons & \texttt{std over nearest-neighbour pairs of int\_\{region(i,j)\} drho dV} & no\_bonds=0.0 & r \\
+\texttt{rho\_perc\_a} & s & e\,\AA$^{-3}$ & \texttt{max \{c : the super-level set \{rho > c\} spans a1 under PBC\}} & -- & r \\
+\texttt{rho\_perc\_b} & s & e\,\AA$^{-3}$ & \texttt{max \{c : the super-level set \{rho > c\} spans a2 under PBC\}} & -- & r \\
+\texttt{rho\_perc\_c} & s & e\,\AA$^{-3}$ & \texttt{max \{c : the super-level set \{rho > c\} spans a3 under PBC\}} & -- & r \\
+\texttt{perc\_anisotropy} & s & -- & \texttt{(max\_alpha - min\_alpha) / mean\_alpha of rho\_perc} & zero\_levels=0.0 & r \\
+\texttt{n\_max} & s & \AA$^{-3}$ & \texttt{(number of local maxima) / V\_cell} & -- & r \\
+\texttt{n\_min} & s & \AA$^{-3}$ & \texttt{(number of local minima) / V\_cell} & -- & r \\
+\texttt{n\_saddle1} & s & \AA$^{-3}$ & \texttt{(number of index-1 saddles) / V\_cell} & -- & f \\
+\texttt{n\_saddle2} & s & \AA$^{-3}$ & \texttt{(number of index-2 saddles) / V\_cell} & -- & f \\
+\texttt{n\_NNM} & s & \AA$^{-3}$ & \texttt{(number of local maxima with min\_i |r - R\_i| > r\_cut) / V\_cell} & -- & r \\
+\texttt{Q\_NNM} & s & -- & \texttt{(charge in the steepest-ascent basins of the non-nuclear maxima) / Q\_tot} & -- & r \\
+\texttt{rho\_min} & s & e\,\AA$^{-3}$ & \texttt{min\_k rho\_k} & -- & r \\
+\texttt{rho\_min\_ratio} & s & -- & \texttt{rho\_min / <rho>\_V} & zero\_density=0.0 & r \\
+\texttt{rho\_int\_mean} & s & e\,\AA$^{-3}$ & \texttt{mean of rho over the interstitial shell (r > c2)} & empty\_region=0.0 & r \\
+\texttt{T\_eigenvalues\_t1} & s & -- & \texttt{eigenvalue 1 (ascending, t1 <= t2 <= t3) of T\_ab = sum\_k d\_a rho\_k d\_b rho\_k / sum\_k |grad rho\_k|\^{}2 (trace 1)} & uniform\_density=0.3333333333333333 & r \\
+\texttt{T\_eigenvalues\_t2} & s & -- & \texttt{eigenvalue 2 (ascending, t1 <= t2 <= t3) of T\_ab = sum\_k d\_a rho\_k d\_b rho\_k / sum\_k |grad rho\_k|\^{}2 (trace 1)} & uniform\_density=0.3333333333333333 & r \\
+\texttt{T\_eigenvalues\_t3} & s & -- & \texttt{eigenvalue 3 (ascending, t1 <= t2 <= t3) of T\_ab = sum\_k d\_a rho\_k d\_b rho\_k / sum\_k |grad rho\_k|\^{}2 (trace 1)} & uniform\_density=0.3333333333333333 & r \\
+\texttt{charge\_FA} & s & -- & \texttt{sqrt(3/2) ||T - (1/3) I||\_F / ||T||\_F} & uniform\_density=0.0 & r \\
+\texttt{shannon\_entropy} & s & -- & \texttt{-int rho\~{} ln rho\~{} dV - ln V,  rho\~{} = rho / N\_e} & zero\_density=0.0 & r \\
+\texttt{fisher\_information} & s & bohr$^{-2}$ & \texttt{int |grad rho\~{}|\^{}2 / rho\~{} dV  (a.u.; voxels above the density floor)} & zero\_density=0.0 & r \\
+\texttt{disequilibrium} & s & -- & \texttt{V int rho\~{}\^{}2 dV} & zero\_density=0.0 & r \\
+\texttt{LMC\_complexity} & s & -- & \texttt{D e\^{}S  (D, S the unnormalized disequilibrium and entropy; = 1 when uniform)} & zero\_density=0.0 & r \\
+\texttt{M\_abs\_per\_atom} & m & $\mu_B$/atom & \texttt{sum\_k |m\_k| dV / n\_atoms} & non\_magnetic=0.0 & r \\
+\texttt{M\_net\_per\_atom} & m & $\mu_B$/atom & \texttt{|sum\_k m\_k dV| / n\_atoms} & non\_magnetic=0.0 & r \\
+\texttt{m1\_spin} & m & \AA & \texttt{sum\_k |m\_k| r\_k / sum\_k |m\_k|} & non\_magnetic=0.0 & r \\
+\texttt{sigma\_r2\_spin} & m & \AA$^2$ & \texttt{sum\_k |m\_k| r\_k\^{}2 / sum\_k |m\_k| - m1\_spin\^{}2} & non\_magnetic=0.0 & r \\
+\texttt{f\_bond\_spin} & m & -- & \texttt{sum\_\{k in bond\} |m\_k| / sum\_k |m\_k|} & non\_magnetic=0.0 & r \\
+\texttt{mu\_site\_std} & m & $\mu_B$ & \texttt{std over i of mu\_i,  mu\_i = sum\_k w\_i(k) m\_k dV} & non\_magnetic=0.0 & r \\
+\texttt{spin\_frustration} & m & -- & \texttt{1 - |sum\_i mu\_i| / sum\_i |mu\_i|} & non\_magnetic=0.0 & r \\
+\texttt{spin\_charge\_correlation} & m & -- & \texttt{Pearson r(rho\_k, |m\_k|) over voxels} & non\_magnetic=0.0 & r \\
+\texttt{m1\_site\_std} & h & \AA & \texttt{std over sites of X\^{}(i),  X\^{}(i) = sum\_k w\_i(k) rho\_k r\_ik / sum\_k w\_i(k) rho\_k} & uniform\_density=0.0; non\_magnetic=0.0 & r \\
+\texttt{m1\_site\_range} & h & \AA & \texttt{max - min over sites of X\^{}(i),  X\^{}(i) = sum\_k w\_i(k) rho\_k r\_ik / sum\_k w\_i(k) rho\_k} & uniform\_density=0.0; non\_magnetic=0.0 & r \\
+\texttt{m1\_site\_max} & h & \AA & \texttt{max over sites of X\^{}(i),  X\^{}(i) = sum\_k w\_i(k) rho\_k r\_ik / sum\_k w\_i(k) rho\_k} & uniform\_density=0.0; non\_magnetic=0.0 & r \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[p]
+\centering
+\caption{Descriptor catalogue (part 3 of 3): every non-compositional descriptor of the registry, generated from \texttt{docs/catalogue.csv}. Domain: b bonding, s structural, m magnetic, h heterogeneity; extension: paw or robust (off by default). Sentinels are the documented values of degenerate cases; stability: r robust, f fragile.}
+\scriptsize
+\begin{tabular}{p{3.3cm}cp{1.4cm}p{6.6cm}p{2.3cm}c}
+\toprule
+Name & Dom. & Units & Formula & Sentinels & Stab. \\
+\midrule
+\texttt{m1\_site\_min} & h & \AA & \texttt{min over sites of X\^{}(i),  X\^{}(i) = sum\_k w\_i(k) rho\_k r\_ik / sum\_k w\_i(k) rho\_k} & uniform\_density=0.0; non\_magnetic=0.0 & r \\
+\texttt{m1\_within\_element\_var} & h & \AA$^2$ & \texttt{sum\_e w\_e Var\_\{i in e\} of X\^{}(i),  X\^{}(i) = sum\_k w\_i(k) rho\_k r\_ik / sum\_k w\_i(k) rho\_k} & uniform\_density=0.0; non\_magnetic=0.0; one\_site\_per\_element=nan & r \\
+\texttt{m1\_between\_element\_var} & h & \AA$^2$ & \texttt{sum\_e w\_e (mean\_e - mean)\^{}2 of X\^{}(i),  X\^{}(i) = sum\_k w\_i(k) rho\_k r\_ik / sum\_k w\_i(k) rho\_k} & uniform\_density=0.0; non\_magnetic=0.0; single\_element=0.0 & r \\
+\texttt{f\_bond\_site\_std} & h & -- & \texttt{std over sites of X\^{}(i),  X\^{}(i) = sum\_\{c1 < r\_ik <= c2\} w\_i(k) rho\_k / sum\_k w\_i(k) rho\_k} & uniform\_density=0.0; non\_magnetic=0.0 & r \\
+\texttt{f\_bond\_site\_range} & h & -- & \texttt{max - min over sites of X\^{}(i),  X\^{}(i) = sum\_\{c1 < r\_ik <= c2\} w\_i(k) rho\_k / sum\_k w\_i(k) rho\_k} & uniform\_density=0.0; non\_magnetic=0.0 & r \\
+\texttt{f\_bond\_site\_max} & h & -- & \texttt{max over sites of X\^{}(i),  X\^{}(i) = sum\_\{c1 < r\_ik <= c2\} w\_i(k) rho\_k / sum\_k w\_i(k) rho\_k} & uniform\_density=0.0; non\_magnetic=0.0 & r \\
+\texttt{f\_bond\_site\_min} & h & -- & \texttt{min over sites of X\^{}(i),  X\^{}(i) = sum\_\{c1 < r\_ik <= c2\} w\_i(k) rho\_k / sum\_k w\_i(k) rho\_k} & uniform\_density=0.0; non\_magnetic=0.0 & r \\
+\texttt{f\_bond\_within\_element\_var} & h & -- & \texttt{sum\_e w\_e Var\_\{i in e\} of X\^{}(i),  X\^{}(i) = sum\_\{c1 < r\_ik <= c2\} w\_i(k) rho\_k / sum\_k w\_i(k) rho\_k} & uniform\_density=0.0; non\_magnetic=0.0; one\_site\_per\_element=nan & r \\
+\texttt{f\_bond\_between\_element\_var} & h & -- & \texttt{sum\_e w\_e (mean\_e - mean)\^{}2 of X\^{}(i),  X\^{}(i) = sum\_\{c1 < r\_ik <= c2\} w\_i(k) rho\_k / sum\_k w\_i(k) rho\_k} & uniform\_density=0.0; non\_magnetic=0.0; single\_element=0.0 & r \\
+\texttt{zeta\_site\_std} & h & -- & \texttt{std over sites of X\^{}(i),  X\^{}(i) = 1 - sum\_k w\_i(k) |grad rho\_k . u\_ik| / sum\_k w\_i(k) |grad rho\_k|} & uniform\_density=0.0; non\_magnetic=0.0 & r \\
+\texttt{zeta\_site\_range} & h & -- & \texttt{max - min over sites of X\^{}(i),  X\^{}(i) = 1 - sum\_k w\_i(k) |grad rho\_k . u\_ik| / sum\_k w\_i(k) |grad rho\_k|} & uniform\_density=0.0; non\_magnetic=0.0 & r \\
+\texttt{zeta\_site\_max} & h & -- & \texttt{max over sites of X\^{}(i),  X\^{}(i) = 1 - sum\_k w\_i(k) |grad rho\_k . u\_ik| / sum\_k w\_i(k) |grad rho\_k|} & uniform\_density=0.0; non\_magnetic=0.0 & r \\
+\texttt{zeta\_site\_min} & h & -- & \texttt{min over sites of X\^{}(i),  X\^{}(i) = 1 - sum\_k w\_i(k) |grad rho\_k . u\_ik| / sum\_k w\_i(k) |grad rho\_k|} & uniform\_density=0.0; non\_magnetic=0.0 & r \\
+\texttt{zeta\_within\_element\_var} & h & -- & \texttt{sum\_e w\_e Var\_\{i in e\} of X\^{}(i),  X\^{}(i) = 1 - sum\_k w\_i(k) |grad rho\_k . u\_ik| / sum\_k w\_i(k) |grad rho\_k|} & uniform\_density=0.0; non\_magnetic=0.0; one\_site\_per\_element=nan & r \\
+\texttt{zeta\_between\_element\_var} & h & -- & \texttt{sum\_e w\_e (mean\_e - mean)\^{}2 of X\^{}(i),  X\^{}(i) = 1 - sum\_k w\_i(k) |grad rho\_k . u\_ik| / sum\_k w\_i(k) |grad rho\_k|} & uniform\_density=0.0; non\_magnetic=0.0; single\_element=0.0 & r \\
+\texttt{mu\_site\_range} & h & $\mu_B$ & \texttt{max - min over sites of X\^{}(i),  X\^{}(i) = mu\_i = sum\_k w\_i(k) m\_k dV (signed; |mu\_i| for non-collinear runs)} & uniform\_density=0.0; non\_magnetic=0.0 & r \\
+\texttt{mu\_site\_max} & h & $\mu_B$ & \texttt{max over sites of X\^{}(i),  X\^{}(i) = mu\_i = sum\_k w\_i(k) m\_k dV (signed; |mu\_i| for non-collinear runs)} & uniform\_density=0.0; non\_magnetic=0.0 & r \\
+\texttt{mu\_site\_min} & h & $\mu_B$ & \texttt{min over sites of X\^{}(i),  X\^{}(i) = mu\_i = sum\_k w\_i(k) m\_k dV (signed; |mu\_i| for non-collinear runs)} & uniform\_density=0.0; non\_magnetic=0.0 & r \\
+\texttt{mu\_within\_element\_var} & h & $\mu_B^2$ & \texttt{sum\_e w\_e Var\_\{i in e\} of X\^{}(i),  X\^{}(i) = mu\_i = sum\_k w\_i(k) m\_k dV (signed; |mu\_i| for non-collinear runs)} & uniform\_density=0.0; non\_magnetic=0.0; one\_site\_per\_element=nan & r \\
+\texttt{mu\_between\_element\_var} & h & $\mu_B^2$ & \texttt{sum\_e w\_e (mean\_e - mean)\^{}2 of X\^{}(i),  X\^{}(i) = mu\_i = sum\_k w\_i(k) m\_k dV (signed; |mu\_i| for non-collinear runs)} & uniform\_density=0.0; non\_magnetic=0.0; single\_element=0.0 & r \\
+\texttt{m1\_def\_out} & b (paw) & \AA & \texttt{sum |drho\_k| r\_k / sum |drho\_k| over voxels outside every PAW augmentation sphere (r > R\_PAW of the nearest nucleus)} & empty\_region=0.0; zero\_deformation=0.0 & r \\
+\texttt{m2\_def\_out} & b (paw) & \AA$^2$ & \texttt{sum |drho\_k| r\_k\^{}2 / sum |drho\_k| over voxels outside every PAW augmentation sphere (r > R\_PAW of the nearest nucleus)} & empty\_region=0.0; zero\_deformation=0.0 & r \\
+\texttt{sigma\_r2\_def\_out} & b (paw) & \AA$^2$ & \texttt{m2\_def\_out - m1\_def\_out\^{}2 over voxels outside every PAW augmentation sphere (r > R\_PAW of the nearest nucleus)} & empty\_region=0.0; zero\_deformation=0.0 & r \\
+\texttt{f\_bond\_def\_out} & b (paw) & -- & \texttt{sum\_\{bond, drho > 0\} drho / sum\_\{drho > 0\} drho over voxels outside every PAW augmentation sphere (r > R\_PAW of the nearest nucleus)} & empty\_region=0.0; no\_accumulation=0.0 & r \\
+\texttt{f\_int\_def\_out} & b (paw) & -- & \texttt{sum\_\{int, drho > 0\} drho / sum\_\{drho > 0\} drho over voxels outside every PAW augmentation sphere (r > R\_PAW of the nearest nucleus)} & empty\_region=0.0; no\_accumulation=0.0 & r \\
+\texttt{f\_bond\_dep\_out} & b (paw) & -- & \texttt{sum\_\{bond, drho < 0\} |drho| / sum\_\{drho < 0\} |drho| over voxels outside every PAW augmentation sphere (r > R\_PAW of the nearest nucleus)} & empty\_region=0.0; no\_depletion=0.0 & r \\
+\texttt{def\_polarity\_out} & b (paw) & -- & \texttt{sum |drho\_k| dV / Q\_tot over voxels outside every PAW augmentation sphere (r > R\_PAW of the nearest nucleus)} & empty\_region=0.0; zero\_density=0.0 & r \\
+\texttt{def\_out\_volume\_fraction} & b (paw) & -- & \texttt{fraction of the cell outside every PAW augmentation sphere} & -- & r \\
+\texttt{rho\_min\_int} & s (paw) & e\,\AA$^{-3}$ & \texttt{min of rho over voxels with r > max(c2, R\_PAW) of their nearest nucleus} & empty\_region=0.0 & r \\
+\texttt{rho\_min\_int\_ratio} & s (paw) & -- & \texttt{rho\_min\_int / <rho>\_V} & empty\_region=0.0; zero\_density=0.0 & r \\
+\texttt{n\_NNM\_paw} & s (paw) & \AA$^{-3}$ & \texttt{(number of local maxima with r > max(r\_cut, R\_PAW,i)) / V\_cell} & -- & r \\
+\texttt{Q\_NNM\_paw} & s (paw) & -- & \texttt{(charge in the basins of the maxima counted by n\_NNM\_paw) / Q\_tot} & -- & r \\
+\texttt{ellip\_bond\_bounded\_avg} & b (robust) & -- & \texttt{mean of 1 - lambda2/lambda1 over \{k in bond, lambda2 < 0\}} & no\_bond\_voxels=0.0 & r \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[htbp]
+\centering
+\caption{The 132 adopted compositional descriptors: matminer's Magpie preset, 44 elemental properties times 6 statistics (\texttt{magpie\_<statistic>\_<property>}), tagged \texttt{adopted=True} in the registry.}
+\label{tab:si-magpie}
+\small
+\begin{tabular}{p{3cm}p{11cm}}
+\toprule
+Statistics & avg, maximum, mean, minimum, mode, range \\
+Properties & AtomicWeight, Column, CovalentRadius, Electronegativity, GSbandgap, GSmagmom, GSvolume\_pa, MeltingT, MendeleevNumber, NUnfilled, NValence, NdUnfilled, NdValence, NfUnfilled, NfValence, NpUnfilled, NpValence, NsUnfilled, NsValence, Number, Row, SpaceGroupNumber, dev\_AtomicWeight, dev\_Column, dev\_CovalentRadius, dev\_Electronegativity, dev\_GSbandgap, dev\_GSmagmom, dev\_GSvolume\_pa, dev\_MeltingT, dev\_MendeleevNumber, dev\_NUnfilled, dev\_NValence, dev\_NdUnfilled, dev\_NdValence, dev\_NfUnfilled, dev\_NfValence, dev\_NpUnfilled, dev\_NpValence, dev\_NsUnfilled, dev\_NsValence, dev\_Number, dev\_Row, dev\_SpaceGroupNumber \\
+\bottomrule
+\end{tabular}
+\end{table}

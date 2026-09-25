@@ -594,7 +594,24 @@ descriptors.
 
 \section{Application to a 6,059-structure DFT dataset}
 \label{sec:application}
-% - Dataset: composition space, spin-polarized VASP runs, grid sizes.
+
+The dataset comprises 6,059 VASP charge densities of 87 elements: 86
+elemental solids, 3,195 intermetallics and 2,778 compounds with
+electronegative elements (354 borides and carbides, 80 hydrides, 653
+pnictides, 548 chalcogenides, 607 oxides and 536 halides). The 4,901 runs that
+include their OUTCAR share one protocol (Supporting Information,
+Table~S5): single-point PBE calculations with one PAW dataset per element, a
+500\,eV plane-wave cutoff, collinear spin polarization, the tetrahedron
+method with Bl\"ochl corrections and an automatic $k$-mesh with a spacing of
+at most about 0.1\,\AA$^{-1}$; 4.5\% of them stopped at the maximum number of
+electronic steps before reaching the $10^{-6}$\,eV criterion. The remaining
+1,158 runs provide only the CHGCAR. No AECCAR or LOCPOT files are included and
+an ELFCAR only for 86 runs, so every descriptor below is computed from the PAW
+pseudo-density, with the electron localization function reconstructed from it
+for all structures alike and the electronic Hartree potential obtained by
+Fourier transform.
+
+% - Dataset: composition space, grid sizes (figure: element coverage).
 % - Throughput (58 structures/min on 24 cores; 36.6 CPU-h, median 15 s per
 %   structure), zero failures, coverage of each domain, distributions of
 %   selected descriptors (robust set).

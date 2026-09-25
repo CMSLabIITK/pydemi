@@ -1,0 +1,21 @@
+\begin{table}[htbp]
+\centering
+\caption{DFT settings of the dataset, parsed from the 4901 runs that include their OUTCAR (\texttt{paper/analysis/j\_dft\_settings.py}). The other 1158 runs have only the CHGCAR.}
+\label{tab:si-dft}
+\small
+\begin{tabular}{p{4cm}p{10.5cm}}
+\toprule
+VASP version & 5.3.3 (4663), 5.4.4 (238) \\
+Exchange-correlation & PBE (\texttt{LEXCH = PE}) in all runs; no meta-GGA, no $+U$, no van der Waals correction \\
+PAW datasets & 87 PAW\_PBE datasets, one per element throughout \\
+Plane-wave cutoff & \texttt{ENCUT} = 500 eV, \texttt{PREC = Accurate} (all runs) \\
+Spin & collinear spin-polarized (\texttt{ISPIN = 2}) in all runs; initial moments not recorded in the OUTCAR \\
+Electronic convergence & \texttt{EDIFF} = $10^{-6}$ eV, \texttt{NELM} = 200; 221 runs (4.5\%) stopped before reaching \texttt{EDIFF} \\
+Ionic steps & none (\texttt{NSW = 0}, \texttt{IBRION = -1}): single-point calculations \\
+Brillouin-zone integration & tetrahedron method with Bl\"ochl corrections (\texttt{ISMEAR = -5}) in 4898 runs; Gaussian, 0.03 eV in 3 \\
+$k$-points & automatic mesh; largest spacing $|\mathbf b_i|/N_i$ median 0.098\,\AA$^{-1}$ (5th--95th percentile 0.094--0.100, $2\pi$ included) \\
+Projection & reciprocal space (\texttt{LREAL = F}) in 4461 runs, \texttt{Auto} in 440 \\
+Output & CHGCAR (\texttt{LCHARG = T}); ELF written (\texttt{LELF = T}), but the ELFCAR is distributed for only 86 runs; no LOCPOT (\texttt{LVTOT = F}), no AECCAR (\texttt{LAECHG = F}) \\
+\bottomrule
+\end{tabular}
+\end{table}
