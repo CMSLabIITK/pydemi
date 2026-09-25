@@ -20,7 +20,7 @@ library see [README.md](README.md).
 | Performance | 8.4 s for a 96^3, 16-atom cell on one core; ~10 us per voxel, linear |
 | Earlier (PDF-spec) version | tagged `pdf-spec-final`; code in `legacy/`, docs in `legacy/docs/` |
 | ML input path | ChargE3Net fine-tuned from the MP checkpoint: running (see below) |
-| Paper (`paper/main.tex`) | abstract + Numerical considerations written against the PDF-spec version; needs revising for the new descriptor set |
+| Paper (`paper/main.tex`) | abstract + Numerical considerations revised for the prompt.md build (2026-09-25); other sections are outlines |
 
 ---
 
@@ -147,8 +147,12 @@ Output `descriptors_6000_data_aug13.csv`; comparison with the earlier run in
 - [ ] Descriptor-level DFT-vs-ML comparison on the test set.
 
 ### 5.3 Paper
-- [ ] Revise the numerical-considerations section and abstract for the new
-      descriptor set, defaults (FFT) and corrections.
+- [x] Revise the numerical-considerations section and abstract for the new
+      build (2026-09-25): every number recomputed with the current code by
+      `paper/analysis/` (new scripts a-i; the first draft's are in `legacy/`);
+      new subsections on the critical-point census (replacing persistence),
+      valence counts, stability tags and the robust ellipticity; outline notes
+      of the other sections updated. Template untouched.
 - [ ] Write the remaining sections (framework design, descriptor families,
       validation, application, availability).
 

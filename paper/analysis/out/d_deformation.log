@@ -1,0 +1,5 @@
+121 structures with OUTCAR (skipped 29, errors 0)
+share of int|drho| inside PAW spheres: median 0.873 IQR [0.780, 0.926] | volume share median 0.445 IQR [0.349, 0.567]
+int|drho| / Q over the cell: median 0.173 IQR [0.161, 0.192]
+relative charge difference inside the spheres (CHGCAR vs promolecule): median -0.012 IQR [-0.019, -0.000]
+binaries: 31; Hirshfeld charge order follows electronegativity in 18 (58%); for dchi > 0.4: 17/26

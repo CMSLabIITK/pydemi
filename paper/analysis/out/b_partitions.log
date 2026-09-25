@@ -1,0 +1,97 @@
+{
+ "structure": "FeNi3_221",
+ "shape": [
+  32,
+  32,
+  32
+ ],
+ "reference_k": 400,
+ "cells": 8,
+ "max_weight_error": {
+  "8": 0.1157489182630298,
+  "20": 0.05536540379019417,
+  "60": 0.015314779509086995,
+  "100": 0.009662386914224275,
+  "200": 0.0033216693646841433,
+  "300": 0.0010339157674215116
+ },
+ "hirshfeld_max_unity_error": 1.3322676295501878e-15
+}
+300 of 300 structures
+                descriptor partition   n  median    p95  spearman
+               mu_site_std     power 300       0 0.0548         1
+               mu_site_std     becke 300       0 0.0205         1
+               mu_site_std hirshfeld 300       0 0.0991         1
+          spin_frustration     power 300       0  0.947     0.894
+          spin_frustration     becke 300       0  0.223     0.964
+          spin_frustration hirshfeld 300       0      1     0.839
+               m1_site_std     power 300   0.367  0.888     0.345
+               m1_site_std     becke 300  0.0785  0.452     0.986
+               m1_site_std hirshfeld 300   0.457  0.817     0.729
+             m1_site_range     power 300   0.354   0.88     0.406
+             m1_site_range     becke 300  0.0766  0.452     0.988
+             m1_site_range hirshfeld 300   0.438  0.808     0.756
+               m1_site_max     power 300  0.0782  0.244     0.614
+               m1_site_max     becke 300  0.0313 0.0684     0.991
+               m1_site_max hirshfeld 300   0.216  0.424     0.752
+               m1_site_min     power 300   0.064  0.338     0.789
+               m1_site_min     becke 300  0.0182 0.0426     0.996
+               m1_site_min hirshfeld 300  0.0977  0.195     0.911
+     m1_within_element_var     power 289   0.721      1     0.783
+     m1_within_element_var     becke 289   0.999      1     0.743
+     m1_within_element_var hirshfeld 289   0.999      1     0.723
+    m1_between_element_var     power 300     0.6  0.988     0.346
+    m1_between_element_var     becke 300   0.148  0.662     0.986
+    m1_between_element_var hirshfeld 300   0.705  0.967     0.729
+           f_bond_site_std     power 300   0.245   0.76     0.643
+           f_bond_site_std     becke 300  0.0892  0.498     0.967
+           f_bond_site_std hirshfeld 300   0.284   0.77     0.619
+         f_bond_site_range     power 300   0.241  0.759      0.64
+         f_bond_site_range     becke 300  0.0896  0.503     0.969
+         f_bond_site_range hirshfeld 300   0.276  0.761     0.645
+           f_bond_site_max     power 300  0.0748    0.3     0.755
+           f_bond_site_max     becke 300  0.0646  0.136     0.949
+           f_bond_site_max hirshfeld 300   0.227  0.455     0.272
+           f_bond_site_min     power 300   0.104  0.886     0.696
+           f_bond_site_min     becke 300  0.0555  0.119     0.992
+           f_bond_site_min hirshfeld 300   0.234   0.48     0.804
+ f_bond_within_element_var     power 289   0.722      1     0.786
+ f_bond_within_element_var     becke 289   0.972      1     0.741
+ f_bond_within_element_var hirshfeld 289   0.996      1     0.728
+f_bond_between_element_var     power 300    0.43   0.95     0.641
+f_bond_between_element_var     becke 300   0.166  0.707     0.966
+f_bond_between_element_var hirshfeld 300   0.481  0.948     0.616
+             zeta_site_std     power 300   0.242  0.901     0.853
+             zeta_site_std     becke 300   0.163  0.752     0.982
+             zeta_site_std hirshfeld 300   0.512  0.918     0.902
+           zeta_site_range     power 300   0.232  0.894      0.86
+           zeta_site_range     becke 300   0.165  0.739     0.984
+           zeta_site_range hirshfeld 300   0.498  0.912     0.915
+             zeta_site_max     power 300   0.181  0.831     0.876
+             zeta_site_max     becke 300   0.192  0.591     0.987
+             zeta_site_max hirshfeld 300   0.565  0.871     0.935
+             zeta_site_min     power 300   0.413  0.974     0.759
+             zeta_site_min     becke 300   0.391  0.802      0.88
+             zeta_site_min hirshfeld 300   0.758  0.941     0.705
+   zeta_within_element_var     power 289   0.509      1     0.837
+   zeta_within_element_var     becke 289   0.772      1     0.731
+   zeta_within_element_var hirshfeld 289   0.929      1     0.715
+  zeta_between_element_var     power 300   0.428  0.991     0.852
+  zeta_between_element_var     becke 300   0.302  0.941     0.982
+  zeta_between_element_var hirshfeld 300   0.765  0.993     0.903
+             mu_site_range     power 300       0 0.0519         1
+             mu_site_range     becke 300       0 0.0205         1
+             mu_site_range hirshfeld 300       0 0.0992         1
+               mu_site_max     power 300       0 0.0378         1
+               mu_site_max     becke 300       0 0.0133         1
+               mu_site_max hirshfeld 300       0  0.059         1
+               mu_site_min     power 300       0  0.968     0.723
+               mu_site_min     becke 300       0  0.334     0.927
+               mu_site_min hirshfeld 300       0      1     0.672
+     mu_within_element_var     power 295       0  0.999     0.992
+     mu_within_element_var     becke 295       0      1     0.992
+     mu_within_element_var hirshfeld 295       0      1     0.991
+    mu_between_element_var     power 300       0  0.107         1
+    mu_between_element_var     becke 300       0 0.0384         1
+    mu_between_element_var hirshfeld 300       0  0.188         1
+63 descriptors independent of the partition

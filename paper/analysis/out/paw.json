@@ -1,0 +1,108 @@
+{
+ "negative_density": {
+  "n": 6059,
+  "n_rho_min_negative": 3680,
+  "rho_min_ratio_median": -0.2210188358533637,
+  "n_rho_min_int_negative": 3,
+  "rho_min_int_ratio_median": 0.1318859174903899,
+  "n_no_voxel_outside_spheres": 8,
+  "n_with_nnm": 2264,
+  "n_with_nnm_paw": 346,
+  "def_out_volume_fraction": [
+   0.2351817849241657,
+   0.5441975308641975,
+   0.764029081632653
+  ],
+  "def_polarity_out": [
+   0.00835609330771757,
+   0.022790872712108,
+   0.0582889311596722
+  ]
+ },
+ "CaSi3Pt": {
+  "grid": [
+   84,
+   84,
+   84
+  ],
+  "rho_min": -0.17981249873538993,
+  "rho_min_distance_A": 0.02318987263104777,
+  "rho_min_nearest": "Si",
+  "maxima_at_nuclei_of": [
+   "Ca",
+   "Pt"
+  ],
+  "si_maxima_distances_A": [
+   0.81,
+   0.81,
+   0.81,
+   0.81,
+   0.834,
+   0.834,
+   0.834,
+   0.834
+  ],
+  "si_maxima_charge_e": 6.373862048949407,
+  "paw_radii_A": {
+   "Ca": 1.5875316327089999,
+   "Si": 1.0054367007157,
+   "Pt": 1.3758607483478
+  },
+  "n_NNM_count_0.8A": 7.999999999999999,
+  "Q_NNM": 0.2124620680434095,
+  "n_NNM_paw_count": 0.0,
+  "Q_NNM_paw": 0.0
+ },
+ "FeNi3": {
+  "zval": {
+   "Fe": 8.0,
+   "Ni": 10.0
+  },
+  "zval_source": "/data/sai/new_charge/6000_data_aug13/FeNi3_221/OUTCAR",
+  "paw_radius_Fe_A": 1.2171075850768998,
+  "Q_tot": 38.000000334225575,
+  "promolecule_charge": 38.069919711381544,
+  "fe_radial_table": [
+   {
+    "shell_A": [
+     0,
+     0.4
+    ],
+    "chgcar_e": 1.519689200519941,
+    "free_atom_valence_e": 2.000917535982835
+   },
+   {
+    "shell_A": [
+     0.4,
+     0.8
+    ],
+    "chgcar_e": 3.402386534779929,
+    "free_atom_valence_e": 2.9781517692476345
+   },
+   {
+    "shell_A": [
+     0.8,
+     1.2
+    ],
+    "chgcar_e": 1.8836817804326258,
+    "free_atom_valence_e": 1.9447334631749689
+   },
+   {
+    "shell_A": [
+     1.2,
+     1.5
+    ],
+    "chgcar_e": 0.8918823855702077,
+    "free_atom_valence_e": 0.8914805545631538
+   },
+   {
+    "shell_A": [
+     1.5,
+     3.0
+    ],
+    "chgcar_e": 0.03631669741948057,
+    "free_atom_valence_e": 0.03765293925677965
+   }
+  ]
+ }
+}

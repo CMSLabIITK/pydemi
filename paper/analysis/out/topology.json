@@ -1,0 +1,2037 @@
+{
+ "sample": {
+  "n": 200,
+  "errors": 0,
+  "freudenthal_census_closes": 200,
+  "identity_holds": 200,
+  "extra_maxima14_median": 24.0,
+  "extra_minima14_median": 10.0
+ },
+ "dataset": {
+  "n": 6059,
+  "n_zero": 550,
+  "n_positive": 2092,
+  "n_negative": 3417,
+  "abs_e_over_critical_points": [
+   0.0502283105022831,
+   0.1450476950375725
+  ],
+  "rho_min_negative_share_zero_vs_nonzero": [
+   0.3418181818181818,
+   0.6338718460700672
+  ],
+  "nnm_share_zero_vs_nonzero": [
+   0.17454545454545456,
+   0.39353784715919404
+  ],
+  "n_with_nnm": 2264,
+  "n_with_nnm_paw": 346,
+  "max_nnm_count": {
+   "Yb2MgIn_225": 602.0,
+   "Li2CdSb_225": 536.0,
+   "Li2ZnSn_225": 384.0
+  }
+ },
+ "rows": [
+  {
+   "id": "CdTe_216",
+   "n_voxels": 884736,
+   "euler": -92,
+   "euler14": 0,
+   "n_max26": 20,
+   "n_max14": 128,
+   "n_min26": 12,
+   "n_min14": 28
+  },
+  {
+   "id": "LiHf2Os_225",
+   "n_voxels": 373248,
+   "euler": 15,
+   "euler14": 0,
+   "n_max26": 11,
+   "n_max14": 35,
+   "n_min26": 9,
+   "n_min14": 48
+  },
+  {
+   "id": "Sb2O5_15",
+   "n_voxels": 1105920,
+   "euler": 52,
+   "euler14": 0,
+   "n_max26": 20,
+   "n_max14": 20,
+   "n_min26": 36,
+   "n_min14": 88
+  },
+  {
+   "id": "Sc2Sb_129",
+   "n_voxels": 491520,
+   "euler": -145,
+   "euler14": 0,
+   "n_max26": 24,
+   "n_max14": 198,
+   "n_min26": 16,
+   "n_min14": 45
+  },
+  {
+   "id": "TiZnAu2_225",
+   "n_voxels": 373248,
+   "euler": 24,
+   "euler14": 0,
+   "n_max26": 4,
+   "n_max14": 10,
+   "n_min26": 6,
+   "n_min14": 36
+  },
+  {
+   "id": "CaNiN_131",
+   "n_voxels": 338688,
+   "euler": 8,
+   "euler14": 0,
+   "n_max26": 8,
+   "n_max14": 8,
+   "n_min26": 8,
+   "n_min14": 16
+  },
+  {
+   "id": "HfGeTe4_36",
+   "n_voxels": 1290240,
+   "euler": -118,
+   "euler14": 0,
+   "n_max26": 78,
+   "n_max14": 211,
+   "n_min26": 30,
+   "n_min14": 45
+  },
+  {
+   "id": "Tb3AlC_221",
+   "n_voxels": 373248,
+   "euler": -163,
+   "euler14": 0,
+   "n_max26": 179,
+   "n_max14": 362,
+   "n_min26": 14,
+   "n_min14": 34
+  },
+  {
+   "id": "Ti2MnCo_225",
+   "n_voxels": 216000,
+   "euler": 193,
+   "euler14": 0,
+   "n_max26": 4,
+   "n_max14": 16,
+   "n_min26": 12,
+   "n_min14": 217
+  },
+  {
+   "id": "SnPt_194",
+   "n_voxels": 327680,
+   "euler": 2,
+   "euler14": 0,
+   "n_max26": 2,
+   "n_max14": 2,
+   "n_min26": 4,
+   "n_min14": 6
+  },
+  {
+   "id": "Nb3Bi_223",
+   "n_voxels": 512000,
+   "euler": -184,
+   "euler14": 0,
+   "n_max26": 18,
+   "n_max14": 214,
+   "n_min26": 10,
+   "n_min14": 22
+  },
+  {
+   "id": "SrB6_221",
+   "n_voxels": 262144,
+   "euler": -6,
+   "euler14": 0,
+   "n_max26": 31,
+   "n_max14": 55,
+   "n_min26": 10,
+   "n_min14": 28
+  },
+  {
+   "id": "SmHgPd_189",
+   "n_voxels": 806400,
+   "euler": 4,
+   "euler14": 0,
+   "n_max26": 9,
+   "n_max14": 9,
+   "n_min26": 13,
+   "n_min14": 17
+  },
+  {
+   "id": "ZrFeP_62",
+   "n_voxels": 580608,
+   "euler": -74,
+   "euler14": 0,
+   "n_max26": 24,
+   "n_max14": 106,
+   "n_min26": 12,
+   "n_min14": 20
+  },
+  {
+   "id": "RbAuO2_63",
+   "n_voxels": 663552,
+   "euler": 3,
+   "euler14": 0,
+   "n_max26": 8,
+   "n_max14": 8,
+   "n_min26": 4,
+   "n_min14": 7
+  },
+  {
+   "id": "Ta2FeMo_225",
+   "n_voxels": 262144,
+   "euler": -26,
+   "euler14": 0,
+   "n_max26": 20,
+   "n_max14": 102,
+   "n_min26": 24,
+   "n_min14": 80
+  },
+  {
+   "id": "NdMg3_225",
+   "n_voxels": 512000,
+   "euler": 8,
+   "euler14": 0,
+   "n_max26": 16,
+   "n_max14": 86,
+   "n_min26": 10,
+   "n_min14": 88
+  },
+  {
+   "id": "HoCu4Pd_216",
+   "n_voxels": 373248,
+   "euler": 413,
+   "euler14": 0,
+   "n_max26": 6,
+   "n_max14": 12,
+   "n_min26": 52,
+   "n_min14": 471
+  },
+  {
+   "id": "AcH2_225",
+   "n_voxels": 262144,
+   "euler": -153,
+   "euler14": 0,
+   "n_max26": 26,
+   "n_max14": 208,
+   "n_min26": 2,
+   "n_min14": 31
+  },
+  {
+   "id": "ThCo_63",
+   "n_voxels": 322560,
+   "euler": -60,
+   "euler14": 0,
+   "n_max26": 44,
+   "n_max14": 108,
+   "n_min26": 8,
+   "n_min14": 12
+  },
+  {
+   "id": "Ca(SiNi)2_139",
+   "n_voxels": 302400,
+   "euler": -6,
+   "euler14": 0,
+   "n_max26": 13,
+   "n_max14": 19,
+   "n_min26": 8,
+   "n_min14": 8
+  },
+  {
+   "id": "CaZnGe_194",
+   "n_voxels": 491520,
+   "euler": 8,
+   "euler14": 0,
+   "n_max26": 10,
+   "n_max14": 22,
+   "n_min26": 38,
+   "n_min14": 58
+  },
+  {
+   "id": "LaYbS3_63",
+   "n_voxels": 1290240,
+   "euler": -48,
+   "euler14": 0,
+   "n_max26": 128,
+   "n_max14": 176,
+   "n_min26": 18,
+   "n_min14": 18
+  },
+  {
+   "id": "CaGePt_62",
+   "n_voxels": 746496,
+   "euler": 14,
+   "euler14": 0,
+   "n_max26": 24,
+   "n_max14": 52,
+   "n_min26": 20,
+   "n_min14": 62
+  },
+  {
+   "id": "NiPt_123",
+   "n_voxels": 175616,
+   "euler": 12,
+   "euler14": 0,
+   "n_max26": 4,
+   "n_max14": 4,
+   "n_min26": 4,
+   "n_min14": 16
+  },
+  {
+   "id": "Al2Pd_225",
+   "n_voxels": 884736,
+   "euler": -24,
+   "euler14": 0,
+   "n_max26": 4,
+   "n_max14": 28,
+   "n_min26": 12,
+   "n_min14": 12
+  },
+  {
+   "id": "Y2Fe2Si2C_12",
+   "n_voxels": 705600,
+   "euler": 79,
+   "euler14": 0,
+   "n_max26": 14,
+   "n_max14": 459,
+   "n_min26": 9,
+   "n_min14": 533
+  },
+  {
+   "id": "RbAgO_139",
+   "n_voxels": 1053696,
+   "euler": 22,
+   "euler14": 0,
+   "n_max26": 12,
+   "n_max14": 12,
+   "n_min26": 11,
+   "n_min14": 33
+  },
+  {
+   "id": "W2C_162",
+   "n_voxels": 460800,
+   "euler": -48,
+   "euler14": 0,
+   "n_max26": 38,
+   "n_max14": 86,
+   "n_min26": 12,
+   "n_min14": 12
+  },
+  {
+   "id": "LiCd_227",
+   "n_voxels": 1000000,
+   "euler": -12,
+   "euler14": 0,
+   "n_max26": 8,
+   "n_max14": 24,
+   "n_min26": 8,
+   "n_min14": 12
+  },
+  {
+   "id": "H4IN_129",
+   "n_voxels": 589824,
+   "euler": -266,
+   "euler14": 0,
+   "n_max26": 88,
+   "n_max14": 364,
+   "n_min26": 10,
+   "n_min14": 20
+  },
+  {
+   "id": "Na2Te_225",
+   "n_voxels": 512000,
+   "euler": -385,
+   "euler14": 0,
+   "n_max26": 64,
+   "n_max14": 518,
+   "n_min26": 10,
+   "n_min14": 79
+  },
+  {
+   "id": "Ir_225",
+   "n_voxels": 175616,
+   "euler": 0,
+   "euler14": 0,
+   "n_max26": 4,
+   "n_max14": 4,
+   "n_min26": 12,
+   "n_min14": 12
+  },
+  {
+   "id": "LuI3_194",
+   "n_voxels": 1693440,
+   "euler": -285,
+   "euler14": 0,
+   "n_max26": 131,
+   "n_max14": 416,
+   "n_min26": 30,
+   "n_min14": 30
+  },
+  {
+   "id": "Mg2PdRh_225",
+   "n_voxels": 262144,
+   "euler": 6,
+   "euler14": 0,
+   "n_max26": 2,
+   "n_max14": 2,
+   "n_min26": 2,
+   "n_min14": 8
+  },
+  {
+   "id": "Mn(GaSe2)2_82",
+   "n_voxels": 705600,
+   "euler": -8,
+   "euler14": 0,
+   "n_max26": 19,
+   "n_max14": 27,
+   "n_min26": 15,
+   "n_min14": 15
+  },
+  {
+   "id": "Sc3RuC4_71",
+   "n_voxels": 663552,
+   "euler": 4,
+   "euler14": 0,
+   "n_max26": 24,
+   "n_max14": 28,
+   "n_min26": 28,
+   "n_min14": 36
+  },
+  {
+   "id": "TiGa3_139",
+   "n_voxels": 250880,
+   "euler": -28,
+   "euler14": 0,
+   "n_max26": 25,
+   "n_max14": 63,
+   "n_min26": 9,
+   "n_min14": 19
+  },
+  {
+   "id": "CO2_205",
+   "n_voxels": 512000,
+   "euler": 28,
+   "euler14": 0,
+   "n_max26": 8,
+   "n_max14": 14,
+   "n_min26": 16,
+   "n_min14": 50
+  },
+  {
+   "id": "Zr2OsRu_225",
+   "n_voxels": 373248,
+   "euler": 72,
+   "euler14": 0,
+   "n_max26": 4,
+   "n_max14": 22,
+   "n_min26": 6,
+   "n_min14": 96
+  },
+  {
+   "id": "Lu(NiGe)2_139",
+   "n_voxels": 302400,
+   "euler": -4,
+   "euler14": 0,
+   "n_max26": 13,
+   "n_max14": 17,
+   "n_min26": 6,
+   "n_min14": 6
+  },
+  {
+   "id": "Ca4P2O_139",
+   "n_voxels": 622080,
+   "euler": -46,
+   "euler14": 0,
+   "n_max26": 53,
+   "n_max14": 105,
+   "n_min26": 16,
+   "n_min14": 22
+  },
+  {
+   "id": "SnSe_62",
+   "n_voxels": 777600,
+   "euler": -142,
+   "euler14": 0,
+   "n_max26": 20,
+   "n_max14": 168,
+   "n_min26": 16,
+   "n_min14": 22
+  },
+  {
+   "id": "SiO2_122",
+   "n_voxels": 691200,
+   "euler": 0,
+   "euler14": 0,
+   "n_max26": 8,
+   "n_max14": 8,
+   "n_min26": 8,
+   "n_min14": 8
+  },
+  {
+   "id": "Li2CeO3_65",
+   "n_voxels": 322560,
+   "euler": -42,
+   "euler14": 0,
+   "n_max26": 15,
+   "n_max14": 69,
+   "n_min26": 13,
+   "n_min14": 25
+  },
+  {
+   "id": "Li(Co3P2)2_187",
+   "n_voxels": 442368,
+   "euler": -26,
+   "euler14": 0,
+   "n_max26": 53,
+   "n_max14": 79,
+   "n_min26": 10,
+   "n_min14": 10
+  },
+  {
+   "id": "Pd3Pb_221",
+   "n_voxels": 216000,
+   "euler": -31,
+   "euler14": 0,
+   "n_max26": 23,
+   "n_max14": 54,
+   "n_min26": 13,
+   "n_min14": 13
+  },
+  {
+   "id": "Cs2AlInH6_225",
+   "n_voxels": 884736,
+   "euler": -462,
+   "euler14": 0,
+   "n_max26": 246,
+   "n_max14": 1200,
+   "n_min26": 36,
+   "n_min14": 528
+  },
+  {
+   "id": "TiSiRu2_225",
+   "n_voxels": 262144,
+   "euler": -102,
+   "euler14": 0,
+   "n_max26": 11,
+   "n_max14": 161,
+   "n_min26": 7,
+   "n_min14": 55
+  },
+  {
+   "id": "YSi2Rh3_191",
+   "n_voxels": 358400,
+   "euler": -2,
+   "euler14": 0,
+   "n_max26": 16,
+   "n_max14": 20,
+   "n_min26": 15,
+   "n_min14": 17
+  },
+  {
+   "id": "ZnNi_123",
+   "n_voxels": 150528,
+   "euler": 8,
+   "euler14": 0,
+   "n_max26": 4,
+   "n_max14": 4,
+   "n_min26": 12,
+   "n_min14": 20
+  },
+  {
+   "id": "SrLi4N2_141",
+   "n_voxels": 627200,
+   "euler": -4,
+   "euler14": 0,
+   "n_max26": 10,
+   "n_max14": 18,
+   "n_min26": 42,
+   "n_min14": 46
+  },
+  {
+   "id": "LiAl5O8_212",
+   "n_voxels": 1728000,
+   "euler": 79,
+   "euler14": 0,
+   "n_max26": 32,
+   "n_max14": 32,
+   "n_min26": 88,
+   "n_min14": 167
+  },
+  {
+   "id": "AlTc2_139",
+   "n_voxels": 184320,
+   "euler": 0,
+   "euler14": 0,
+   "n_max26": 2,
+   "n_max14": 2,
+   "n_min26": 7,
+   "n_min14": 7
+  },
+  {
+   "id": "Zn(GaTe2)2_82",
+   "n_voxels": 995328,
+   "euler": -11,
+   "euler14": 0,
+   "n_max26": 19,
+   "n_max14": 30,
+   "n_min26": 15,
+   "n_min14": 15
+  },
+  {
+   "id": "MgNiSb_216",
+   "n_voxels": 262144,
+   "euler": -185,
+   "euler14": 0,
+   "n_max26": 5,
+   "n_max14": 194,
+   "n_min26": 3,
+   "n_min14": 7
+  },
+  {
+   "id": "MgB9N_166",
+   "n_voxels": 1259712,
+   "euler": -906,
+   "euler14": 0,
+   "n_max26": 154,
+   "n_max14": 2052,
+   "n_min26": 50,
+   "n_min14": 1042
+  },
+  {
+   "id": "Pm2MgAl_225",
+   "n_voxels": 512000,
+   "euler": -582,
+   "euler14": 0,
+   "n_max26": 38,
+   "n_max14": 698,
+   "n_min26": 8,
+   "n_min14": 86
+  },
+  {
+   "id": "Nb5Sb4_87",
+   "n_voxels": 1433600,
+   "euler": -92,
+   "euler14": 0,
+   "n_max26": 74,
+   "n_max14": 170,
+   "n_min26": 30,
+   "n_min14": 34
+  },
+  {
+   "id": "Ca5Al2(SiN4)2_60",
+   "n_voxels": 3225600,
+   "euler": 36,
+   "euler14": 0,
+   "n_max26": 60,
+   "n_max14": 92,
+   "n_min26": 88,
+   "n_min14": 156
+  },
+  {
+   "id": "Na2ZrSe3_12",
+   "n_voxels": 1259712,
+   "euler": -262,
+   "euler14": 0,
+   "n_max26": 68,
+   "n_max14": 366,
+   "n_min26": 48,
+   "n_min14": 84
+  },
+  {
+   "id": "Ta2Be_140",
+   "n_voxels": 663552,
+   "euler": 100,
+   "euler14": 0,
+   "n_max26": 64,
+   "n_max14": 72,
+   "n_min26": 84,
+   "n_min14": 192
+  },
+  {
+   "id": "Sn7Ru3_229",
+   "n_voxels": 1728000,
+   "euler": -24,
+   "euler14": 0,
+   "n_max26": 38,
+   "n_max14": 62,
+   "n_min26": 27,
+   "n_min14": 27
+  },
+  {
+   "id": "Re3Ni_194",
+   "n_voxels": 409600,
+   "euler": 4,
+   "euler14": 0,
+   "n_max26": 8,
+   "n_max14": 8,
+   "n_min26": 24,
+   "n_min14": 28
+  },
+  {
+   "id": "CdInRh2_225",
+   "n_voxels": 373248,
+   "euler": 62,
+   "euler14": 0,
+   "n_max26": 3,
+   "n_max14": 9,
+   "n_min26": 7,
+   "n_min14": 75
+  },
+  {
+   "id": "NbCu3Te4_215",
+   "n_voxels": 884736,
+   "euler": -79,
+   "euler14": 0,
+   "n_max26": 24,
+   "n_max14": 116,
+   "n_min26": 12,
+   "n_min14": 25
+  },
+  {
+   "id": "Sc(AlC)3_194",
+   "n_voxels": 790272,
+   "euler": -28,
+   "euler14": 0,
+   "n_max26": 24,
+   "n_max14": 60,
+   "n_min26": 36,
+   "n_min14": 44
+  },
+  {
+   "id": "Tb2B4C_71",
+   "n_voxels": 307200,
+   "euler": 24,
+   "euler14": 0,
+   "n_max26": 14,
+   "n_max14": 31,
+   "n_min26": 12,
+   "n_min14": 53
+  },
+  {
+   "id": "RbAuS_63",
+   "n_voxels": 640000,
+   "euler": -4,
+   "euler14": 0,
+   "n_max26": 12,
+   "n_max14": 24,
+   "n_min26": 30,
+   "n_min14": 38
+  },
+  {
+   "id": "Na2UI6_148",
+   "n_voxels": 2097152,
+   "euler": -2641,
+   "euler14": 0,
+   "n_max26": 154,
+   "n_max14": 3046,
+   "n_min26": 32,
+   "n_min14": 283
+  },
+  {
+   "id": "ScMn2_194",
+   "n_voxels": 622080,
+   "euler": 4,
+   "euler14": 0,
+   "n_max26": 12,
+   "n_max14": 12,
+   "n_min26": 46,
+   "n_min14": 50
+  },
+  {
+   "id": "K2Te2Pt_71",
+   "n_voxels": 600000,
+   "euler": -114,
+   "euler14": 0,
+   "n_max26": 11,
+   "n_max14": 203,
+   "n_min26": 11,
+   "n_min14": 89
+  },
+  {
+   "id": "Nb3AlC2_194",
+   "n_voxels": 645120,
+   "euler": -74,
+   "euler14": 0,
+   "n_max26": 62,
+   "n_max14": 138,
+   "n_min26": 20,
+   "n_min14": 22
+  },
+  {
+   "id": "Sr2In3Rh2_12",
+   "n_voxels": 737280,
+   "euler": -95,
+   "euler14": 0,
+   "n_max26": 8,
+   "n_max14": 130,
+   "n_min26": 7,
+   "n_min14": 34
+  },
+  {
+   "id": "PrTe_225",
+   "n_voxels": 373248,
+   "euler": -551,
+   "euler14": 0,
+   "n_max26": 36,
+   "n_max14": 600,
+   "n_min26": 4,
+   "n_min14": 17
+  },
+  {
+   "id": "Sc3CoC4_71",
+   "n_voxels": 645120,
+   "euler": 12,
+   "euler14": 0,
+   "n_max26": 32,
+   "n_max14": 32,
+   "n_min26": 44,
+   "n_min14": 56
+  },
+  {
+   "id": "ScBi_225",
+   "n_voxels": 262144,
+   "euler": -153,
+   "euler14": 0,
+   "n_max26": 7,
+   "n_max14": 211,
+   "n_min26": 17,
+   "n_min14": 68
+  },
+  {
+   "id": "AlVFe2_225",
+   "n_voxels": 592704,
+   "euler": 0,
+   "euler14": 0,
+   "n_max26": 12,
+   "n_max14": 12,
+   "n_min26": 28,
+   "n_min14": 28
+  },
+  {
+   "id": "SrHCl_129",
+   "n_voxels": 388800,
+   "euler": -79,
+   "euler14": 0,
+   "n_max26": 54,
+   "n_max14": 146,
+   "n_min26": 6,
+   "n_min14": 19
+  },
+  {
+   "id": "HfMgIr2_225",
+   "n_voxels": 373248,
+   "euler": -8,
+   "euler14": 0,
+   "n_max26": 11,
+   "n_max14": 39,
+   "n_min26": 7,
+   "n_min14": 27
+  },
+  {
+   "id": "CeSe_225",
+   "n_voxels": 262144,
+   "euler": -483,
+   "euler14": 0,
+   "n_max26": 80,
+   "n_max14": 576,
+   "n_min26": 4,
+   "n_min14": 17
+  },
+  {
+   "id": "BaClF_129",
+   "n_voxels": 442368,
+   "euler": -225,
+   "euler14": 0,
+   "n_max26": 128,
+   "n_max14": 362,
+   "n_min26": 14,
+   "n_min14": 23
+  },
+  {
+   "id": "YSiRh_62",
+   "n_voxels": 691200,
+   "euler": 2,
+   "euler14": 0,
+   "n_max26": 24,
+   "n_max14": 34,
+   "n_min26": 16,
+   "n_min14": 28
+  },
+  {
+   "id": "ScHg_221",
+   "n_voxels": 175616,
+   "euler": 0,
+   "euler14": 0,
+   "n_max26": 2,
+   "n_max14": 2,
+   "n_min26": 6,
+   "n_min14": 6
+  },
+  {
+   "id": "V3Re_225",
+   "n_voxels": 262144,
+   "euler": 77,
+   "euler14": 0,
+   "n_max26": 4,
+   "n_max14": 21,
+   "n_min26": 18,
+   "n_min14": 112
+  },
+  {
+   "id": "ZnPd5Se_123",
+   "n_voxels": 388800,
+   "euler": -26,
+   "euler14": 0,
+   "n_max26": 14,
+   "n_max14": 48,
+   "n_min26": 14,
+   "n_min14": 22
+  },
+  {
+   "id": "Ti2MnRu_225",
+   "n_voxels": 262144,
+   "euler": 41,
+   "euler14": 0,
+   "n_max26": 4,
+   "n_max14": 10,
+   "n_min26": 12,
+   "n_min14": 59
+  },
+  {
+   "id": "NbSbRu_216",
+   "n_voxels": 884736,
+   "euler": -72,
+   "euler14": 0,
+   "n_max26": 24,
+   "n_max14": 100,
+   "n_min26": 8,
+   "n_min14": 12
+  },
+  {
+   "id": "Pr2TlCd_225",
+   "n_voxels": 512000,
+   "euler": -427,
+   "euler14": 0,
+   "n_max26": 37,
+   "n_max14": 651,
+   "n_min26": 15,
+   "n_min14": 202
+  },
+  {
+   "id": "Cs2HgF4_139",
+   "n_voxels": 622080,
+   "euler": -176,
+   "euler14": 0,
+   "n_max26": 193,
+   "n_max14": 383,
+   "n_min26": 8,
+   "n_min14": 22
+  },
+  {
+   "id": "PuSi2_191",
+   "n_voxels": 216000,
+   "euler": -3,
+   "euler14": 0,
+   "n_max26": 9,
+   "n_max14": 14,
+   "n_min26": 6,
+   "n_min14": 8
+  },
+  {
+   "id": "HfSi2_63",
+   "n_voxels": 677376,
+   "euler": -38,
+   "euler14": 0,
+   "n_max26": 72,
+   "n_max14": 134,
+   "n_min26": 44,
+   "n_min14": 68
+  },
+  {
+   "id": "Ce2Re2Si2C_12",
+   "n_voxels": 995328,
+   "euler": -587,
+   "euler14": 0,
+   "n_max26": 50,
+   "n_max14": 1095,
+   "n_min26": 31,
+   "n_min14": 489
+  },
+  {
+   "id": "Ti3AlC_221",
+   "n_voxels": 216000,
+   "euler": -176,
+   "euler14": 0,
+   "n_max26": 49,
+   "n_max14": 237,
+   "n_min26": 14,
+   "n_min14": 26
+  },
+  {
+   "id": "YNi3_166",
+   "n_voxels": 2097152,
+   "euler": 3987,
+   "euler14": 0,
+   "n_max26": 12,
+   "n_max14": 236,
+   "n_min26": 19,
+   "n_min14": 4230
+  },
+  {
+   "id": "PbS_225",
+   "n_voxels": 786432,
+   "euler": -362,
+   "euler14": 0,
+   "n_max26": 100,
+   "n_max14": 470,
+   "n_min26": 16,
+   "n_min14": 24
+  },
+  {
+   "id": "VGaRu2_225",
+   "n_voxels": 262144,
+   "euler": 33,
+   "euler14": 0,
+   "n_max26": 3,
+   "n_max14": 17,
+   "n_min26": 7,
+   "n_min14": 54
+  },
+  {
+   "id": "Pr2CBr_194",
+   "n_voxels": 702464,
+   "euler": -176,
+   "euler14": 0,
+   "n_max26": 109,
+   "n_max14": 295,
+   "n_min26": 28,
+   "n_min14": 38
+  },
+  {
+   "id": "ZnCO3_167",
+   "n_voxels": 592704,
+   "euler": 516,
+   "euler14": 0,
+   "n_max26": 8,
+   "n_max14": 86,
+   "n_min26": 6,
+   "n_min14": 600
+  },
+  {
+   "id": "SmC2_139",
+   "n_voxels": 188160,
+   "euler": 2,
+   "euler14": 0,
+   "n_max26": 6,
+   "n_max14": 6,
+   "n_min26": 6,
+   "n_min14": 8
+  },
+  {
+   "id": "IrO2_136",
+   "n_voxels": 248832,
+   "euler": 5,
+   "euler14": 0,
+   "n_max26": 6,
+   "n_max14": 6,
+   "n_min26": 8,
+   "n_min14": 13
+  },
+  {
+   "id": "Sr(FeAs)2_139",
+   "n_voxels": 345600,
+   "euler": -42,
+   "euler14": 0,
+   "n_max26": 31,
+   "n_max14": 75,
+   "n_min26": 6,
+   "n_min14": 8
+  },
+  {
+   "id": "Na4IrO4_87",
+   "n_voxels": 460800,
+   "euler": 92,
+   "euler14": 0,
+   "n_max26": 9,
+   "n_max14": 13,
+   "n_min26": 26,
+   "n_min14": 122
+  },
+  {
+   "id": "V3Mo_225",
+   "n_voxels": 262144,
+   "euler": 20,
+   "euler14": 0,
+   "n_max26": 4,
+   "n_max14": 22,
+   "n_min26": 12,
+   "n_min14": 50
+  },
+  {
+   "id": "LiAg2Ge_225",
+   "n_voxels": 373248,
+   "euler": -238,
+   "euler14": 0,
+   "n_max26": 10,
+   "n_max14": 284,
+   "n_min26": 2,
+   "n_min14": 38
+  },
+  {
+   "id": "SmI3_194",
+   "n_voxels": 1693440,
+   "euler": -356,
+   "euler14": 0,
+   "n_max26": 142,
+   "n_max14": 502,
+   "n_min26": 38,
+   "n_min14": 42
+  },
+  {
+   "id": "TiZn16_63",
+   "n_voxels": 3386880,
+   "euler": 46,
+   "euler14": 0,
+   "n_max26": 68,
+   "n_max14": 68,
+   "n_min26": 72,
+   "n_min14": 118
+  },
+  {
+   "id": "SF6_12",
+   "n_voxels": 1036800,
+   "euler": 218,
+   "euler14": 0,
+   "n_max26": 18,
+   "n_max14": 32,
+   "n_min26": 30,
+   "n_min14": 262
+  },
+  {
+   "id": "YLuTl2_225",
+   "n_voxels": 512000,
+   "euler": -506,
+   "euler14": 0,
+   "n_max26": 18,
+   "n_max14": 650,
+   "n_min26": 8,
+   "n_min14": 134
+  },
+  {
+   "id": "PrTe2_129",
+   "n_voxels": 725760,
+   "euler": -181,
+   "euler14": 0,
+   "n_max26": 46,
+   "n_max14": 228,
+   "n_min26": 14,
+   "n_min14": 15
+  },
+  {
+   "id": "Na4I2O_139",
+   "n_voxels": 663552,
+   "euler": -235,
+   "euler14": 0,
+   "n_max26": 111,
+   "n_max14": 353,
+   "n_min26": 20,
+   "n_min14": 27
+  },
+  {
+   "id": "Nd(MnSi)2_139",
+   "n_voxels": 345600,
+   "euler": -6,
+   "euler14": 0,
+   "n_max26": 14,
+   "n_max14": 20,
+   "n_min26": 7,
+   "n_min14": 7
+  },
+  {
+   "id": "GaPd_198",
+   "n_voxels": 373248,
+   "euler": -3,
+   "euler14": 0,
+   "n_max26": 16,
+   "n_max14": 22,
+   "n_min26": 8,
+   "n_min14": 11
+  },
+  {
+   "id": "Li2InAg_216",
+   "n_voxels": 373248,
+   "euler": -217,
+   "euler14": 0,
+   "n_max26": 5,
+   "n_max14": 230,
+   "n_min26": 3,
+   "n_min14": 11
+  },
+  {
+   "id": "KLiZnO2_12",
+   "n_voxels": 903168,
+   "euler": 826,
+   "euler14": 0,
+   "n_max26": 8,
+   "n_max14": 38,
+   "n_min26": 27,
+   "n_min14": 883
+  },
+  {
+   "id": "Al2CdTe4_82",
+   "n_voxels": 995328,
+   "euler": -13,
+   "euler14": 0,
+   "n_max26": 20,
+   "n_max14": 33,
+   "n_min26": 15,
+   "n_min14": 15
+  },
+  {
+   "id": "Ba(AsPd)2_139",
+   "n_voxels": 829440,
+   "euler": -192,
+   "euler14": 0,
+   "n_max26": 198,
+   "n_max14": 394,
+   "n_min26": 20,
+   "n_min14": 24
+  },
+  {
+   "id": "CsCu3S2_164",
+   "n_voxels": 614400,
+   "euler": -113,
+   "euler14": 0,
+   "n_max26": 115,
+   "n_max14": 231,
+   "n_min26": 7,
+   "n_min14": 10
+  },
+  {
+   "id": "TmAlCu_189",
+   "n_voxels": 600000,
+   "euler": 1,
+   "euler14": 0,
+   "n_max26": 6,
+   "n_max14": 6,
+   "n_min26": 40,
+   "n_min14": 41
+  },
+  {
+   "id": "TaSiRh_62",
+   "n_voxels": 580608,
+   "euler": -34,
+   "euler14": 0,
+   "n_max26": 56,
+   "n_max14": 94,
+   "n_min26": 20,
+   "n_min14": 24
+  },
+  {
+   "id": "PdSO4_15",
+   "n_voxels": 622080,
+   "euler": 10,
+   "euler14": 0,
+   "n_max26": 10,
+   "n_max14": 10,
+   "n_min26": 16,
+   "n_min14": 26
+  },
+  {
+   "id": "ScH2_225",
+   "n_voxels": 175616,
+   "euler": 72,
+   "euler14": 0,
+   "n_max26": 3,
+   "n_max14": 21,
+   "n_min26": 1,
+   "n_min14": 91
+  },
+  {
+   "id": "Rb3NbO8_121",
+   "n_voxels": 884736,
+   "euler": 0,
+   "euler14": 0,
+   "n_max26": 12,
+   "n_max14": 12,
+   "n_min26": 8,
+   "n_min14": 8
+  },
+  {
+   "id": "Mg3Ir_194",
+   "n_voxels": 622080,
+   "euler": 0,
+   "euler14": 0,
+   "n_max26": 2,
+   "n_max14": 2,
+   "n_min26": 8,
+   "n_min14": 8
+  },
+  {
+   "id": "GaCl3_12",
+   "n_voxels": 1166400,
+   "euler": -405,
+   "euler14": 0,
+   "n_max26": 68,
+   "n_max14": 933,
+   "n_min26": 24,
+   "n_min14": 484
+  },
+  {
+   "id": "K3AuO_221",
+   "n_voxels": 512000,
+   "euler": 44,
+   "euler14": 0,
+   "n_max26": 5,
+   "n_max14": 5,
+   "n_min26": 12,
+   "n_min14": 56
+  },
+  {
+   "id": "YCBr_12",
+   "n_voxels": 576000,
+   "euler": -111,
+   "euler14": 0,
+   "n_max26": 48,
+   "n_max14": 165,
+   "n_min26": 10,
+   "n_min14": 16
+  },
+  {
+   "id": "Rb2NaSbF6_225",
+   "n_voxels": 884736,
+   "euler": 92,
+   "euler14": 0,
+   "n_max26": 9,
+   "n_max14": 201,
+   "n_min26": 37,
+   "n_min14": 321
+  },
+  {
+   "id": "PmMg_221",
+   "n_voxels": 175616,
+   "euler": -67,
+   "euler14": 0,
+   "n_max26": 15,
+   "n_max14": 82,
+   "n_min26": 4,
+   "n_min14": 4
+  },
+  {
+   "id": "Sc2RuAu_225",
+   "n_voxels": 373248,
+   "euler": 58,
+   "euler14": 0,
+   "n_max26": 4,
+   "n_max14": 12,
+   "n_min26": 12,
+   "n_min14": 78
+  },
+  {
+   "id": "RbSmO2_166",
+   "n_voxels": 1000000,
+   "euler": 238,
+   "euler14": 0,
+   "n_max26": 4,
+   "n_max14": 146,
+   "n_min26": 13,
+   "n_min14": 393
+  },
+  {
+   "id": "Nd2CdIn_225",
+   "n_voxels": 512000,
+   "euler": -421,
+   "euler14": 0,
+   "n_max26": 21,
+   "n_max14": 633,
+   "n_min26": 13,
+   "n_min14": 204
+  },
+  {
+   "id": "Sr(AgGe)2_139",
+   "n_voxels": 497664,
+   "euler": -4,
+   "euler14": 0,
+   "n_max26": 13,
+   "n_max14": 17,
+   "n_min26": 6,
+   "n_min14": 6
+  },
+  {
+   "id": "UFe3B2_191",
+   "n_voxels": 256000,
+   "euler": -10,
+   "euler14": 0,
+   "n_max26": 15,
+   "n_max14": 25,
+   "n_min26": 17,
+   "n_min14": 17
+  },
+  {
+   "id": "Ba(BRh)2_139",
+   "n_voxels": 345600,
+   "euler": -74,
+   "euler14": 0,
+   "n_max26": 60,
+   "n_max14": 134,
+   "n_min26": 9,
+   "n_min14": 9
+  },
+  {
+   "id": "Li2AgSb_216",
+   "n_voxels": 373248,
+   "euler": -427,
+   "euler14": 0,
+   "n_max26": 29,
+   "n_max14": 467,
+   "n_min26": 3,
+   "n_min14": 14
+  },
+  {
+   "id": "LiFeRh2_225",
+   "n_voxels": 216000,
+   "euler": 2,
+   "euler14": 0,
+   "n_max26": 3,
+   "n_max14": 9,
+   "n_min26": 1,
+   "n_min14": 9
+  },
+  {
+   "id": "PdF4_43",
+   "n_voxels": 512000,
+   "euler": 6,
+   "euler14": 0,
+   "n_max26": 10,
+   "n_max14": 10,
+   "n_min26": 14,
+   "n_min14": 20
+  },
+  {
+   "id": "CaH2_62",
+   "n_voxels": 537600,
+   "euler": 8,
+   "euler14": 0,
+   "n_max26": 12,
+   "n_max14": 12,
+   "n_min26": 12,
+   "n_min14": 20
+  },
+  {
+   "id": "NdCoSi2_63",
+   "n_voxels": 460800,
+   "euler": 0,
+   "euler14": 0,
+   "n_max26": 22,
+   "n_max14": 30,
+   "n_min26": 16,
+   "n_min14": 24
+  },
+  {
+   "id": "YAgSn_186",
+   "n_voxels": 559872,
+   "euler": -12,
+   "euler14": 0,
+   "n_max26": 18,
+   "n_max14": 30,
+   "n_min26": 6,
+   "n_min14": 6
+  },
+  {
+   "id": "ZnO2_205",
+   "n_voxels": 373248,
+   "euler": -4,
+   "euler14": 0,
+   "n_max26": 12,
+   "n_max14": 16,
+   "n_min26": 8,
+   "n_min14": 8
+  },
+  {
+   "id": "ScAgO2_194",
+   "n_voxels": 442368,
+   "euler": 12,
+   "euler14": 0,
+   "n_max26": 8,
+   "n_max14": 8,
+   "n_min26": 36,
+   "n_min14": 48
+  },
+  {
+   "id": "K2TeO3_147",
+   "n_voxels": 995328,
+   "euler": 3,
+   "euler14": 0,
+   "n_max26": 22,
+   "n_max14": 26,
+   "n_min26": 20,
+   "n_min14": 27
+  },
+  {
+   "id": "P2Ir_14",
+   "n_voxels": 677376,
+   "euler": -6,
+   "euler14": 0,
+   "n_max26": 36,
+   "n_max14": 44,
+   "n_min26": 24,
+   "n_min14": 26
+  },
+  {
+   "id": "ErSb_225",
+   "n_voxels": 262144,
+   "euler": -258,
+   "euler14": 0,
+   "n_max26": 7,
+   "n_max14": 301,
+   "n_min26": 3,
+   "n_min14": 39
+  },
+  {
+   "id": "NbFeSb_216",
+   "n_voxels": 262144,
+   "euler": -108,
+   "euler14": 0,
+   "n_max26": 6,
+   "n_max14": 126,
+   "n_min26": 2,
+   "n_min14": 14
+  },
+  {
+   "id": "ZrAsRu_189",
+   "n_voxels": 552960,
+   "euler": -49,
+   "euler14": 0,
+   "n_max26": 38,
+   "n_max14": 90,
+   "n_min26": 15,
+   "n_min14": 18
+  },
+  {
+   "id": "Be2NiPt_225",
+   "n_voxels": 175616,
+   "euler": 32,
+   "euler14": 0,
+   "n_max26": 2,
+   "n_max14": 8,
+   "n_min26": 8,
+   "n_min14": 46
+  },
+  {
+   "id": "Tl(CuS)2_139",
+   "n_voxels": 338688,
+   "euler": -108,
+   "euler14": 0,
+   "n_max26": 22,
+   "n_max14": 130,
+   "n_min26": 13,
+   "n_min14": 13
+  },
+  {
+   "id": "KGaSb4_62",
+   "n_voxels": 2867200,
+   "euler": -105,
+   "euler14": 0,
+   "n_max26": 76,
+   "n_max14": 226,
+   "n_min26": 64,
+   "n_min14": 109
+  },
+  {
+   "id": "MgPdF6_148",
+   "n_voxels": 512000,
+   "euler": 70,
+   "euler14": 0,
+   "n_max26": 8,
+   "n_max14": 32,
+   "n_min26": 12,
+   "n_min14": 106
+  },
+  {
+   "id": "CaCuP_194",
+   "n_voxels": 432000,
+   "euler": -4,
+   "euler14": 0,
+   "n_max26": 18,
+   "n_max14": 26,
+   "n_min26": 18,
+   "n_min14": 22
+  },
+  {
+   "id": "FePt_123",
+   "n_voxels": 89600,
+   "euler": 0,
+   "euler14": 0,
+   "n_max26": 2,
+   "n_max14": 2,
+   "n_min26": 2,
+   "n_min14": 2
+  },
+  {
+   "id": "NaMgTl2_225",
+   "n_voxels": 512000,
+   "euler": -1024,
+   "euler14": 0,
+   "n_max26": 17,
+   "n_max14": 1211,
+   "n_min26": 9,
+   "n_min14": 179
+  },
+  {
+   "id": "Cs2SiP2_72",
+   "n_voxels": 1376256,
+   "euler": -362,
+   "euler14": 0,
+   "n_max26": 318,
+   "n_max14": 684,
+   "n_min26": 26,
+   "n_min14": 30
+  },
+  {
+   "id": "NiO_225",
+   "n_voxels": 262144,
+   "euler": 0,
+   "euler14": 0,
+   "n_max26": 8,
+   "n_max14": 8,
+   "n_min26": 8,
+   "n_min14": 8
+  },
+  {
+   "id": "Al3Pt2_164",
+   "n_voxels": 327680,
+   "euler": 2,
+   "euler14": 0,
+   "n_max26": 2,
+   "n_max14": 2,
+   "n_min26": 4,
+   "n_min14": 6
+  },
+  {
+   "id": "CaAcIn2_225",
+   "n_voxels": 592704,
+   "euler": -1219,
+   "euler14": 0,
+   "n_max26": 42,
+   "n_max14": 1417,
+   "n_min26": 9,
+   "n_min14": 165
+  },
+  {
+   "id": "Ac2CuIr_225",
+   "n_voxels": 512000,
+   "euler": -77,
+   "euler14": 0,
+   "n_max26": 14,
+   "n_max14": 294,
+   "n_min26": 19,
+   "n_min14": 222
+  },
+  {
+   "id": "NpO2_225",
+   "n_voxels": 175616,
+   "euler": 9,
+   "euler14": 0,
+   "n_max26": 8,
+   "n_max14": 44,
+   "n_min26": 2,
+   "n_min14": 47
+  },
+  {
+   "id": "SrPt2_227",
+   "n_voxels": 512000,
+   "euler": 444,
+   "euler14": 0,
+   "n_max26": 6,
+   "n_max14": 12,
+   "n_min26": 14,
+   "n_min14": 464
+  },
+  {
+   "id": "SmCoGe_62",
+   "n_voxels": 746496,
+   "euler": -22,
+   "euler14": 0,
+   "n_max26": 24,
+   "n_max14": 60,
+   "n_min26": 24,
+   "n_min14": 38
+  },
+  {
+   "id": "Ca2InN_63",
+   "n_voxels": 645120,
+   "euler": -7,
+   "euler14": 0,
+   "n_max26": 22,
+   "n_max14": 38,
+   "n_min26": 10,
+   "n_min14": 19
+  },
+  {
+   "id": "Th(GeRh)2_139",
+   "n_voxels": 345600,
+   "euler": -32,
+   "euler14": 0,
+   "n_max26": 40,
+   "n_max14": 72,
+   "n_min26": 7,
+   "n_min14": 7
+  },
+  {
+   "id": "Ga3Ni2_164",
+   "n_voxels": 259200,
+   "euler": 0,
+   "euler14": 0,
+   "n_max26": 2,
+   "n_max14": 4,
+   "n_min26": 4,
+   "n_min14": 6
+  },
+  {
+   "id": "InAs_216",
+   "n_voxels": 884736,
+   "euler": -144,
+   "euler14": 0,
+   "n_max26": 32,
+   "n_max14": 188,
+   "n_min26": 16,
+   "n_min14": 28
+  },
+  {
+   "id": "Ce(SiPd)2_139",
+   "n_voxels": 344064,
+   "euler": -20,
+   "euler14": 0,
+   "n_max26": 33,
+   "n_max14": 53,
+   "n_min26": 7,
+   "n_min14": 7
+  },
+  {
+   "id": "Ti2GaN_194",
+   "n_voxels": 451584,
+   "euler": -4,
+   "euler14": 0,
+   "n_max26": 20,
+   "n_max14": 24,
+   "n_min26": 16,
+   "n_min14": 16
+  },
+  {
+   "id": "Ba4Bi3_220",
+   "n_voxels": 2744000,
+   "euler": -436,
+   "euler14": 0,
+   "n_max26": 244,
+   "n_max14": 680,
+   "n_min26": 40,
+   "n_min14": 40
+  },
+  {
+   "id": "SmClO_129",
+   "n_voxels": 360000,
+   "euler": -75,
+   "euler14": 0,
+   "n_max26": 30,
+   "n_max14": 110,
+   "n_min26": 6,
+   "n_min14": 11
+  },
+  {
+   "id": "KInTe2_140",
+   "n_voxels": 1259712,
+   "euler": -20,
+   "euler14": 0,
+   "n_max26": 34,
+   "n_max14": 54,
+   "n_min26": 28,
+   "n_min14": 28
+  },
+  {
+   "id": "V2TcRu_225",
+   "n_voxels": 262144,
+   "euler": 34,
+   "euler14": 0,
+   "n_max26": 4,
+   "n_max14": 10,
+   "n_min26": 6,
+   "n_min14": 46
+  },
+  {
+   "id": "TiCr2_194",
+   "n_voxels": 1244160,
+   "euler": 16,
+   "euler14": 0,
+   "n_max26": 24,
+   "n_max14": 24,
+   "n_min26": 30,
+   "n_min14": 46
+  },
+  {
+   "id": "Mg2SbN3_36",
+   "n_voxels": 737280,
+   "euler": -11,
+   "euler14": 0,
+   "n_max26": 22,
+   "n_max14": 34,
+   "n_min26": 12,
+   "n_min14": 13
+  },
+  {
+   "id": "Cu2HgGeS4_121",
+   "n_voxels": 884736,
+   "euler": -10,
+   "euler14": 0,
+   "n_max26": 29,
+   "n_max14": 39,
+   "n_min26": 13,
+   "n_min14": 13
+  },
+  {
+   "id": "Ag2SeO3_14",
+   "n_voxels": 1382400,
+   "euler": 40,
+   "euler14": 0,
+   "n_max26": 24,
+   "n_max14": 28,
+   "n_min26": 28,
+   "n_min14": 72
+  },
+  {
+   "id": "LiCaSi2_62",
+   "n_voxels": 1075200,
+   "euler": -42,
+   "euler14": 0,
+   "n_max26": 36,
+   "n_max14": 88,
+   "n_min26": 32,
+   "n_min14": 42
+  },
+  {
+   "id": "UN_225",
+   "n_voxels": 175616,
+   "euler": -34,
+   "euler14": 0,
+   "n_max26": 28,
+   "n_max14": 92,
+   "n_min26": 4,
+   "n_min14": 34
+  },
+  {
+   "id": "SrSnPt_62",
+   "n_voxels": 967680,
+   "euler": 4,
+   "euler14": 0,
+   "n_max26": 16,
+   "n_max14": 52,
+   "n_min26": 20,
+   "n_min14": 60
+  },
+  {
+   "id": "SrEr2O4_62",
+   "n_voxels": 1612800,
+   "euler": 22,
+   "euler14": 0,
+   "n_max26": 28,
+   "n_max14": 28,
+   "n_min26": 48,
+   "n_min14": 70
+  },
+  {
+   "id": "RbCaF3_221",
+   "n_voxels": 262144,
+   "euler": 19,
+   "euler14": 0,
+   "n_max26": 5,
+   "n_max14": 5,
+   "n_min26": 11,
+   "n_min14": 30
+  },
+  {
+   "id": "YAl2Co_63",
+   "n_voxels": 1036800,
+   "euler": 0,
+   "euler14": 0,
+   "n_max26": 8,
+   "n_max14": 12,
+   "n_min26": 16,
+   "n_min14": 20
+  },
+  {
+   "id": "Zr2Ag_139",
+   "n_voxels": 221184,
+   "euler": 0,
+   "euler14": 0,
+   "n_max26": 5,
+   "n_max14": 5,
+   "n_min26": 7,
+   "n_min14": 7
+  },
+  {
+   "id": "CoSn_191",
+   "n_voxels": 409600,
+   "euler": 0,
+   "euler14": 0,
+   "n_max26": 21,
+   "n_max14": 21,
+   "n_min26": 6,
+   "n_min14": 6
+  },
+  {
+   "id": "SmCd3_194",
+   "n_voxels": 720000,
+   "euler": 8,
+   "euler14": 0,
+   "n_max26": 8,
+   "n_max14": 8,
+   "n_min26": 32,
+   "n_min14": 40
+  },
+  {
+   "id": "HfGePt_62",
+   "n_voxels": 645120,
+   "euler": -55,
+   "euler14": 0,
+   "n_max26": 52,
+   "n_max14": 120,
+   "n_min26": 32,
+   "n_min14": 45
+  },
+  {
+   "id": "PrFeSi_129",
+   "n_voxels": 388800,
+   "euler": 10,
+   "euler14": 0,
+   "n_max26": 36,
+   "n_max14": 84,
+   "n_min26": 12,
+   "n_min14": 70
+  },
+  {
+   "id": "Ta2PdSe6_12",
+   "n_voxels": 806400,
+   "euler": -271,
+   "euler14": 0,
+   "n_max26": 53,
+   "n_max14": 329,
+   "n_min26": 17,
+   "n_min14": 22
+  },
+  {
+   "id": "Co3Mo_194",
+   "n_voxels": 384000,
+   "euler": 0,
+   "euler14": 0,
+   "n_max26": 8,
+   "n_max14": 8,
+   "n_min26": 10,
+   "n_min14": 10
+  },
+  {
+   "id": "TaTiRe2_225",
+   "n_voxels": 373248,
+   "euler": 35,
+   "euler14": 0,
+   "n_max26": 12,
+   "n_max14": 34,
+   "n_min26": 6,
+   "n_min14": 63
+  },
+  {
+   "id": "YC2_139",
+   "n_voxels": 301056,
+   "euler": 6,
+   "euler14": 0,
+   "n_max26": 10,
+   "n_max14": 10,
+   "n_min26": 8,
+   "n_min14": 14
+  },
+  {
+   "id": "SbO2_33",
+   "n_voxels": 1036800,
+   "euler": 18,
+   "euler14": 0,
+   "n_max26": 28,
+   "n_max14": 47,
+   "n_min26": 28,
+   "n_min14": 65
+  },
+  {
+   "id": "Li2AlRh_216",
+   "n_voxels": 884736,
+   "euler": 0,
+   "euler14": 0,
+   "n_max26": 4,
+   "n_max14": 4,
+   "n_min26": 12,
+   "n_min14": 12
+  },
+  {
+   "id": "Ca2SnHg_225",
+   "n_voxels": 512000,
+   "euler": -310,
+   "euler14": 0,
+   "n_max26": 11,
+   "n_max14": 479,
+   "n_min26": 7,
+   "n_min14": 165
+  },
+  {
+   "id": "NaZnAs_129",
+   "n_voxels": 388800,
+   "euler": -111,
+   "euler14": 0,
+   "n_max26": 22,
+   "n_max14": 142,
+   "n_min26": 14,
+   "n_min14": 23
+  },
+  {
+   "id": "CuSbS2_62",
+   "n_voxels": 1161216,
+   "euler": -73,
+   "euler14": 0,
+   "n_max26": 44,
+   "n_max14": 130,
+   "n_min26": 32,
+   "n_min14": 45
+  },
+  {
+   "id": "Co_225",
+   "n_voxels": 175616,
+   "euler": 0,
+   "euler14": 0,
+   "n_max26": 4,
+   "n_max14": 4,
+   "n_min26": 12,
+   "n_min14": 12
+  },
+  {
+   "id": "Ta2C_164",
+   "n_voxels": 165888,
+   "euler": -16,
+   "euler14": 0,
+   "n_max26": 38,
+   "n_max14": 54,
+   "n_min26": 6,
+   "n_min14": 6
+  },
+  {
+   "id": "Li6WN4_137",
+   "n_voxels": 663552,
+   "euler": 18,
+   "euler14": 0,
+   "n_max26": 26,
+   "n_max14": 30,
+   "n_min26": 66,
+   "n_min14": 88
+  }
+ ]
+}
