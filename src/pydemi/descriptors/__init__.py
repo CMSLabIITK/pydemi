@@ -1,129 +1,118 @@
 """
 pydemi.descriptors
-------------------
-Descriptor families built on the shared grid engine.
+==================
+The descriptor registry, :func:`featurize` and :func:`catalogue` (spec §8, §12).
 
-    >>> from pydemi import Engine
-    >>> from pydemi.descriptors import compute_descriptors
-    >>> eng = Engine.from_chgcar("CHGCAR")
-    >>> d = compute_descriptors(eng)                     # every implemented family
-    >>> d = compute_descriptors(eng, kinds=("descriptor",))  # physical descriptors only
-
-See :mod:`pydemi.descriptors.registry` for each quantity's reference entry,
-kind and formula.
+Importing this package registers every descriptor of the five domains
+(bonding, structural, magnetic, heterogeneity, compositional) and the
+off-by-default PAW extension.
 """
 
-from typing import Iterable, Optional
+from __future__ import annotations
 
-from ..engine import ELF, RHO, Engine
-from ..shells import Shells
-from .anisotropy import anisotropy_family
-from .bonds import bond_census, bond_family
-from .topology import morse_census, percolation_levels, topology_family
-from .composition import composition_features, crystal_system, tier2
-from .deformation import (deformation_density, deformation_family,
-                          deformation_outside_paw, promolecule)
-from .elf import elf_family, elf_fidelity
-from .hessian import ellipticity_family, nci_family
-from .information import information_family
-from .kinetic import elf_d_field, energy_family
-from .potential import potential_family, site_potentials
-from .sites import hirshfeld_charges, partition_family, site_charges, site_family
-from .spin import site_moments, spin_family
-from .registry import (CROSS_TERM, DATASET, DESCRIPTOR, FIELD, METADATA,
-                       PREPROCESSING, REGISTRY, SCALAR_KINDS, SITE, VARIANT,
-                       DescriptorInfo, describe, names)
-from .tier1 import tier1
-from .tier3 import tier3
+import time
+from typing import Any, Optional, Sequence, Union
 
-ALL_KINDS = SCALAR_KINDS
-FAMILIES = ("tier1", "tier2", "tier3", "B", "F2", "F3", "F4", "F5", "F6", "I1",
-            "C", "E", "H", "G", "I2", "A", "D")
-# families Family D needs as inputs
-_D_INPUTS = ("tier1", "tier2", "F2", "I2")
+import numpy as np
+
+from ..constants import BECKE_CELLS, BECKE_K
+from ..core.geometry import Shells
+from ..io.base import VolumetricData
+from . import bonding, structural, magnetic, heterogeneity, compositional  # noqa: F401  (register descriptors)
+from .registry import (METADATA_HOOKS, REGISTRY, DescriptorSpec, FeatureOptions, Sentinel,
+                       make_options, selected)
+
+__all__ = ["featurize", "catalogue", "descriptor_names", "REGISTRY", "FeatureOptions"]
 
 
-def _family_b(engine, field, shells):
-    out = elf_family(engine, elf_d_field(engine, field).name, "ELFD", shells)
-    if ELF in engine:
-        out.update(elf_family(engine, ELF, "ELF", shells))
-        out.update(elf_fidelity(engine, ELF, elf_d_field(engine, field).name, shells))
-    return out
+def _version() -> str:
+    from .. import __version__
+    return __version__
 
 
-# family -> callable(engine, field, shells) for the independent families
-_RUNNERS = {
-    "B": _family_b,
-    "F2": potential_family,
-    "F3": lambda e, f, s: nci_family(e, f),
-    "F4": ellipticity_family,
-    "F5": energy_family,
-    "F6": lambda e, f, s: information_family(e, f),
-    "I1": lambda e, f, s: anisotropy_family(e, f),
-    "C": site_family,
-    "E": spin_family,
-    "H": partition_family,
-    "G": topology_family,
-    "I2": lambda e, f, s: bond_family(e, f),
-    # AECCAR when loaded, else NaN (the whole-cell CHGCAR route must be asked
-    # for directly); plus the CHGCAR variant outside the PAW spheres
-    "A": lambda e, f, s: {**deformation_family(e, None, s), **deformation_outside_paw(e, s)},
-}
+def featurize(vd: VolumetricData, domains: Union[Sequence[str], str, None] = None,
+              partition: str = "nearest",
+              shells: Union[Shells, tuple[float, float], None] = None,
+              deformation_reference: str = "auto", elf_source: str = "auto",
+              laplacian_method: str = "metric", derivative_backend: str = "fft",
+              fd_order: int = 4, potential_source: str = "auto",
+              custom_reference: Optional[str] = None,
+              extensions: Union[Sequence[str], str] = (), float32: bool = False,
+              return_metadata: bool = False) -> Any:
+    """Named, fixed-length descriptor vector of one structure.
 
+    Returns ``dict[str, float]``: one entry per registered descriptor of the
+    requested ``domains`` (all five by default) and ``extensions`` (none by
+    default; ``"paw"`` adds the PAW-aware descriptors). With
+    ``return_metadata=True`` returns ``(features, metadata)``; the metadata
+    record the settings used, the density source, quality flags such as
+    ``euler_consistency``, and the companion flag ``<name>__flag`` of every
+    descriptor that fell back to a documented sentinel.
 
-def compute_descriptors(engine: Engine, families: Iterable[str] = FAMILIES,
-                        kinds: Iterable[str] = ALL_KINDS, field: str = RHO,
-                        shells: Optional[Shells] = None,
-                        calibrations: Optional[dict] = None) -> dict:
-    """Compute the requested families; returns {name: value} in reference order.
-
-    ``kinds`` filters the output by registry kind (descriptor, variant,
-    cross_term, preprocessing, metadata). Tier 3 depends on Tier 1 and 2,
-    and Family D on Tier 1-2, F2 and I2; those are computed internally
-    whenever needed. ``calibrations`` may hold an ``"ionicity"``
-    (IonicityCalibration) and a ``"bulk"`` (BulkModulusCalibration) entry
-    for Family D; without them the calibrated values are NaN.
+    ``float32=True`` casts every grid to float32 first (memory-constrained
+    runs); the default is float64.
     """
-    families, kinds = tuple(families), tuple(kinds)
-    requested = families
-    if "D" in families:
-        families = tuple(dict.fromkeys(families + _D_INPUTS))
-    unknown = set(families) - set(FAMILIES)
-    if unknown:
-        raise ValueError(f"unknown families {sorted(unknown)}; choose from {FAMILIES}")
+    t0 = time.perf_counter()
+    opts = make_options(shells, domains=domains, partition=partition,
+                        deformation_reference=deformation_reference, elf_source=elf_source,
+                        laplacian_method=laplacian_method, derivative_backend=derivative_backend,
+                        fd_order=fd_order, potential_source=potential_source,
+                        custom_reference=custom_reference, extensions=extensions)
+    base = vd.astype(np.float32) if float32 else vd
+    v = base.with_options(opts)
+    feats: dict[str, float] = {}
+    flags: dict[str, str] = {}
+    for spec in selected(opts):
+        result = spec.func(v)
+        if isinstance(result, Sentinel):
+            feats[spec.name] = float(result.value)
+            flags[spec.name] = result.case
+        else:
+            feats[spec.name] = float(result)
+    if not return_metadata:
+        return feats
+    meta: dict[str, Any] = {
+        "n_atoms": v.structure.n_atoms,
+        "volume": v.structure.volume,
+        "grid_shape": "x".join(str(n) for n in v.shape),
+        "density_source": v.density_source,
+        "spin_mode": v.spin_mode,
+        "site_counts": ",".join(f"{e}:{n}" for e, n in v.structure.site_counts().items()),
+        "partition": opts.partition + (f"(k={BECKE_K},cells={BECKE_CELLS})"
+                                       if opts.partition == "becke" else ""),
+        "shells": f"{opts.shells.c1},{opts.shells.c2}" + (",scaled" if opts.shells.scaled else ""),
+        "derivative_backend": opts.derivative_backend
+        + (f"{opts.fd_order}" if opts.derivative_backend == "fd" else ""),
+        "laplacian_method": opts.laplacian_method,
+        "precision": "float32" if float32 else "float64",
+    }
+    for hook in METADATA_HOOKS:
+        meta.update(hook(v))
+    for spec in selected(opts):
+        if spec.sentinel_cases:
+            meta[f"{spec.name}__flag"] = int(spec.name in flags)
+    meta["sentinels"] = ";".join(f"{k}:{c}" for k, c in flags.items())
+    meta["wall_time_s"] = time.perf_counter() - t0
+    meta["pydemi_version"] = _version()
+    meta["error"] = ""
+    return feats, meta
 
-    values = {}
-    if "tier1" in families or "tier3" in families:
-        values.update(tier1(engine, field, shells))
-    if "tier2" in families or "tier3" in families:
-        values.update(tier2(engine.structure))
-    if "tier3" in families:
-        values.update(tier3(engine, values, values, field, shells))
-    for family in families:
-        if family in _RUNNERS:
-            values.update(_RUNNERS[family](engine, field, shells))
-    if "D" in families:
-        from ..calibration import calibration_family
-        cal = calibrations or {}
-        values.update(calibration_family(engine.structure, values,
-                                         cal.get("ionicity"), cal.get("bulk")))
 
-    wanted = names(kinds=kinds, opt_in=True)
-    return {n: values[n] for n in wanted
-            if n in values and REGISTRY[n].family in requested}
+def descriptor_names(domains: Union[Sequence[str], str, None] = None,
+                     extensions: Union[Sequence[str], str] = ()) -> list[str]:
+    """Names of the descriptors ``featurize`` returns for these domains / extensions."""
+    return [s.name for s in selected(make_options(None, domains=domains, extensions=extensions))]
 
 
-__all__ = [
-    "compute_descriptors", "tier1", "tier2", "tier3", "composition_features",
-    "crystal_system", "elf_family", "elf_d_field", "energy_family",
-    "potential_family", "site_potentials", "nci_family", "ellipticity_family",
-    "information_family", "anisotropy_family", "site_family", "partition_family",
-    "site_charges", "spin_family", "site_moments", "topology_family",
-    "morse_census", "percolation_levels", "bond_family", "bond_census",
-    "deformation_family", "deformation_density", "deformation_outside_paw",
-    "promolecule", "elf_fidelity",
-    "hirshfeld_charges",
-    "describe", "names", "REGISTRY", "DescriptorInfo", "FAMILIES",
-    "DESCRIPTOR", "VARIANT", "CROSS_TERM", "PREPROCESSING", "METADATA",
-    "FIELD", "SITE", "DATASET",
-]
+def catalogue() -> Any:
+    """Descriptor metadata as a DataFrame (one row per registered descriptor)."""
+    import pandas as pd
+
+    def row(s: DescriptorSpec) -> dict[str, Any]:
+        return {"name": s.name, "domain": s.domain, "field": s.field,
+                "requires": ",".join(s.requires), "units": s.units,
+                "range_min": s.range[0], "range_max": s.range[1], "intensive": s.intensive,
+                "sentinel_cases": ";".join(f"{k}={v}" for k, v in s.sentinel_cases.items()),
+                "adopted": s.adopted, "extension": s.extension or "",
+                "formula": s.formula, "references": "; ".join(s.references)}
+    return pd.DataFrame([row(s) for s in REGISTRY.values()])

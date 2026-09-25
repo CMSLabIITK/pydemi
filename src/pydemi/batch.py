@@ -1,123 +1,119 @@
 """
 pydemi.batch
-------------
-Descriptors for many structures, in parallel, resumable, written to CSV
-one row at a time.
+============
+Featurize many structures in parallel (spec §12, §13): one process per
+structure via ``concurrent.futures.ProcessPoolExecutor``, never per
+descriptor.
 
-Each input is a VASP run directory (CHGCAR plus whichever of AECCAR0/2,
-ELFCAR, LOCPOT, POTCAR exist) or a single density file (CHGCAR, .cube,
-.xsf). ``material_id`` is the directory name (or file stem). A failure is
-recorded in the ``error`` column instead of stopping the batch; with
-``resume=True`` IDs already in the CSV are skipped, so an interrupted run
-continues where it stopped.
+``featurize_batch`` returns a tidy DataFrame -- one row per structure,
+descriptor columns in registry order, then metadata columns (``n_atoms``,
+``volume``, ``grid_shape``, ``density_source``, ``magnetic``,
+``euler_consistency``, ``wall_time_s``, ``pydemi_version``, ``error``, ...).
+Errors go into the frame (``on_error="record"``); a 6,000-structure run never
+crashes on one bad file.
 """
 
-import csv
+from __future__ import annotations
+
+import sys
+import time
 import traceback
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from pathlib import Path
-from typing import Iterable, Optional, Sequence
+from typing import Any, Iterable, Optional, Union
 
-from .descriptors import FAMILIES, REGISTRY, compute_descriptors, names
-
-DENSITY_FILES = ("CHGCAR",)
-
-
-def find_runs(root) -> list:
-    """Directories under ``root`` (inclusive) that contain a CHGCAR, sorted."""
-    root = Path(root)
-    return sorted({p.parent for name in DENSITY_FILES for p in root.rglob(name)})
+PathLike = Union[str, Path]
+COMPANIONS = {"elf": "ELFCAR", "locpot": "LOCPOT", "aeccar0": "AECCAR0", "aeccar2": "AECCAR2"}
 
 
-def material_id(path) -> str:
-    path = Path(path)
-    return path.name if path.is_dir() else path.stem
+def _read(path: Path, companions: bool, read_options: Optional[dict[str, Any]] = None) -> Any:
+    from .io.registry import read, sniff
+    if path.is_dir():
+        path = path / "CHGCAR"
+    is_vasp = sniff(path) == "chgcar"
+    kwargs: dict[str, Any] = dict(read_options or {}) if is_vasp else {}
+    if companions and is_vasp:
+        for key, name in COMPANIONS.items():
+            if (path.parent / name).exists():
+                kwargs[key] = path.parent / name
+        if ("aeccar0" in kwargs) != ("aeccar2" in kwargs):
+            kwargs.pop("aeccar0", None)
+            kwargs.pop("aeccar2", None)
+    return read(path, **kwargs)
 
 
-def _load(path):
-    from .engine import Engine
-    path = Path(path)
-    return Engine.from_vasp_dir(path) if path.is_dir() else Engine.from_file(path)
-
-
-def _calibrations(ionicity_cal, bulk_cal):
-    from .calibration import BulkModulusCalibration, IonicityCalibration
-    cal = {}
-    if ionicity_cal:
-        cal["ionicity"] = IonicityCalibration.load(ionicity_cal)
-    if bulk_cal:
-        cal["bulk"] = BulkModulusCalibration.load(bulk_cal)
-    return cal
-
-
-def compute_one(path, families: Sequence[str] = FAMILIES,
-                ionicity_cal: Optional[str] = None, bulk_cal: Optional[str] = None) -> dict:
-    """One CSV row: material_id, path, error, then every descriptor."""
-    row = {"material_id": material_id(path), "path": str(path), "error": ""}
+def _one(path: str, companions: bool, options: dict[str, Any],
+         read_options: Optional[dict[str, Any]] = None) -> dict[str, Any]:
+    from . import __version__
+    from .descriptors import featurize
+    t0 = time.perf_counter()
     try:
-        eng = _load(path)
-        row.update(compute_descriptors(eng, families=families,
-                                       calibrations=_calibrations(ionicity_cal, bulk_cal)))
-    except Exception as exc:   # recorded, the batch goes on
-        row["error"] = f"{type(exc).__name__}: {exc}"
-        row["traceback"] = traceback.format_exc(limit=3)
-    return row
+        vd = _read(Path(path), companions, read_options)
+        feats, meta = featurize(vd, return_metadata=True, **options)
+        return {"path": path, **feats, **meta}
+    except Exception as exc:                                   # noqa: BLE001 -- recorded
+        return {"path": path, "error": f"{type(exc).__name__}: {exc}",
+                "wall_time_s": time.perf_counter() - t0, "pydemi_version": __version__,
+                "traceback": traceback.format_exc(limit=3)}
 
 
-def columns(families: Sequence[str] = FAMILIES) -> list:
-    return ["material_id", "path", "error"] + [n for n in names(opt_in=False)
-                                               if REGISTRY[n].family in families]
+def featurize_batch(paths: Iterable[PathLike], n_workers: int = 8, on_error: str = "record",
+                    progress: bool = True, companions: bool = False,
+                    read_options: Optional[dict[str, Any]] = None,
+                    **featurize_kwargs: Any) -> Any:
+    """Featurize every structure in ``paths`` (CHGCAR / cube / xsf files or run directories).
 
-
-def done_ids(out_csv) -> set:
-    p = Path(out_csv)
-    if not p.exists():
-        return set()
-    with p.open(newline="") as fh:
-        return {row["material_id"] for row in csv.DictReader(fh)}
-
-
-def run_batch(inputs: Iterable, out_csv, families: Sequence[str] = FAMILIES,
-              workers: int = 1, resume: bool = True, ionicity_cal: Optional[str] = None,
-              bulk_cal: Optional[str] = None, progress: bool = True) -> dict:
-    """Compute every input and append rows to ``out_csv``.
-
-    ``inputs``: paths (run directories or density files); a single root
-    directory is expanded with :func:`find_runs`. Returns counts of done,
-    skipped and failed inputs.
+    ``on_error``: "record" (error message in the ``error`` column, descriptors
+    NaN), "raise" (stop at the first failure) or "skip" (drop the row).
+    ``companions=True`` also reads ELFCAR, LOCPOT and AECCAR0/2 found next to
+    each CHGCAR; the default reads the density only, so every row is computed
+    from the same inputs. ``read_options`` go to :func:`pydemi.read_vasp` for
+    VASP files -- e.g. ``{"zval": {...}, "paw_radii": {...}}`` tables for runs
+    without a POTCAR or OUTCAR. Other keyword arguments go to
+    :func:`pydemi.featurize`.
     """
-    inputs = [Path(p) for p in inputs]
-    if len(inputs) == 1 and inputs[0].is_dir() and not (inputs[0] / "CHGCAR").exists():
-        inputs = find_runs(inputs[0])
-    families = tuple(families)
-    header = columns(families)
-    skip = done_ids(out_csv) if resume else set()
-    todo = [p for p in inputs if material_id(p) not in skip]
-    out = Path(out_csv)
-    new_file = not out.exists() or not resume
-    counts = {"done": 0, "skipped": len(inputs) - len(todo), "failed": 0}
+    import pandas as pd
 
-    with out.open("w" if new_file else "a", newline="") as fh:
-        writer = csv.DictWriter(fh, fieldnames=header, extrasaction="ignore")
-        if new_file:
-            writer.writeheader()
+    from .descriptors import descriptor_names
+    if on_error not in ("record", "raise", "skip"):
+        raise ValueError(f"on_error must be record, raise or skip; got {on_error!r}")
+    items = [str(p) for p in paths]
+    rows: list[Optional[dict[str, Any]]] = [None] * len(items)
+    workers = max(1, int(n_workers))
 
-        def record(row):
-            writer.writerow(row)
-            fh.flush()
-            counts["done"] += 1
-            counts["failed"] += bool(row["error"])
-            if progress:
-                status = "FAILED " + row["error"] if row["error"] else "ok"
-                print(f"[{counts['done']}/{len(todo)}] {row['material_id']}: {status}", flush=True)
+    def handle(i: int, row: dict[str, Any], done: int) -> None:
+        if row.get("error"):
+            if on_error == "raise":
+                raise RuntimeError(f"{items[i]}: {row['error']}\n{row.get('traceback', '')}")
+        rows[i] = None if (row.get("error") and on_error == "skip") else row
+        if progress:
+            status = "ok" if not row.get("error") else f"error: {row['error']}"
+            print(f"[{done}/{len(items)}] {items[i]}: {status} ({row.get('wall_time_s', 0):.1f} s)",
+                  file=sys.stderr, flush=True)
 
-        args = (families, ionicity_cal, bulk_cal)
-        if workers <= 1:
-            for p in todo:
-                record(compute_one(p, *args))
-        else:
-            with ProcessPoolExecutor(max_workers=workers) as pool:
-                futures = [pool.submit(compute_one, p, *args) for p in todo]
-                for fut in as_completed(futures):
-                    record(fut.result())
-    return counts
+    if workers == 1:
+        for i, p in enumerate(items):
+            handle(i, _one(p, companions, featurize_kwargs, read_options), i + 1)
+    else:
+        with ProcessPoolExecutor(workers) as pool:
+            futures = {pool.submit(_one, p, companions, featurize_kwargs, read_options): i
+                       for i, p in enumerate(items)}
+            for done, fut in enumerate(as_completed(futures), start=1):
+                handle(futures[fut], fut.result(), done)
+
+    names = descriptor_names(featurize_kwargs.get("domains"), featurize_kwargs.get("extensions", ()))
+    kept = [r for r in rows if r is not None]
+    df = pd.DataFrame(kept)
+    for n in names:
+        if n not in df.columns:
+            df[n] = float("nan")
+    if "error" not in df.columns:
+        df["error"] = ""
+    df["error"] = df["error"].fillna("")
+    meta = [c for c in df.columns if c not in names and c not in ("path", "traceback")]
+    return df[["path"] + names + meta].reset_index(drop=True)
+
+
+def find_runs(root: PathLike, glob: str = "*/CHGCAR") -> list[Path]:
+    """Density files under ``root`` matching ``glob``, sorted."""
+    return sorted(Path(root).glob(glob))

@@ -1,25 +1,16 @@
 # pydemi
 
-**Physically interpretable descriptors from electronic charge densities.**
+**Interpretable, named, fixed-length descriptors from DFT charge-density grids.**
 
-pydemi turns the charge-density grids written by plane-wave DFT codes (VASP
-`CHGCAR`, `AECCAR`, `ELFCAR`, `LOCPOT`; Gaussian cube; XCrySDen XSF) into
-tabular descriptors for materials informatics and machine learning. Everything
-is built on one grid engine: a single geometry pass (distance, direction and
-index of the nearest, or assigned, nucleus for every voxel) and a small set of
-cached fields and derivatives — the density ρ, the magnetization |m|, the
-electron localization function (ELF, or its reconstruction ELF_D from ρ), the
-electrostatic potential and the deformation density. Each field runs through
-the same moment, shell-fraction, anisotropy and partition machinery, so an
-extra descriptor costs almost nothing once the engine is built.
+pydemi turns a charge-density grid plus its structure into a flat
+`dict[str, float]` of named descriptors, at seconds per structure, for
+datasets of thousands of structures. It is a featurization layer: there is no
+critical-point search anywhere, and every descriptor is computed by direct
+grid operations that always terminate.
 
-222 scalar quantities in 17 families by default (plus 28 opt-in Becke
-variants), covering entries 1–107 of the *pydemi Consolidated Descriptor
-Reference* (`pydemi — Consolidated Descriptor Reference.pdf`). Quantities
-that need an optional input (ELFCAR, LOCPOT, AECCAR, calibration files) are
-added when it is present, so a CHGCAR-only structure yields 209. Every
-quantity has a registry entry recording its reference number, kind, inputs,
-formula and caveats.
+<!-- counts -->220 descriptors by default (36 bonding, 21 structural, 8 magnetic, 23 heterogeneity, 132 compositional), plus 12 in the off-by-default PAW extension<!-- /counts -->.
+Every one is registered with its formula, units, range, sentinel cases and
+references, and the catalogue below is generated from that registry.
 
 **Author:** Shubham Maurya, CMS Lab, IIT Kanpur
 
@@ -28,974 +19,476 @@ formula and caveats.
 ## Contents
 
 1. [Installation](#1-installation)
-2. [Quickstart](#2-quickstart)
-3. [Concepts](#3-concepts)
+2. [Quick start](#2-quick-start)
+3. [Design](#3-design)
 4. [Input data](#4-input-data)
-5. [Descriptor reference](#5-descriptor-reference)
-6. [Free-atom references and PAW](#6-free-atom-references-and-paw)
-7. [Calibrated quantities](#7-calibrated-quantities)
-8. [Batch processing and the command line](#8-batch-processing-and-the-command-line)
-9. [Grid tools: resampling, convergence, strain](#9-grid-tools-resampling-convergence-strain)
-10. [Units and numerical conventions](#10-units-and-numerical-conventions)
-11. [Where pydemi departs from the specification](#11-where-pydemi-departs-from-the-specification)
-12. [Validation](#12-validation)
-13. [Performance](#13-performance)
-14. [Limitations](#14-limitations)
-15. [API overview](#15-api-overview)
-16. [Data sources and citations](#16-data-sources-and-citations)
-17. [Author and license](#17-author-and-license)
+5. [Options](#5-options)
+6. [Descriptor catalogue](#6-descriptor-catalogue)
+7. [Sentinels, flags and metadata](#7-sentinels-flags-and-metadata)
+8. [Where pydemi departs from the specification](#8-where-pydemi-departs-from-the-specification)
+9. [PAW pseudo-densities and the `paw` extension](#9-paw-pseudo-densities-and-the-paw-extension)
+10. [Validation](#10-validation)
+11. [Performance](#11-performance)
+12. [Limitations](#12-limitations)
+13. [API](#13-api)
+14. [Data sources and citations](#14-data-sources-and-citations)
 
 ---
 
 ## 1. Installation
 
-Requires Python ≥ 3.10.
-
 ```bash
-git clone <repository> pydemi
-cd pydemi
-pip install -e ".[dev]"      # dev adds pytest
-pytest                       # optional: run the test suite (~1 min)
+pip install -e .            # numpy, scipy, pandas: the numerical core
+pip install -e ".[full]"    # + pymatgen, spglib, matminer (compositional domain)
+pip install -e ".[dev]"     # + pytest, mypy
 ```
 
-Dependencies: `numpy`, `scipy`, `spglib`, `pymatgen`. No DFT code or
-atomic-structure package is needed at run time: the free-atom reference
-densities come from pydemi's own atomic solver (§6), and the Magpie element
-tables used by Tier 2 are bundled.
+Python >= 3.10. The numerical core is pure numpy / scipy; pymatgen is used
+only for structure I/O and matminer only for the compositional baseline. No
+network calls at run time.
 
-The install provides the `pydemi` command (§8).
-
-## 2. Quickstart
-
-### Python
+## 2. Quick start
 
 ```python
-from pydemi import Engine
-from pydemi.descriptors import compute_descriptors, describe
+import pydemi
 
-# a VASP run directory: CHGCAR plus whichever of AECCAR0/2, ELFCAR, LOCPOT,
-# POTCAR / OUTCAR exist
-eng = Engine.from_vasp_dir("runs/NaCl_225")
+vd = pydemi.read_vasp("CHGCAR", elf="ELFCAR")         # VolumetricData
+feats = pydemi.featurize(vd)                          # dict[str, float]
 
-d = compute_descriptors(eng)                     # every default family -> {name: value}
-d["zeta"], d["fint_over_lnf"], d["M_net"]
+feats, meta = pydemi.featurize(
+    vd,
+    domains=["bonding", "magnetic"],
+    partition="nearest",
+    shells=(0.8, 1.5),
+    deformation_reference="tabulated",
+    elf_source="reconstruct",                         # or "file"
+    laplacian_method="metric",
+    derivative_backend="fft",
+    return_metadata=True,
+)
 
-# a subset of families, physical descriptors only
-d = compute_descriptors(eng, families=("tier1", "F5"), kinds=("descriptor",))
+pydemi.catalogue()                                    # DataFrame of descriptor metadata
+q = pydemi.hirshfeld_charges(vd)                      # q_i = Z_i - int w_i rho dV
 
-describe("lnf_rho")          # entry, family, kind, inputs, formula, caveats
+df = pydemi.featurize_batch(paths, n_workers=8, on_error="record", progress=True)
 ```
-
-### Command line
 
 ```bash
-pydemi compute data_root/ -o descriptors.csv --workers 8   # every run under data_root, resumable
-pydemi convergence runs/NaCl_225                           # which descriptors this grid resolves
-pydemi resample runs/NaCl_225/CHGCAR CHGCAR_0.10 --spacing 0.10
-pydemi list --family G
-pydemi describe perc_anisotropy
+pydemi featurize CHGCAR --out features.json
+pydemi batch ./runs --glob "*/CHGCAR" --out features.csv --workers 8 --domains bonding,magnetic
+pydemi catalogue --out catalogue.csv
+pydemi sweep CHGCAR --param c2 --range 1.0:2.5:0.05 --out sweep.csv
 ```
 
-## 3. Concepts
+## 3. Design
 
-### 3.1 Engine and fields
+**One geometry pass, many operators, several fields.** For every voxel k the
+geometry pass gives the distance r_k to the nearest nucleus (minimum image),
+the unit vector u_k from that nucleus to the voxel, and the nucleus index
+i_k. It is computed once per structure and cached on the `VolumetricData`,
+together with the gradient, the Laplacian and the Hessian eigenvalues. A
+small set of operators is written once and applied to any field:
 
-`Engine` holds one `Structure` (lattice, species, fractional coordinates) and
-its named grid fields. Each `Field` computes its derivatives lazily and caches
-them: gradient, gradient norm, packed Hessian (6 components), Laplacian and
-Hessian eigenvalues λ₁ ≤ λ₂ ≤ λ₃. Fields read from different files may live
-on different grids (ELFCAR is usually on VASP's coarse `NGX` grid, CHGCAR on
-`NGXF`), so geometry, shell masks and partitions are cached per grid shape.
-
-| Field name | Content | Source |
+| Operator | Definition | Module |
 |---|---|---|
-| `rho` | total density (PAW pseudo-valence + compensation), e/Å³ | CHGCAR block 1 |
-| `magnetization` | m = ρ↑ − ρ↓ (collinear) | CHGCAR block 2 |
-| `magnetization_abs` | \|m\|, or \|m_vec\| for non-collinear runs | CHGCAR blocks 2(–4) |
-| `rho_ae` | all-electron density | AECCAR0 + AECCAR2 |
-| `elf`, `elf_down` | ELF (spin blocks) | ELFCAR |
-| `potential` | electrostatic potential, eV | LOCPOT |
-| `elf_d` | ELF reconstructed from ρ (derived, entry 72) | computed |
-| `hartree_potential` | electronic Hartree potential, eV (derived) | computed |
-| `promolecule_valence`, `promolecule_total` | superposed free atoms (derived) | computed |
+| radial moment | m_n = sum_k w_k r_k^n / sum_k w_k, w = f or \|f\| | `operators/moments.py` |
+| shell fraction | f_shell = sum_{k in shell} w_k / sum_k w_k | `operators/fractions.py` |
+| gradient anisotropy | zeta = 1 - sum_k \|grad f_k . u_k\| / sum_k \|grad f_k\| | `operators/anisotropy.py` |
+| anisotropy tensor | T_ab = sum_k d_a f_k d_b f_k / sum_k \|grad f_k\|^2 | `operators/anisotropy.py` |
+| Laplacian statistics | sign fraction, charge-weighted fraction, concentration | `operators/laplacian.py` |
+| site aggregation | sums restricted to (or weighted by) atom i | `operators/sitestats.py` |
+| percolation, extremum census | see section 6.2 | `operators/topology.py` |
 
-Any array can be analysed: `Engine(structure, {"rho": array})`.
+The fields are rho, |m|, the ELF (read or reconstructed), delta rho and the
+electrostatic potential (read or FFT-solved).
 
-### 3.2 Derivatives
-
-Both derivative methods treat the cell as periodic and use the exact metric
-tensor, so they are correct for any cell shape (triclinic included):
-
-- `method="fd"` (default): second-order compact central differences.
-- `method="spectral"`: exact derivatives of the trigonometric interpolant (FFT).
-
-The choice matters for sign-thresholded descriptors such as `lnf`; see §10 and
-`docs/numerics.md`.
-
-### 3.3 The geometry pass
-
-For every voxel, `engine.geometry()` gives the distance r_k to the nearest
-nucleus, the unit vector r̂_k from that nucleus to the voxel, and the atom index
-i(k). Periodic images are searched with a KD-tree whose image range is widened
-until it provably contains every voxel's nearest atom, so the minimum image is
-exact even in strongly sheared cells (fractional rounding is not).
-
-### 3.4 Shells
-
-Three radial shells about the nearest nucleus, with c₁ = 0.8 Å and c₂ = 1.5 Å
-by default:
-
-    core:          r_k ≤ c₁
-    bond:          c₁ < r_k ≤ c₂
-    interstitial:  r_k > c₂
-
-`Shells(c1, c2)` changes the absolute cutoffs; `Shells.scaled(s1, s2, radii)`
-uses per-element cutoffs s·R_e. Every shell-based descriptor inherits a
-cutoff sensitivity; report it.
-
-### 3.5 Partitions
-
-`engine.partition(scheme=...)` assigns voxels to atoms. Every scheme exposes the
-same interface — chunks of (voxel, atom, weight, distance, direction) pairs,
-with distance and direction measured to *that* atom — so every site-resolved
-quantity comes from one code path.
-
-| Scheme | Rule | Notes |
-|---|---|---|
-| `nearest` | argmin_i \|r − R_i\| | default; reproduces Tier 1 exactly |
-| `power` | argmin_i \|r − R_i\|² − R_i² | radius-weighted Voronoi; Magpie covalent radii by default (entry 99) |
-| `hirshfeld` | w_i = ρ_i^free / Σ_j ρ_j^free | smooth; free-atom densities (§6); 6.5 Å cutoff (entry 101) |
-| `becke` | Becke fuzzy cells | opt-in; slow convergence in periodic solids, see §11 (entry 100) |
-
-### 3.6 The registry, kinds and names
-
-`pydemi.descriptors.REGISTRY` holds a `DescriptorInfo` for every quantity:
-`name`, `entry` (reference number), `family`, `kind`, `inputs`, `formula`,
-`note`, `opt_in`. Kinds:
-
-| Kind | Meaning |
-|---|---|
-| `descriptor` | a physical descriptor as specified |
-| `variant` | a recommended fix for a flagged ambiguity, reported *alongside* the specified form |
-| `cross_term` | combinatorial pairing without a physical derivation (entries 33–37) |
-| `preprocessing` | a regression transform, not a descriptor (entries 38–39) |
-| `metadata` | flags and bookkeeping (e.g. `is_spin_polarized`, `n_atoms`) |
-| `field`, `site`, `dataset` | non-scalar entries (a grid, a per-atom array, a cross-dataset statistic) |
-
-Two naming rules keep result files unambiguous:
-
-1. **A name always keeps the specified formula.** Where the specification
-   recommends a fix, the fix gets a new explicit name (`lnf` → `lnf_rho`,
-   `moment_ratio` → `moment_ratio_scale_free`), so a column never changes
-   meaning between files.
-2. **Where two data sources are possible, the name says which**: `ELF_*` (from
-   ELFCAR) vs `ELFD_*` (reconstructed), `V_*` (LOCPOT) vs `VH_*` (Hartree from ρ),
-   and a `_power` / `_hirshfeld` / `_becke` suffix for partition variants.
-
-```python
-from pydemi.descriptors import names, describe
-names(family="G")                          # scalar names of one family, in reference order
-names(kinds=("descriptor",))               # physical descriptors only
-names(kinds=None, opt_in=True)             # everything, including non-scalar and opt-in entries
 ```
+src/pydemi/
+  io/          base.py (Lattice, Grid, Structure, VolumetricData), vasp.py, cube.py, xsf.py, registry.py
+  core/        grid.py, derivatives.py, geometry.py, partition.py
+  fields/      density.py, deformation.py, elf.py, potential.py
+  operators/   moments.py, fractions.py, anisotropy.py, laplacian.py, topology.py, sitestats.py
+  descriptors/ registry.py, bonding.py, structural.py, magnetic.py, heterogeneity.py, compositional.py
+  validate/    analytic.py, invariance.py, convergence.py
+  constants.py, data/ (elements.csv, free_atoms.npz, magpie_labels.txt), batch.py, cli.py
+tools/         generators for the data files and this README's tables
+```
+
+**Derivatives** (`core/derivatives.py`). With B = inv(A)^T (rows b1, b2, b3,
+no 2 pi) and fractional coordinates u: grad f = sum_a b_a df/du_a,
+lap f = sum_{a,b} G[a,b] d^2f/du_a du_b with G = B B^T (off-diagonal terms
+included; `laplacian_method="diagonal"` exists only to quantify that
+shortcut), H_cart = B^T H_frac B. Backends: `"fft"` (default; exact for
+band-limited data) and `"fd"` (central differences, order 2/4/6/8, default 4).
 
 ## 4. Input data
 
-### 4.1 VASP
-
 | File | Read as | Notes |
 |---|---|---|
-| `CHGCAR` / `CHG` | `rho` (+ magnetization) | ρ·V is divided by V; every data block is read: 1 = non-spin, 2 = collinear, 4 = non-collinear; any other count is refused |
-| `AECCAR0` + `AECCAR2` | `rho_ae` | all-electron density; required for Family A |
-| `ELFCAR` | `elf` (`elf_down`) | usually on the coarse grid |
-| `LOCPOT` | `potential` (eV) | enables the `V_*` descriptors; which potential it is depends on LVHAR / LVTOT |
-| `POTCAR` or `OUTCAR` | ZVAL and RCORE per species | POTCAR preferred; OUTCAR's `POMASS …; ZVAL …` and `RCORE` lines otherwise |
+| CHGCAR / CHG | rho, magnetization | values are rho * V_cell: divided by V; Fortran order; second block = m (augmentation lines skipped); four blocks = non-collinear (rho, m_x, m_y, m_z), read as a vector |
+| AECCAR0 + AECCAR2 | `read_all_electron` | sum = all-electron density, `density_source="all_electron"`; AECCAR0 kept as `core_density` |
+| ELFCAR | elf | not volume-scaled; resampled trilinearly onto the density grid (stays in [0, 1]) |
+| LOCPOT | potential | eV, not volume-scaled |
+| POTCAR / OUTCAR | ZVAL, RCORE | found next to the CHGCAR by `read_vasp` (`potcar="auto"`); without either, per-element tables `read_vasp(zval=, paw_radii=)` / `--paw-table`, then the fallback below |
+| `*.cube` | rho | bohr and e/bohr^3 converted to Angstrom and e/Angstrom^3 on read |
+| `*.xsf` | rho | Angstrom; periodic duplicate plane dropped |
 
-The POSCAR-style header is parsed in VASP 5 and VASP 4 layouts (pass
-`species=` for VASP 4), with negative scale factors, Cartesian coordinates,
-Selective dynamics and POTCAR-style labels (`Fe_pv` → Fe). Augmentation
-occupancies and per-atom moment lines between blocks are skipped.
+`pydemi.read(path)` sniffs the format; `read_vasp(chgcar, elf=, locpot=,
+aeccar0=, aeccar2=)` assembles one VASP run. A pymatgen `Structure` is
+accepted wherever a structure is.
 
-```python
-from pydemi.io import read_chgcar, read_aeccar, read_elfcar, read_locpot, read_volumetric
-cd = read_chgcar("CHGCAR")          # ChargeDensity: .total, .magnetization, .spin_mode, .structure
-eng = Engine.from_charge_density(cd)
-```
+ZVAL (the electrons a pseudo-density holds per atom) sets the free-atom
+reference, the Hirshfeld Z_i and the ionic charges; `zval_source` in the
+metadata says where it came from (`potcar`, `outcar`, `table`, `default`).
+The fallback `pydemi.data.default_zval` reproduces the standard PBE PAW
+datasets (p-block without the filled d10, lanthanides and actinides with
+the outer s2 p6), 78 of the 87 elements of the 6,059-structure dataset; it
+cannot know the semicore choices (K_pv vs K_sv, Ca_pv, Sr_sv, Y_sv, Zr_sv,
+Nb_pv, ...). A run without POTCAR or OUTCAR should get a table from the
+other runs of the same POTCAR set; a wrong count shows as a large
+`def_charge_mismatch` (integer multiples of the missing electrons).
 
-### 4.2 Other codes
+Internal units: Angstrom, electrons / Angstrom^3, eV. ELF_D, g, v, H, the NCI
+thresholds and the information measures are evaluated in atomic units, with
+explicit conversions (`constants.py`).
 
-`Engine.from_file(path)` reads `.cube` / `.cub` (Gaussian cube) and `.xsf`
-(XCrySDen) densities, which covers:
+## 5. Options
 
-- **Quantum ESPRESSO**: `pp.x` with `plot_num = 0`, `output_format = 6` (cube) or `5` (XSF);
-- **ABINIT**: `cut3d`, cube or XSF output.
-
-Density values are taken to be in e/bohr³ (what these tools write) and
-converted; pass `density_unit="e/A^3"` if the file already holds e/Å³, or
-`density_unit=None` for non-density data. XSF's repeated end points are
-dropped. `write_cube` and `write_xsf` export any field, e.g. ELF_D or a
-deformation density for VESTA. Native QE `charge-density.hdf5` and ABINIT
-`_DEN` files are not read directly.
-
-### 4.3 Valence electrons and PAW radii
-
-The free-atom reference (§6) needs each element's PAW valence count (ZVAL),
-and the non-nuclear-maximum test (entry 94) needs its PAW radius (RCORE).
-`Engine.from_vasp_dir` reads both from the POTCAR or, failing that, the
-OUTCAR. Without either, ZVAL falls back to a documented rule (electrons
-outside the noble-gas core, a filled f¹⁴ counted as core) and the PAW radius
-to the covalent radius; the flag `paw_radii_known` records which was used.
-Explicit values: `Engine(..., zval={"Fe": 14})`, `eng.paw_radii = {...}`.
-
-## 5. Descriptor reference
-
-Families, in the order `compute_descriptors` computes them. The **Definition**
-column is the exact formula stored in the registry; r_k, r̂_k are measured to
-the nearest nucleus, ⟨·⟩ is a voxel average unless stated, and shells are as
-in §3.4.
-
-| Family | Content | Needs |
+| Option | Default | Values |
 |---|---|---|
-| `tier1` | charge-density moments, shell fractions, anisotropy, Laplacian (1–15) | CHGCAR |
-| `tier2` | compositional baseline, Magpie via matminer (16–30) | structure |
-| `tier3` | interaction terms and transforms (32–39) | CHGCAR |
-| `B` | ELF descriptors (48–52) and ELF_D fidelity (73) | CHGCAR (ELFCAR for `ELF_*`, 73) |
-| `F2` | electrostatic potential (74–76) | CHGCAR (LOCPOT for `V_*`) |
-| `F3` | non-covalent interactions (77–79) | CHGCAR |
-| `F4` | whole-grid ellipticity (80–82) | CHGCAR |
-| `F5` | local energy densities (83–85) | CHGCAR |
-| `F6` | information-theoretic measures (86–89) | CHGCAR |
-| `I1` | charge anisotropy tensor (102–103) | CHGCAR |
-| `C` | site-resolved heterogeneity (53–59) | CHGCAR |
-| `E` | spin density (63–71) | spin-polarized CHGCAR |
-| `H` | partition variants (99–101) | CHGCAR |
-| `G` | topology and connectivity (90–98) | CHGCAR |
-| `I2` | bond-midpoint density (104–105) | CHGCAR |
-| `A` | deformation density (40–47) | AECCAR0 + AECCAR2 |
-| `D` | calibrated ionicity and bulk-modulus baselines (60–62, 106) | calibration files (§7) |
-
-Entry 72 (the ELF_D field) is `pydemi.descriptors.elf_d_field`; entry 107
-(strain response) is the utility in §9.3.
-
-### 5.1 Tier 1 — charge-density descriptors
-
-The three ambiguities the specification flags are reported both ways (`lnf` /
-`lnf_rho`, `moment_ratio` / `moment_ratio_scale_free`, `zeta_over_rvar` /
-`zeta_over_sigma_r`). `lap_concentration` as specified is identically ½ for a
-periodic density (the cell integral of a Laplacian vanishes), so the
-core-excluded `lap_concentration_valence` is added.
-
-| Entry | Name | Kind | Definition | Notes |
-|---|---|---|---|---|
-| 1 | `zeta` | descriptor | 1 - sum_k \|grad rho_k . r_hat_k\| / sum_k \|grad rho_k\| |  |
-| 2 | `m1` | descriptor | sum_k rho_k r_k / sum_k rho_k |  |
-| 3 | `m2` | descriptor | sum_k rho_k r_k^2 / sum_k rho_k |  |
-| 4 | `sigma_r2` | descriptor | m2 - m1^2 |  |
-| 5 | `f_core` | descriptor | sum_{r_k <= c1} rho_k / sum_k rho_k |  |
-| 6 | `f_bond` | descriptor | sum_{c1 < r_k <= c2} rho_k / sum_k rho_k |  |
-| 7 | `f_int` | descriptor | sum_{r_k > c2} rho_k / sum_k rho_k |  |
-| 8 | `lnf` | descriptor | (1/N) sum_k 1(lap rho_k < 0) | voxel-count fraction; sensitive to the Laplacian numerics |
-| 8 | `lnf_rho` | variant | sum_{lap rho < 0} rho_k / sum_k rho_k | charge-weighted lnf recommended by the reference |
-| 9 | `fint_over_lnf` | descriptor | f_int / lnf |  |
-| 9 | `fint_over_lnf_rho` | variant | f_int / lnf_rho |  |
-| 10 | `moment_ratio` | descriptor | m2 / m1 | carries units of length; not scale-invariant |
-| 10 | `moment_ratio_scale_free` | variant | m2 / m1^2 | the scale-invariant form the reference recommends |
-| 11 | `radial_cv` | descriptor | sqrt(m2 - m1^2) / m1 |  |
-| 12 | `zeta_over_rvar` | descriptor | zeta / sigma_r2 |  |
-| 12 | `zeta_over_sigma_r` | variant | zeta / sigma_r | inverse length; scales consistently across cell sizes |
-| 13 | `charge_per_m1` | descriptor | Q_tot / m1 |  |
-| 14 | `lap_concentration` | descriptor | sum_{lap<0} \|lap rho_k\| / sum_k \|lap rho_k\| | identically 1/2 for any periodic density: the cell integral of a Laplacian vanishes, so negative and positive parts balance. Carries no information; kept for completeness |
-| 14 | `lap_concentration_valence` | variant | same share over r_k > c1 | pydemi proposal, not in the reference: excluding the core breaks the identity (flux crosses the core boundary) |
-| 15 | `bond_int_ratio` | descriptor | f_bond / f_int |  |
-|  | `Q_tot` | metadata | sum_k rho_k dV | electron count; a sanity check, and the numerator of charge_per_m1 |
-
-### 5.2 Tier 2 — compositional baseline
-
-Magpie statistics as computed by matminer's `ElementProperty` (values agree
-with matminer to 1e-14); no novelty is claimed — cite matminer. Missing table
-entries are imputed with the all-element mean, as matminer does. The crystal
-system comes from spglib (symprec 0.01).
-
-| Entry | Name | Kind | Definition | Notes |
-|---|---|---|---|---|
-| 16 | `mean_mass` | descriptor | sum_i x_i A_i |  |
-| 17 | `max_mass` | descriptor | max_i A_i |  |
-| 18 | `mass_range` | descriptor | max_i A_i - min_i A_i |  |
-| 19 | `mean_elneg` | descriptor | sum_i x_i chi_i |  |
-| 20 | `elneg_diff` | descriptor | max_i chi_i - min_i chi_i |  |
-| 21 | `mean_vec` | descriptor | sum_i x_i VEC_i | Magpie NValence |
-| 22 | `max_vec` | descriptor | max_i VEC_i |  |
-| 23 | `mean_radius` | descriptor | sum_i x_i R_i | Magpie AtomicRadius, Angstrom |
-| 24 | `radius_diff` | descriptor | max_i R_i - min_i R_i |  |
-| 25 | `n_elements` | descriptor | count |  |
-| 26 | `ionicity` | descriptor | 1 - exp(-(elneg_diff)^2 / 4) | Pauling; never looks at the density |
-| 27 | `mean_period` | descriptor | sum_i x_i P_i |  |
-| 28 | `crystal_system_int` | descriptor | spglib crystal system, 1 = triclinic ... 7 = cubic |  |
-|  | `space_group_number` | metadata | spglib |  |
-| 29 | `is_f_block` | metadata | every element is f-block | pipeline metadata, not a descriptor |
-| 30 | `has_f_block` | metadata | any element is f-block | pipeline metadata, not a descriptor |
-
-### 5.3 Tier 3 — interaction terms and transforms
-
-Entries 33–37 are `cross_term`s and 38–39 `preprocessing`; report them only if
-your own analysis ranks them. `laplacian_std_valence` measures bonding
-heterogeneity instead of near-nucleus numerical spikes.
-
-| Entry | Name | Kind | Definition | Notes |
-|---|---|---|---|---|
-| 32 | `laplacian_std` | descriptor | std of lap rho over all k | dominated by near-nucleus spikes rather than bonding |
-| 32 | `laplacian_std_valence` | variant | std of lap rho over r_k > c1 | core-excluded form the reference recommends |
-| 33 | `vec_x_lnf` | cross_term | mean_vec * lnf |  |
-| 34 | `elneg_x_lnf` | cross_term | mean_elneg * lnf |  |
-| 35 | `vec_over_rvar` | cross_term | mean_vec / sigma_r2 |  |
-| 36 | `bond_over_lnf` | cross_term | f_bond / lnf |  |
-| 37 | `lnf_x_m1` | cross_term | lnf * m1 |  |
-| 38 | `sqrt_zeta` | preprocessing | sqrt(zeta) |  |
-| 39 | `log_lnf` | preprocessing | ln(lnf) |  |
-
-### 5.4 Family B — ELF descriptors and ELF_D (F1)
-
-Computed on ELF_D (entry 72, Tsirelson–Stash reconstruction from ρ, ∇ρ, ∇²ρ in
-atomic units) always, with `ELFD` in the names, and on a real ELFCAR when one
-is loaded, with the reference names below. Fractions and averages use the
-bonding shell, since core shells show ELF ≈ 1 from shell structure; `zeta_ELF`
-excludes the core shell. With an ELFCAR, entry 73 compares ELF_D and ELF on
-the ELFCAR grid.
-
-| Entry | Name | Kind | Definition | Notes |
-|---|---|---|---|---|
-| 72 | `elf_d` | field | [1 + (D_P / C_F rho^{5/3})^2]^{-1}, Kirzhnits t_P (Tsirelson-Stash) | registered on the engine as field 'elf_d' |
-
-| Entry | Name | Kind | Definition | Notes |
-|---|---|---|---|---|
-| 48 | `f_ELF_localized` | descriptor | (1/N_bond) sum_bond 1(ELF > 0.5) | true ELF from ELFCAR; present only when one is loaded |
-| 49 | `ELF_bond_avg` | descriptor | mean ELF over the bonding shell | true ELF from ELFCAR; present only when one is loaded |
-| 50 | `zeta_ELF` | descriptor | 1 - sum \|grad ELF . r_hat\| / sum \|grad ELF\| over r_k > c1 | true ELF from ELFCAR; present only when one is loaded; core shell excluded |
-| 51 | `ELF_threshold_sweep_025` | descriptor | f_ELF(t = 0.25) over the bonding shell | true ELF from ELFCAR; present only when one is loaded |
-| 51 | `ELF_threshold_sweep_075` | descriptor | f_ELF(t = 0.75) over the bonding shell | true ELF from ELFCAR; present only when one is loaded |
-| 51 | `ELF_threshold_sweep_inflection` | descriptor | t of steepest descent of f_ELF(t) (modal ELF) | true ELF from ELFCAR; present only when one is loaded |
-| 52 | `ELF_core_valence_contrast` | descriptor | <ELF>_core / <ELF>_bond | true ELF from ELFCAR; present only when one is loaded |
-| 73 | `ELFD_fidelity_r` | descriptor | Pearson r(ELF_D, ELF) over ELFCAR voxels | present only with an ELFCAR |
-| 73 | `ELFD_fidelity_mae` | descriptor | mean \|ELF_D - ELF\| |  |
-| 73 | `ELFD_fidelity_r_bond` | variant | Pearson r over the bonding shell | where the comparison is meaningful |
-| 73 | `ELFD_fidelity_mae_bond` | variant | mean \|ELF_D - ELF\| over the bonding shell |  |
-
-Each `ELF_*` name has an `ELFD_*` twin (`f_ELFD_localized`, `ELFD_bond_avg`,
-`zeta_ELFD`, …).
-
-### 5.5 F2 — electrostatic potential
-
-`VH_*` uses the electronic Hartree potential from one FFT Poisson solve
-(V_H(G) = 4πρ(G)/|G|², in eV; no ionic term). `V_*` uses a LOCPOT when loaded.
-Site values are exact Fourier interpolations at the nuclei
-(`pydemi.descriptors.site_potentials`). `*_int_min` is relative to the
-cell-average potential.
-
-| Entry | Name | Kind | Definition | Notes |
-|---|---|---|---|---|
-| 74 | `VH_site` | site | V_H(R_i), Fourier-interpolated | pydemi.descriptors.potential.site_potentials |
-| 75 | `VH_spread` | descriptor | std over i of V_H(R_i), eV | electronic Hartree potential only (no ionic term) |
-| 76 | `VH_int_min` | descriptor | min over r_k > c2 of V_H, eV | relative to the cell-average potential |
-| 74 | `V_site` | site | V(R_i) from LOCPOT |  |
-| 75 | `V_spread` | descriptor | std over i of V(R_i), eV | LOCPOT; present only when one is loaded |
-| 76 | `V_int_min` | descriptor | min over r_k > c2 of V, eV | LOCPOT; relative to the cell average |
-
-### 5.6 F3 — non-covalent interactions
-
-Reduced density gradient s = |∇ρ| / (2(3π²)^{1/3} ρ^{4/3}) (dimensionless), with
-the density threshold in atomic units.
-
-| Entry | Name | Kind | Definition | Notes |
-|---|---|---|---|---|
-| 77 | `f_NCI` | descriptor | (1/N) sum 1(s < 0.5 and rho < 0.05 a.u.) |  |
-| 78 | `NCI_attractive` | descriptor | fraction of NCI voxels with lambda2 < 0 |  |
-| 79 | `sign_lambda2_rho_mean` | descriptor | mean of sign(lambda2) rho over NCI voxels, e/bohr^3 |  |
-
-### 5.7 F4 — whole-grid ellipticity
-
-Over bonding-shell voxels where the density is concentrated in two directions
-(λ₂ < 0). Near bond paths λ₂ → 0⁻ makes the ratio diverge, so the mean can be
-dominated by a few voxels; `ellip_bond_median` is the robust companion. Entry
-82 is a dataset-level correlation: `pydemi.descriptors.dataset.zeta_ellip_agreement`.
-
-| Entry | Name | Kind | Definition | Notes |
-|---|---|---|---|---|
-| 80 | `ellip_bond_avg` | descriptor | <lambda1/lambda2 - 1> over bond voxels with lambda2 < 0 | can be dominated by voxels with lambda2 -> 0^- |
-| 80 | `ellip_bond_median` | variant | median of the same set | pydemi addition: robust companion to the mean |
-| 81 | `ellip_bond_std` | descriptor | std of the same set |  |
-| 82 | `zeta_ellip_agreement` | dataset | correlation of zeta with ellip_bond_avg across the dataset | pydemi.descriptors.dataset.zeta_ellip_agreement |
-
-### 5.8 F5 — local energy densities
-
-Abramov kinetic density g (the same Kirzhnits expression behind ELF_D),
-local-virial potential density v = ¼∇²ρ − 2g and total H = g + v, in atomic
-units, averaged over the bonding shell.
-
-| Entry | Name | Kind | Definition | Notes |
-|---|---|---|---|---|
-| 83 | `f_H_negative` | descriptor | (1/N_bond) sum_bond 1(H < 0), H = lap/4 - g (a.u.) |  |
-| 84 | `H_bond_mean` | descriptor | <H> over the bonding shell, hartree/bohr^3 |  |
-| 85 | `G_over_rho` | descriptor | <g/rho> over the bonding shell, hartree/electron |  |
-
-### 5.9 F6 — information-theoretic measures
-
-On the shape function ρ̃ = ρ/N_e, in bohr units as the specification defines
-them; C_LMC is unit-free.
-
-| Entry | Name | Kind | Definition | Notes |
-|---|---|---|---|---|
-| 86 | `shannon_entropy` | descriptor | -int rho~ ln rho~ dV, rho~ = rho/N_e, bohr units |  |
-| 87 | `fisher_information` | descriptor | int \|grad rho~\|^2 / rho~ dV, 1/bohr^2 |  |
-| 88 | `disequilibrium` | descriptor | int rho~^2 dV, 1/bohr^3 |  |
-| 89 | `LMC_complexity` | descriptor | D e^S (unit-free) |  |
-
-### 5.10 I1 — charge anisotropy tensor
-
-T_ab = Σ ∂_aρ ∂_bρ / Σ|∇ρ|² (trace 1). Isotropic → eigenvalues ⅓; a density
-varying along one direction only → `charge_FA` = 1.
-
-| Entry | Name | Kind | Definition | Notes |
-|---|---|---|---|---|
-| 102 | `T_eig_1` | descriptor | largest eigenvalue of T_ab = sum d_a rho d_b rho / sum \|grad rho\|^2 |  |
-| 102 | `T_eig_2` | descriptor | middle eigenvalue of T |  |
-| 102 | `T_eig_3` | descriptor | smallest eigenvalue of T |  |
-| 103 | `charge_FA` | descriptor | sqrt(3/2) \|\|T - I/3\|\|_F / \|\|T\|\|_F |  |
-
-### 5.11 Family C — site-resolved heterogeneity
-
-For X ∈ {`m1`, `f_bond`, `zeta`}, the site value X^(i) restricts every sum to
-atom i's voxels (nearest-atom partition), and seven statistics are reported:
-
-| Entry | Name | Definition |
-|---|---|---|
-| 53–55 | `X_site_std` | population std over sites of X^(i) |
-| 56 | `X_site_range` | max − min over sites |
-| 57 | `X_site_max`, `X_site_min` | extreme sites |
-| 58 | `X_var_within` | Σ_e w_e Var_{i∈e} X^(i) (w_e = atom fraction): configurational disorder |
-| 59 | `X_var_between` | Σ_e w_e (X̄_e − X̄)²: chemical differentiation |
-| 58/59 | `X_within_share` | within / (within + between), the single ANOVA ratio |
-| — | `n_atoms` | report with every site statistic |
-
-The within and between terms partition the total site variance exactly.
-`X_var_within` and `X_within_share` are NaN when no element has two or more
-sites (a 0 would falsely read as "no disorder").
-
-### 5.12 Family E — spin density
-
-From the CHGCAR magnetization block, in μ_B and Å. Non-collinear runs are
-treated as vectors (|m_vec|, vector sums of the site moments), so
-perpendicular moments are not misread as collinear cancellation.
-Non-spin-polarized runs return 0 for every entry with `is_spin_polarized = 0`;
-spin-polarized runs below 0.01 μ_B per atom keep M_abs, M_net and
-`mu_site_std` but return 0 for the ratio-type entries, with `is_magnetic = 0`.
-Per-site moments: `pydemi.descriptors.site_moments`.
-
-| Entry | Name | Kind | Definition | Notes |
-|---|---|---|---|---|
-| 63 | `M_abs` | descriptor | sum \|m\| dV, mu_B |  |
-| 64 | `M_net` | descriptor | \|sum m dV\|, mu_B | vector sum for non-collinear runs |
-| 65 | `m1_spin` | descriptor | sum \|m\| r / sum \|m\| | 0 when not magnetic |
-| 66 | `sigma_r2_spin` | descriptor | sum \|m\| r^2 / sum \|m\| - m1_spin^2 | 0 when not magnetic |
-| 67 | `f_bond_spin` | descriptor | sum_bond \|m\| / sum \|m\| | 0 when not magnetic |
-| 68 | `mu_site` | site | sum_(k in i) m dV | pydemi.descriptors.spin.site_moments |
-| 69 | `mu_site_std` | descriptor | sqrt(mean_i \|mu_i - mean mu\|^2) | signed std when collinear |
-| 70 | `spin_frustration` | descriptor | 1 - \|sum mu_i\| / sum \|mu_i\| | vector norms; 0 when not magnetic |
-| 71 | `spin_charge_correlation` | descriptor | Pearson r(rho_k, \|m_k\|) | 0 when not magnetic |
-|  | `is_spin_polarized` | metadata | 1 if the CHGCAR has magnetization blocks | every Family E value is the sentinel 0 when this is 0 |
-|  | `is_magnetic` | metadata | 1 if M_abs > 0.01 mu_B per atom |  |
-
-### 5.13 Family H — partition variants
-
-The Tier 1 radial descriptors (`m1`, `m2`, `sigma_r2`, `f_core`, `f_bond`,
-`f_int`, `zeta`) and all Family C statistics, recomputed under the power
-diagram and Hirshfeld partitions, with suffixes `_power` and `_hirshfeld`
-(e.g. `m1_power`, `f_bond_site_std_hirshfeld`). Becke (`_becke`) is opt-in:
-`partition_family(eng, schemes=("power", "hirshfeld", "becke"))`. Comparing a
-variant with its nearest-atom value is the partition-sensitivity axis.
-Hirshfeld charges q_i = N_i − ∫w_iρ dV: `pydemi.descriptors.hirshfeld_charges`.
-
-### 5.14 Family G — topology and connectivity
-
-All by direct grid operations that always terminate.
-
-- **Percolation (90–91):** the largest level c at which {ρ > c} still contains
-  a cluster that wraps around the periodic cell along each lattice direction
-  (the density at the bottleneck of the best connecting path), found by exact
-  bisection over voxel values; wrapping is detected with a union-find that
-  tracks winding vectors.
-- **Critical-point census (92–93):** piecewise-linear Morse theory on the
-  Freudenthal triangulation (14-neighbour link), ties broken by voxel index.
-  The Euler sum is then identically 0 on any grid; `euler_consistency` is a
-  self-check, and `pydemi convergence` is the grid-adequacy test.
-- **Non-nuclear maxima (94–95):** maxima farther than max(c₁, R_PAW) from their
-  nearest nucleus, with steepest-ascent basins for their charge. The per-element
-  cutoff matters for PAW data: a pseudized atom can have no maximum at its
-  nucleus, only lobes on a shell inside its PAW radius.
-- **Ripple:** the raw counts are sensitive to low-amplitude ripple.
-  `n_NNM_significant` ignores maxima whose basin holds < 0.01 e, which is not
-  enough in nearly-free-electron metals (a flat valence sea splits into many
-  basins holding more than 0.01 e each). `n_NNM_persistent` / `Q_NNM_persistent`
-  use exact 0-dimensional topological persistence: a maximum is kept when the
-  density dips by at least 10% of its height before its region merges with a
-  higher maximum's, and the charge of discarded ripple basins passes to the
-  maximum that absorbs them. A persistent maximum is counted only if its
-  merged basin holds at least 0.01 e, which removes tiny peaks in
-  low-density regions. On a 6,059-structure VASP dataset this removes every
-  ripple maximum in YMg₃ (124 "significant" → 0 persistent).
-- **Interstitial floor (96–98):** PAW pseudo-densities dip below zero inside
-  the augmentation spheres (61% of the CHGCARs in the same dataset), so the
-  plain `rho_min` / `rho_min_ratio` are usually PAW artefacts.
-  `rho_min_int` / `rho_min_int_ratio` take the minimum over voxels farther
-  than max(c₂, R_PAW) from their nucleus — the metallicity criterion the
-  specification intends.
-
-| Entry | Name | Kind | Definition | Notes |
-|---|---|---|---|---|
-| 90 | `rho_perc_a` | descriptor | sup{c : {rho > c} has a cluster wrapping along a}, e/A^3 | the reference's min{...} read as the supremum it describes |
-| 90 | `rho_perc_b` | descriptor | same along b |  |
-| 90 | `rho_perc_c` | descriptor | same along c |  |
-| 91 | `perc_anisotropy` | descriptor | (max - min) / mean of rho_perc_a/b/c |  |
-| 92 | `n_max` | descriptor | PL maxima (Freudenthal 14-neighbour link) | all census counts are sensitive to ripple in near-flat low-density regions |
-| 92 | `n_min` | descriptor | PL minima |  |
-| 92 | `n_saddle1` | descriptor | index-1 saddles, sum of (components(lower link) - 1) |  |
-| 92 | `n_saddle2` | descriptor | index-2 saddles, sum of (components(upper link) - 1) |  |
-| 93 | `euler_consistency` | metadata | n_max - n_saddle2 + n_saddle1 - n_min | identically 0 for a consistent PL census (Banchoff): an implementation self-check, not a grid-adequacy flag |
-| 94 | `n_NNM` | descriptor | maxima farther than max(c1, R_PAW) from their nearest nucleus | R_PAW = RCORE from POTCAR/OUTCAR, else covalent radius; counts every ripple maximum, see n_NNM_significant |
-| 94 | `n_NNM_significant` | variant | non-nuclear maxima whose basin holds >= 0.01 e | pydemi addition: robust to low-amplitude ripple |
-| 94 | `n_NNM_persistent` | variant | non-nuclear maxima with relative persistence (peak - merge) / peak >= 0.1 and merged basin charge >= 0.01 e | pydemi addition: removes ripple, including flat free-electron seas |
-| 95 | `Q_NNM` | descriptor | charge in the steepest-ascent basins of the non-nuclear maxima |  |
-| 95 | `Q_NNM_persistent` | variant | charge of the counted persistent non-nuclear maxima, ripple basins merged in | pydemi addition |
-|  | `paw_radii_known` | metadata | 1 if the non-nuclear-maximum cutoffs used PAW RCORE values |  |
-| 96 | `rho_min` | descriptor | min_k rho_k, e/A^3 | can be negative for PAW pseudo-densities |
-| 96 | `rho_min_int` | variant | min rho over r_k > max(c2, R_PAW), e/A^3 | pydemi addition: the interstitial floor, outside every PAW sphere; NaN when that region is empty |
-| 97 | `rho_min_ratio` | descriptor | rho_min / <rho>_V | on PAW CHGCARs usually set by negative pseudo-density near a nucleus |
-| 97 | `rho_min_int_ratio` | variant | rho_min_int / <rho>_V | pydemi addition: the metallicity criterion the reference intends |
-| 98 | `rho_int_mean` | descriptor | <rho_k> over r_k > c2 (volume mean), e/A^3 |  |
-
-### 5.15 I2 — bond-midpoint density
-
-Per-atom first-shell bond census (d ≤ 1.1 d_min for each atom, each pair once,
-periodic images included) and exact Fourier interpolation of ρ at the bond
-midpoints.
-
-| Entry | Name | Kind | Definition | Notes |
-|---|---|---|---|---|
-| 104 | `rho_mid_mean` | descriptor | <rho(midpoint)> over first-shell bonds, e/A^3 | first shell: d <= 1.1 d_i per atom |
-| 105 | `rho_mid_std` | descriptor | std of rho(midpoint) over the bonds |  |
-|  | `n_bonds` | metadata | first-shell bond count |  |
-|  | `bond_length_mean` | metadata | <d> over first-shell bonds, Angstrom | the explicit nearest-neighbour convention for the Cohen / rho-based B0 |
-
-### 5.16 Family A — deformation density
-
-Δρ = ρ − Σ_i ρ^free_{e(i)}(|r − R_i|), with the promolecule built in reciprocal
-space (exact periodic sum, integral exactly Σ N_i). The whole-cell entries
-are computed from AECCAR0 + AECCAR2 against all-electron free atoms and are
-NaN without AECCARs; see §6.2 for why the whole-cell CHGCAR route is
-dominated by pseudization (`deformation_family(eng, field="rho")` requests it
-explicitly). The `*_def_out` variants use the CHGCAR and the valence
-free-atom reference over the voxels **outside the PAW augmentation spheres**,
-where the CHGCAR is not pseudized, so they need no AECCARs; the sphere radii
-are RCORE from the POTCAR / OUTCAR (else covalent radii, flagged by
-`def_out_radii_from_paw`), and `def_out_volume_fraction` reports how much of
-the cell they cover.
-
-| Entry | Name | Kind | Definition | Notes |
-|---|---|---|---|---|
-| 40 | `m1_def` | descriptor | sum \|drho\| r / sum \|drho\| | AECCAR route; NaN without AECCARs |
-| 41 | `m2_def` | descriptor | sum \|drho\| r^2 / sum \|drho\| |  |
-| 42 | `sigma_r2_def` | descriptor | m2_def - m1_def^2 |  |
-| 43 | `f_bond_def` | descriptor | sum_(bond, drho>0) drho / sum_(drho>0) drho |  |
-| 44 | `f_int_def` | descriptor | sum_(int, drho>0) drho / sum_(drho>0) drho |  |
-| 45 | `f_bond_dep` | descriptor | sum_(bond, drho<0) \|drho\| / sum_(drho<0) \|drho\| |  |
-| 46 | `bond_charge_transfer` | descriptor | int_bond drho dV, electrons |  |
-| 47 | `def_polarity` | descriptor | int \|drho\| dV / Q_tot |  |
-|  | `def_charge_mismatch` | metadata | int drho dV, electrons | should be ~0; large means wrong reference counts |
-|  | `def_all_electron` | metadata | 1 if AECCAR0 + AECCAR2 was the field |  |
-| 40 | `m1_def_out` | variant | sum \|drho\| r / sum \|drho\|, over voxels outside the PAW spheres (r > R_PAW) | pydemi addition: CHGCAR is not pseudized there; no AECCAR needed |
-| 41 | `m2_def_out` | variant | sum \|drho\| r^2 / sum \|drho\|, over voxels outside the PAW spheres (r > R_PAW) | pydemi addition: CHGCAR is not pseudized there; no AECCAR needed |
-| 42 | `sigma_r2_def_out` | variant | m2_def_out - m1_def_out^2, over voxels outside the PAW spheres (r > R_PAW) | pydemi addition: CHGCAR is not pseudized there; no AECCAR needed |
-| 43 | `f_bond_def_out` | variant | bond share of accumulated charge, over voxels outside the PAW spheres (r > R_PAW) | pydemi addition: CHGCAR is not pseudized there; no AECCAR needed |
-| 44 | `f_int_def_out` | variant | interstitial share of accumulated charge, over voxels outside the PAW spheres (r > R_PAW) | pydemi addition: CHGCAR is not pseudized there; no AECCAR needed |
-| 45 | `f_bond_dep_out` | variant | bond share of depleted charge, over voxels outside the PAW spheres (r > R_PAW) | pydemi addition: CHGCAR is not pseudized there; no AECCAR needed |
-| 46 | `bond_charge_transfer_out` | variant | int_bond drho dV, electrons, over voxels outside the PAW spheres (r > R_PAW) | pydemi addition: CHGCAR is not pseudized there; no AECCAR needed |
-| 47 | `def_polarity_out` | variant | int \|drho\| dV / Q_tot, over voxels outside the PAW spheres (r > R_PAW) | pydemi addition: CHGCAR is not pseudized there; no AECCAR needed |
-|  | `def_out_volume_fraction` | metadata | fraction of the cell outside the PAW spheres |  |
-|  | `def_out_radii_from_paw` | metadata | 1 if R_PAW came from RCORE, 0 if from covalent radii |  |
-
-### 5.17 Family D — calibrated quantities
-
-NaN unless calibration files are passed (§7), except Cohen's formula, which
-needs only the composition and the bond length.
-
-| Entry | Name | Kind | Definition | Notes |
-|---|---|---|---|---|
-| 60 | `grid_ionicity` | descriptor | sigmoid(b . z(features)), fitted to Phillips f_i | NaN without an IonicityCalibration; extrapolation outside tetrahedral compounds |
-| 61 | `cohen_B0_predicted` | descriptor | (1971 - 220 lambda) d^-3.5 GPa, lambda = Cohen's class 0/1/2 | a baseline, not a training feature; formula extrapolation when cohen_in_scope = 0 |
-|  | `cohen_in_scope` | metadata | 1 for group-IV, III-V and II-VI (1:1) compounds |  |
-| 62 | `ionicity_residual` | descriptor | grid_ionicity - ionicity (Pauling) |  |
-| 106 | `B0_rho_proxy` | descriptor | a (rho_mid_mean / bond_length_mean^3)^b, fitted to known B0 | NaN without a BulkModulusCalibration |
-
-## 6. Free-atom references and PAW
-
-### 6.1 The atomic solver
-
-Family A and the Hirshfeld partition need spherical free-atom densities.
-`pydemi.atoms` solves the spherical, non-spin-polarized Kohn–Sham equations
-(LDA: Slater exchange with PW92 correlation, or VWN5) on a logarithmic grid
-for every element, with ground-state configurations from pymatgen. Densities
-are resolved by orbital, so a valence subset of ZVAL electrons can be taken.
-Results are cached in memory and on disk in `$PYDEMI_CACHE_DIR` (default
-`~/.cache/pydemi`, ~0.6 MB per element; set it to `""` to disable). All 87
-elements of a large intermetallics dataset solve in ~16 s on 16 cores.
-
-The solver is non-relativistic, so valence shapes of 5d/6s/6p elements miss
-the relativistic contraction; this is adequate for a promolecule or Hirshfeld
-reference.
-
-### 6.2 Which reference for which density
-
-A reference must describe the same electrons, with the same shape, as the
-density it is compared with:
-
-- **AECCAR0 + AECCAR2 with all-electron free atoms** is consistent, and is
-  what Family A uses.
-- **CHGCAR with all-electron free-atom valence** is consistent only outside
-  the PAW augmentation spheres. Inside them CHGCAR is pseudized: on 121 VASP
-  CHGCARs, 87% (median) of ∫|Δρ| lies inside the spheres, which fill 45% of
-  the volume, although the charge inside them is conserved to 0.6%. So
-  |Δρ|-weighted whole-cell descriptors are dominated by the pseudization.
-  Hirshfeld *charges* from CHGCAR are affected too (the sign of the charge
-  transfer followed electronegativity in only 58% of 31 binaries) and warn;
-  the partition itself remains a valid smooth partition.
-- **CHGCAR with isolated-atom CHGCARs** run with the same POTCARs is
-  consistent — the pseudization cancels:
-
-```python
-from pydemi.atoms.reference import IsolatedAtomReference
-ref = IsolatedAtomReference({"Fe": "atoms/Fe/CHGCAR", "Ni": "atoms/Ni/CHGCAR"},
-                            aeccars={"Fe": ("atoms/Fe/AECCAR0", "atoms/Fe/AECCAR2")})
-eng = Engine.from_vasp_dir("runs/FeNi", reference=ref)
-```
-
-Hirshfeld weights are always built from the same electrons as the partitioned
-field (valence for CHGCAR, total for AECCAR), so a pure free-atom
-superposition gets zero charges. `def_charge_mismatch` (∫Δρ dV) flags wrong
-electron counts.
-
-## 7. Calibrated quantities
-
-### 7.1 Phillips ionicity table
-
-`pydemi/data/phillips_ionicity.csv` holds 67 Phillips spectroscopic
-ionicities f_i (tetrahedral semiconductors, Cu/Ag halides, rock-salt halides
-and oxides) with structure type, Cohen class and provenance. Rows are marked
-`verified` (matching a secondary table that cites Phillips; the source is
-given) or `recalled` (compiled from Phillips 1970 and not yet checked against
-a source — verify before publication). GaP carries a note: 0.327 and 0.374
-both appear in the literature.
-
-```python
-from pydemi.calibration import phillips_table
-table = phillips_table()                     # formula -> {f_i, structure, cohen_lambda, status, source}
-checked = phillips_table(verified_only=True)
-```
-
-### 7.2 grid_ionicity (entry 60)
-
-A sigmoid of standardized grid descriptors fitted to Phillips f_i on reference
-compounds you have computed. The default features pair `fint_over_lnf` with the
-site-potential spread (use `V_spread` from a LOCPOT when available), so the
-calibration does not rest on a single descriptor. Leave-one-out RMSE is
-reported with every fit.
-
-```python
-from pydemi.calibration import fit_ionicity
-rows = {"GaAs": compute_descriptors(Engine.from_vasp_dir("ref/GaAs")),
-        "NaCl": compute_descriptors(Engine.from_vasp_dir("ref/NaCl")), ...}
-cal = fit_ionicity(rows, features=("fint_over_lnf", "V_spread"))
-print(cal.n, cal.rmse, cal.loocv_rmse, cal.n_tetrahedral)
-cal.save("ionicity.json")
-```
-
-Phillips' scale was derived for tetrahedral semiconductors; outside that class
-the prediction is an extrapolation.
-
-### 7.3 Cohen bulk modulus (entry 61)
-
-B₀ = (1971 − 220λ)·d^−3.5 GPa (Cohen, Phys. Rev. B 32, 7988 (1985)), with d the
-mean first-shell bond length and λ Cohen's integer class: 0 for group IV, 1
-for III–V, 2 for II–VI (1:1 compounds). `cohen_in_scope` is 0 elsewhere, where
-λ = 0 is used and the value is a formula extrapolation, not a physics baseline.
-
-### 7.4 ρ-based bulk-modulus proxy (entry 106)
-
-B₀ = a·x^b with x = `rho_mid_mean` / `bond_length_mean`³, fitted in log space
-on structures with known bulk moduli:
-
-```python
-from pydemi.calibration import fit_bulk_modulus
-bulk = fit_bulk_modulus(descriptor_rows, known_B0_GPa)
-bulk.save("bulk.json")
-```
-
-### 7.5 Using calibrations
-
-```python
-from pydemi.calibration import IonicityCalibration, BulkModulusCalibration
-cal = {"ionicity": IonicityCalibration.load("ionicity.json"),
-       "bulk": BulkModulusCalibration.load("bulk.json")}
-d = compute_descriptors(eng, calibrations=cal)
-```
-
-or `pydemi compute ... --ionicity-cal ionicity.json --bulk-cal bulk.json`.
-
-## 8. Batch processing and the command line
-
-### 8.1 `pydemi compute`
-
-```bash
-pydemi compute INPUT [INPUT ...] -o descriptors.csv [--families F ...] [--workers N]
-               [--no-resume] [--ionicity-cal FILE] [--bulk-cal FILE] [-q]
-```
-
-Each input is a run directory, a density file (CHGCAR, `.cube`, `.xsf`) or a
-root directory, which is searched recursively for run directories containing a
-CHGCAR. Rows are appended to the CSV as they finish, so an interrupted run is
-resumed by repeating the command (IDs already in the CSV are skipped; use
-`--no-resume` to start over). A failure is recorded in the `error` column
-instead of stopping the batch; the exit code is 1 if any input failed.
-
-Output columns: `material_id` (directory name or file stem), `path`, `error`,
-then every scalar descriptor of the requested families in reference order.
-Unavailable quantities (e.g. `ELF_*` without an ELFCAR, Family A without
-AECCARs, Family D without calibrations) are written as `nan`.
-
-On shared machines, limit per-process threads and priority:
-
-```bash
-nice -n 10 env OMP_NUM_THREADS=1 pydemi compute data/ -o out.csv --workers 24
-```
-
-The same from Python:
-
-```python
-from pydemi.batch import run_batch, find_runs
-run_batch(find_runs("data/"), "out.csv", families=("tier1", "tier2", "E"), workers=8)
-```
-
-### 8.2 Other commands
-
-| Command | Purpose |
-|---|---|
-| `pydemi list [--family F] [--kind K ...] [--all-kinds]` | registered descriptors with entry, family and kind |
-| `pydemi describe NAME` | formula, inputs and caveats of one descriptor |
-| `pydemi convergence INPUT [--factors 1 0.8 0.6] [--rtol 0.02]` | per-descriptor grid-convergence report (§9.2) |
-| `pydemi resample IN OUT --spacing H` | Fourier-resample a density to grid spacing H (Å) |
-
-## 9. Grid tools: resampling, convergence, strain
-
-### 9.1 Resampling
-
-Band-limited Fourier resampling (exact for FFT-grid densities, preserves the
-cell integral), so structures with different FFT meshes can be compared at a
-common spacing:
-
-```python
-from pydemi.resample import resample_engine, shape_for_spacing, fourier_resample
-eng_010 = resample_engine(eng, spacing=0.10)     # FFT-friendly shapes, all fields
-eng_half = resample_engine(eng, scale=0.5)
-```
-
-### 9.2 Grid-convergence report
-
-Recomputes descriptors on Fourier-coarsened copies of the grid and flags those
-that change by more than `rtol` between the native grid and the next-coarser
-one — a per-structure answer to "does this grid resolve what I measure?".
-
-```python
-from pydemi.convergence import convergence_report, format_report
-rep = convergence_report(eng, factors=(1.0, 0.8, 0.6), rtol=0.02)
-print(format_report(rep))
-```
-
-On 30 random VASP CHGCARs, a median 20% of the reported quantities move by
-more than 2% at 80% resolution — most of all the critical-point counts, the
-ellipticity statistics and the charge anisotropy — while radial moments,
-percolation thresholds, energy densities and the interstitial floor change by
-about 0.1% or less. Run the report on representative production grids before
-relying on Laplacian-, ELF- or topology-based descriptors.
-
-### 9.3 Strain response (entry 107)
-
-From SCF runs at ±ε (a validation experiment on a subset, not a production
-feature). The comparison uses the charge per voxel in fractional coordinates,
-so a uniform dilation cancels exactly:
-
-```python
-from pydemi.strain import strain_response
-strain_response("eps-0.01/CHGCAR", "eps+0.01/CHGCAR", eps=0.01)
-# {'drho_deps': ..., 'drho_deps_l2': ..., 'charge_drift': ...}
-```
-
-## 10. Units and numerical conventions
-
-| Quantity | Unit |
-|---|---|
-| lengths, distances, moments m1 | Å (m2: Å²) |
-| ρ, ρ_mid, percolation levels, `rho_min` | e/Å³ |
-| charges, `Q_tot`, `Q_NNM`, `bond_charge_transfer` | electrons |
-| magnetization quantities | μ_B |
-| potentials (`V_*`, `VH_*`) | eV |
-| ELF_D inputs, F5 energy densities, NCI thresholds, F6 | atomic units (hartree, bohr), as specified |
-| bulk moduli | GPa |
-
-- Zero denominators give NaN; no epsilon is added.
-- Derivatives are periodic; `fd` is the default (§3.2). The spectral
-  Laplacian has an absolute round-off floor, so voxel-count `lnf` is
-  unreliable with `spectral` in near-empty regions (vacuum, voids); use `fd`
-  or `lnf_rho` there.
-- Voxel-count `lnf` differs between Laplacian discretizations by ~2% for the
-  median structure and up to ~30% for individual ones; the charge-weighted
-  `lnf_rho` is several times more robust. Measured comparisons are in
-  `docs/numerics.md`.
-- PAW pseudo-densities can be negative near nuclei; `rho_min` may be negative,
-  and negative values are clipped to 0 only where a formula requires a
-  positive density (ELF_D, F3, F5, F6).
-
-## 11. Where pydemi departs from the specification
-
-Each departure is documented at the point of use and in the registry notes.
-
-| Entry | Specification | pydemi | Reason |
+| `domains` | all five | bonding, structural, magnetic, heterogeneity, compositional |
+| `extensions` | none | `"paw"` (section 9) |
+| `partition` | `"nearest"` | nearest, power (covalent radii), becke, hirshfeld |
+| `shells` | (0.8, 1.5) | (c1, c2) in Angstrom, or `Shells(s1, s2, scaled=True)` (multiples of covalent radii) |
+| `deformation_reference` | `"auto"` | aeccar0, tabulated, custom (`custom_reference=<dir>`); auto = aeccar0 when AECCAR0 was read, else tabulated |
+| `elf_source` | `"auto"` | reconstruct, file; auto = file when an ELFCAR was read |
+| `potential_source` | `"auto"` | locpot, hartree, esp (Hartree + Gaussian ionic term); auto = locpot when read |
+| `laplacian_method` | `"metric"` | metric, diagonal |
+| `derivative_backend` | `"fft"` | fft, fd (`fd_order` 2/4/6/8) |
+| `float32` | False | cast every grid to float32 first |
+
+The settings used, and the sources actually chosen by the `"auto"` options,
+are recorded in the metadata.
+
+## 6. Descriptor catalogue
+
+Generated from the registry (`python tools/generate_docs.py`); the complete
+table, with ranges and references, is `docs/catalogue.csv` or
+`pydemi.catalogue()`. Every descriptor is intensive (section 10).
+
+### 6.1 Bonding
+
+<!-- catalogue:bonding:start -->
+| Name | Units | Definition | Sentinel cases |
 |---|---|---|---|
-| 14 `lap_concentration` | Σ_{∇²ρ<0}\|∇²ρ\| / Σ\|∇²ρ\| | kept, plus `lap_concentration_valence` | identically ½ for any periodic density |
-| 58 | plain mean over elements | atom-fraction weights | makes within + between add up exactly |
-| 61 Cohen | λ = grid_ionicity, constant 1972 | Cohen's class λ = 0/1/2, 1971 | Cohen's λ is an integer class, not a continuous ionicity |
-| 90 percolation | min{c : …} | supremum | the literal minimum is always the lowest density |
-| 93 Euler check | grid-adequacy flag | implementation self-check | identically 0 for a consistent PL census |
-| 94 non-nuclear maxima | fixed cutoff | per-element max(c₁, R_PAW); plus persistence-filtered `n_NNM_persistent` | PAW atoms can have maxima only on a shell inside R_PAW; raw counts pick up ripple |
-| 96–97 density floor | min over the cell | kept, plus `rho_min_int` over r > max(c₂, R_PAW) | PAW pseudo-density is negative near many nuclei |
-| 40–47 deformation | CHGCAR or AECCAR | whole cell from AECCAR (NaN otherwise); `*_def_out` from CHGCAR outside the PAW spheres | inside the PAW spheres, CHGCAR minus all-electron free atoms is dominated by pseudization (87% of ∫\|Δρ\|) |
-| 100 Becke | default smooth partition | opt-in; Hirshfeld is the default | weights converge only algebraically in periodic solids (max error 1.6e-2 with 60 neighbours, 1.0e-3 with 300 on FeNi₃); Hirshfeld converges exponentially (3e-6 at 6.5 Å) |
+| `zeta` | dimensionless | zeta = 1 - sum_k \|grad rho_k . u_k\| / sum_k \|grad rho_k\| | uniform_density=0.0 |
+| `m1` | Angstrom | m1 = sum_k rho_k r_k / sum_k rho_k | zero_density=0.0 |
+| `m2` | Angstrom^2 | m2 = sum_k rho_k r_k^2 / sum_k rho_k | zero_density=0.0 |
+| `sigma_r2` | Angstrom^2 | sigma_r2 = m2 - m1^2 | zero_density=0.0 |
+| `f_core` | dimensionless | f_core = sum_{k: r <= c1} rho_k / sum_k rho_k | zero_density=0.0 |
+| `f_bond` | dimensionless | f_bond = sum_{k: c1 < r <= c2} rho_k / sum_k rho_k | zero_density=0.0 |
+| `f_int` | dimensionless | f_int = sum_{k: r > c2} rho_k / sum_k rho_k | zero_density=0.0 |
+| `lnf` | dimensionless | lnf = (1/N) sum_k 1(lap rho_k < 0) | uniform_density=0.0 |
+| `lnf_charge_weighted` | dimensionless | lnf_charge_weighted = sum_{lap rho_k < 0} rho_k / sum_k rho_k | uniform_density=0.0;zero_density=0.0 |
+| `lap_concentration` | dimensionless | lap_concentration = sum_{lap rho < 0} \|lap rho_k\| / sum_k \|lap rho_k\| | uniform_density=0.5 |
+| `lap_concentration_valence` | dimensionless | lap_concentration_valence = sum_{r > c1, lap rho < 0} \|lap rho_k\| / sum_{r > c1} \|lap rho_k\| | uniform_density=0.5;empty_region=0.5 |
+| `ellip_bond_avg` | dimensionless | ellip_bond_avg = mean of lambda1/lambda2 - 1 over {k in bond, lambda2 < 0} | no_bond_voxels=0.0 |
+| `ellip_bond_std` | dimensionless | ellip_bond_std = std of lambda1/lambda2 - 1 over {k in bond, lambda2 < 0} | no_bond_voxels=0.0 |
+| `f_H_negative` | dimensionless | f_H_negative = (1/N_bond) sum_{k in bond} 1(H_k < 0),  H = g + v | empty_region=0.0 |
+| `H_bond_mean` | hartree/bohr^3 | H_bond_mean = <H_k> over the bond shell,  H = g + v = (1/4) lap rho - g (a.u.) | empty_region=0.0 |
+| `G_over_rho` | hartree/electron | G_over_rho = <g_k / rho_k> over the bond shell (a.u.) | empty_region=0.0 |
+| `f_ELF_localized` | dimensionless | f_ELF_localized = (1/N_bond) sum_{k in bond} 1(ELF_k > 0.5) | empty_region=0.0 |
+| `ELF_bond_avg` | dimensionless | ELF_bond_avg = <ELF_k> over the bond shell | empty_region=0.0 |
+| `ELF_core_valence_contrast` | dimensionless | ELF_core_valence_contrast = <ELF>_core / <ELF>_bond | empty_region=0.0;zero_denominator=0.0 |
+| `zeta_ELF` | dimensionless | zeta_ELF = 1 - sum_k \|grad ELF_k . u_k\| / sum_k \|grad ELF_k\| | uniform_density=0.0 |
+| `f_NCI` | dimensionless | f_NCI = (1/N) sum_k 1(s_k < 0.5 and rho_k < 0.05 a.u.),  s = \|grad rho\| / (2 (3 pi^2)^(1/3) rho^(4/3)) | uniform_density=0.0 |
+| `NCI_attractive` | dimensionless | NCI_attractive = fraction of NCI voxels with lambda2 < 0 | uniform_density=0.0;no_nci_voxels=0.0 |
+| `sign_lambda2_rho_mean` | e/bohr^3 | sign_lambda2_rho_mean = mean of sign(lambda2) rho_k over NCI voxels (rho in a.u.) | uniform_density=0.0;no_nci_voxels=0.0 |
+| `V_spread` | eV | V_spread = std over sites i of V(R_i) | - |
+| `V_int_min` | eV | V_int_min = min over interstitial voxels of V_k (cell average of V set to 0) | empty_region=0.0 |
+| `rho_mid_mean` | e/Angstrom^3 | rho_mid_mean = mean of rho at nearest-neighbour bond midpoints | no_bonds=0.0 |
+| `rho_mid_std` | e/Angstrom^3 | rho_mid_std = std of rho at nearest-neighbour bond midpoints | no_bonds=0.0 |
+| `m1_def` | Angstrom | m1_def = sum_k \|drho_k\| r_k / sum_k \|drho_k\|,  drho = rho - promolecule | zero_deformation=0.0 |
+| `m2_def` | Angstrom^2 | m2_def = sum_k \|drho_k\| r_k^2 / sum_k \|drho_k\| | zero_deformation=0.0 |
+| `sigma_r2_def` | Angstrom^2 | sigma_r2_def = m2_def - m1_def^2 | zero_deformation=0.0 |
+| `f_bond_def` | dimensionless | f_bond_def = sum_{k in bond, drho > 0} drho_k / sum_{drho > 0} drho_k | no_accumulation=0.0 |
+| `f_int_def` | dimensionless | f_int_def = sum_{k in int, drho > 0} drho_k / sum_{drho > 0} drho_k | no_accumulation=0.0 |
+| `f_bond_dep` | dimensionless | f_bond_dep = sum_{k in bond, drho < 0} \|drho_k\| / sum_{drho < 0} \|drho_k\| | no_depletion=0.0 |
+| `def_polarity` | dimensionless | def_polarity = sum_k \|drho_k\| dV / Q_tot,  Q_tot = sum_k rho_k dV | zero_density=0.0 |
+| `bond_charge_transfer_pair_mean` | electrons | bond_charge_transfer_pair_mean = mean over nearest-neighbour pairs of int_{region(i,j)} drho dV | no_bonds=0.0 |
+| `bond_charge_transfer_pair_std` | electrons | bond_charge_transfer_pair_std = std over nearest-neighbour pairs of int_{region(i,j)} drho dV | no_bonds=0.0 |
+<!-- catalogue:bonding:end -->
 
-Robust companions added: `lnf_rho`, `moment_ratio_scale_free`,
-`zeta_over_sigma_r`, `laplacian_std_valence`, `lap_concentration_valence`,
-`ellip_bond_median`, `n_NNM_significant`, `n_NNM_persistent`, `Q_NNM_persistent`,
-`rho_min_int`, `rho_min_int_ratio`, and the outside-PAW deformation variants
-`*_def_out`.
+### 6.2 Structural
 
-## 12. Validation
+Maxima and minima are found by 26-neighbour comparison; saddles from the
+Freudenthal link (section 8). Basins are steepest-ascent over 26 neighbours.
+Percolation: {rho > c} is labelled with 6-connectivity and merged across the
+periodic faces by a union-find that tracks winding vectors.
 
-166 tests (`pytest`), organized by what they check against:
+<!-- catalogue:structural:start -->
+| Name | Units | Definition | Sentinel cases |
+|---|---|---|---|
+| `rho_perc_a` | e/Angstrom^3 | rho_perc_a = max {c : the super-level set {rho > c} spans a1 under PBC} | - |
+| `rho_perc_b` | e/Angstrom^3 | rho_perc_b = max {c : the super-level set {rho > c} spans a2 under PBC} | - |
+| `rho_perc_c` | e/Angstrom^3 | rho_perc_c = max {c : the super-level set {rho > c} spans a3 under PBC} | - |
+| `perc_anisotropy` | dimensionless | perc_anisotropy = (max_alpha - min_alpha) / mean_alpha of rho_perc | zero_levels=0.0 |
+| `n_max` | 1/Angstrom^3 | n_max = (number of local maxima) / V_cell | - |
+| `n_min` | 1/Angstrom^3 | n_min = (number of local minima) / V_cell | - |
+| `n_saddle1` | 1/Angstrom^3 | n_saddle1 = (number of index-1 saddles) / V_cell | - |
+| `n_saddle2` | 1/Angstrom^3 | n_saddle2 = (number of index-2 saddles) / V_cell | - |
+| `n_NNM` | 1/Angstrom^3 | n_NNM = (number of local maxima with min_i \|r - R_i\| > r_cut) / V_cell | - |
+| `Q_NNM` | dimensionless | Q_NNM = (charge in the steepest-ascent basins of the non-nuclear maxima) / Q_tot | - |
+| `rho_min` | e/Angstrom^3 | rho_min = min_k rho_k | - |
+| `rho_min_ratio` | dimensionless | rho_min_ratio = rho_min / <rho>_V | zero_density=0.0 |
+| `rho_int_mean` | e/Angstrom^3 | rho_int_mean = mean of rho over the interstitial shell (r > c2) | empty_region=0.0 |
+| `T_eigenvalues_t1` | dimensionless | T_eigenvalues_t1 = eigenvalue 1 (ascending, t1 <= t2 <= t3) of T_ab = sum_k d_a rho_k d_b rho_k / sum_k \|grad rho_k\|^2 (trace 1) | uniform_density=0.3333333333333333 |
+| `T_eigenvalues_t2` | dimensionless | T_eigenvalues_t2 = eigenvalue 2 (ascending, t1 <= t2 <= t3) of T_ab = sum_k d_a rho_k d_b rho_k / sum_k \|grad rho_k\|^2 (trace 1) | uniform_density=0.3333333333333333 |
+| `T_eigenvalues_t3` | dimensionless | T_eigenvalues_t3 = eigenvalue 3 (ascending, t1 <= t2 <= t3) of T_ab = sum_k d_a rho_k d_b rho_k / sum_k \|grad rho_k\|^2 (trace 1) | uniform_density=0.3333333333333333 |
+| `charge_FA` | dimensionless | charge_FA = sqrt(3/2) \|\|T - (1/3) I\|\|_F / \|\|T\|\|_F | uniform_density=0.0 |
+| `shannon_entropy` | dimensionless | shannon_entropy = -int rho~ ln rho~ dV - ln V,  rho~ = rho / N_e | zero_density=0.0 |
+| `fisher_information` | 1/bohr^2 | fisher_information = int \|grad rho~\|^2 / rho~ dV  (a.u.; voxels above the density floor) | zero_density=0.0 |
+| `disequilibrium` | dimensionless | disequilibrium = V int rho~^2 dV | zero_density=0.0 |
+| `LMC_complexity` | dimensionless | LMC_complexity = D e^S  (D, S the unnormalized disequilibrium and entropy; = 1 when uniform) | zero_density=0.0 |
+<!-- catalogue:structural:end -->
 
-- **Closed forms.** Slater 1s and Gaussian superpositions with exact values
-  (`pydemi.testing.analytic`): moments, shell fractions, Laplacian sign
-  structure, Hessian eigenvalues, lnf, ζ = 0 for spherical atoms, the Hartree
-  potential of a Gaussian with neutralizing background (to 0.2%), Shannon /
-  Fisher / disequilibrium measures, bond-midpoint density, the Becke
-  two-atom weight.
-- **Exact identities.** ∫∇²ρ = 0 (lap_concentration = ½), Euler sum = 0 on
-  random fields, maxima persistence against an independent voxel-level
-  union-find, variance decomposition within + between = total,
-  partitions of unity, charge conservation in every partition.
-- **Numerics.** Spectral derivatives exact to ~1e-12 on triclinic cells; FD
-  errors fall 4× per halving of the grid spacing; periodic boundaries;
-  minimum image against brute force in sheared cells; power diagram against
-  brute force.
-- **Units.** Every atomic-unit quantity against an independent atomic-unit
-  evaluation; the uniform electron gas (ELF_D = ½, H = −C_F ρ^{5/3}).
-- **Reference data.** The atomic solver against hydrogenic eigenvalues and
-  the NIST LDA atomic reference data (He, Ne total energies to ~5e-5 Ha);
-  Tier 2 against matminer (1e-14); Cohen's formula against the moduli of Si
-  and GaAs.
-- **Scale behaviour.** The recommended ratio variants have the scaling the
-  specification asks for under a uniform scaling of the system.
-- **I/O round trips.** CHGCAR (1, 2 and 4 blocks, augmentation lines, VASP 4
-  headers), ELFCAR, AECCAR, cube, XSF, POTCAR / OUTCAR ZVAL and RCORE.
+### 6.3 Magnetic
 
-## 13. Performance
+Every entry is 0.0 for a non-magnetic structure, with `magnetic = False` in
+the metadata. Non-collinear runs use vector moments.
 
-Measured on a shared 128-core server:
+<!-- catalogue:magnetic:start -->
+| Name | Units | Definition | Sentinel cases |
+|---|---|---|---|
+| `M_abs_per_atom` | mu_B/atom | M_abs_per_atom = sum_k \|m_k\| dV / n_atoms | non_magnetic=0.0 |
+| `M_net_per_atom` | mu_B/atom | M_net_per_atom = \|sum_k m_k dV\| / n_atoms | non_magnetic=0.0 |
+| `m1_spin` | Angstrom | m1_spin = sum_k \|m_k\| r_k / sum_k \|m_k\| | non_magnetic=0.0 |
+| `sigma_r2_spin` | Angstrom^2 | sigma_r2_spin = sum_k \|m_k\| r_k^2 / sum_k \|m_k\| - m1_spin^2 | non_magnetic=0.0 |
+| `f_bond_spin` | dimensionless | f_bond_spin = sum_{k in bond} \|m_k\| / sum_k \|m_k\| | non_magnetic=0.0 |
+| `mu_site_std` | mu_B | mu_site_std = std over i of mu_i,  mu_i = sum_k w_i(k) m_k dV | non_magnetic=0.0 |
+| `spin_frustration` | dimensionless | spin_frustration = 1 - \|sum_i mu_i\| / sum_i \|mu_i\| | non_magnetic=0.0 |
+| `spin_charge_correlation` | dimensionless | spin_charge_correlation = Pearson r(rho_k, \|m_k\|) over voxels | non_magnetic=0.0 |
+<!-- catalogue:magnetic:end -->
 
-| Workload | Time |
+### 6.4 Heterogeneity
+
+A meta-operator over per-site descriptors X^(i) (m1, f_bond, zeta, mu): std,
+range, max, min and the one-way ANOVA decomposition
+Var_i(X) = sum_e w_e Var_{i in e}(X) + sum_e w_e (Xbar_e - Xbar)^2, with w_e
+the fraction of sites of element e (identity tested). `mu_site_std` is in the
+magnetic domain.
+
+<!-- catalogue:heterogeneity:start -->
+| Name | Units | Definition | Sentinel cases |
+|---|---|---|---|
+| `m1_site_std` | Angstrom | m1_site_std = std over sites of X^(i),  X^(i) = sum_k w_i(k) rho_k r_ik / sum_k w_i(k) rho_k | uniform_density=0.0;non_magnetic=0.0 |
+| `m1_site_range` | Angstrom | m1_site_range = max - min over sites of X^(i),  X^(i) = sum_k w_i(k) rho_k r_ik / sum_k w_i(k) rho_k | uniform_density=0.0;non_magnetic=0.0 |
+| `m1_site_max` | Angstrom | m1_site_max = max over sites of X^(i),  X^(i) = sum_k w_i(k) rho_k r_ik / sum_k w_i(k) rho_k | uniform_density=0.0;non_magnetic=0.0 |
+| `m1_site_min` | Angstrom | m1_site_min = min over sites of X^(i),  X^(i) = sum_k w_i(k) rho_k r_ik / sum_k w_i(k) rho_k | uniform_density=0.0;non_magnetic=0.0 |
+| `m1_within_element_var` | (Angstrom)^2 | m1_within_element_var = sum_e w_e Var_{i in e} of X^(i),  X^(i) = sum_k w_i(k) rho_k r_ik / sum_k w_i(k) rho_k | uniform_density=0.0;non_magnetic=0.0;one_site_per_element=nan |
+| `m1_between_element_var` | (Angstrom)^2 | m1_between_element_var = sum_e w_e (mean_e - mean)^2 of X^(i),  X^(i) = sum_k w_i(k) rho_k r_ik / sum_k w_i(k) rho_k | uniform_density=0.0;non_magnetic=0.0;single_element=0.0 |
+| `f_bond_site_std` | dimensionless | f_bond_site_std = std over sites of X^(i),  X^(i) = sum_{c1 < r_ik <= c2} w_i(k) rho_k / sum_k w_i(k) rho_k | uniform_density=0.0;non_magnetic=0.0 |
+| `f_bond_site_range` | dimensionless | f_bond_site_range = max - min over sites of X^(i),  X^(i) = sum_{c1 < r_ik <= c2} w_i(k) rho_k / sum_k w_i(k) rho_k | uniform_density=0.0;non_magnetic=0.0 |
+| `f_bond_site_max` | dimensionless | f_bond_site_max = max over sites of X^(i),  X^(i) = sum_{c1 < r_ik <= c2} w_i(k) rho_k / sum_k w_i(k) rho_k | uniform_density=0.0;non_magnetic=0.0 |
+| `f_bond_site_min` | dimensionless | f_bond_site_min = min over sites of X^(i),  X^(i) = sum_{c1 < r_ik <= c2} w_i(k) rho_k / sum_k w_i(k) rho_k | uniform_density=0.0;non_magnetic=0.0 |
+| `f_bond_within_element_var` | dimensionless | f_bond_within_element_var = sum_e w_e Var_{i in e} of X^(i),  X^(i) = sum_{c1 < r_ik <= c2} w_i(k) rho_k / sum_k w_i(k) rho_k | uniform_density=0.0;non_magnetic=0.0;one_site_per_element=nan |
+| `f_bond_between_element_var` | dimensionless | f_bond_between_element_var = sum_e w_e (mean_e - mean)^2 of X^(i),  X^(i) = sum_{c1 < r_ik <= c2} w_i(k) rho_k / sum_k w_i(k) rho_k | uniform_density=0.0;non_magnetic=0.0;single_element=0.0 |
+| `zeta_site_std` | dimensionless | zeta_site_std = std over sites of X^(i),  X^(i) = 1 - sum_k w_i(k) \|grad rho_k . u_ik\| / sum_k w_i(k) \|grad rho_k\| | uniform_density=0.0;non_magnetic=0.0 |
+| `zeta_site_range` | dimensionless | zeta_site_range = max - min over sites of X^(i),  X^(i) = 1 - sum_k w_i(k) \|grad rho_k . u_ik\| / sum_k w_i(k) \|grad rho_k\| | uniform_density=0.0;non_magnetic=0.0 |
+| `zeta_site_max` | dimensionless | zeta_site_max = max over sites of X^(i),  X^(i) = 1 - sum_k w_i(k) \|grad rho_k . u_ik\| / sum_k w_i(k) \|grad rho_k\| | uniform_density=0.0;non_magnetic=0.0 |
+| `zeta_site_min` | dimensionless | zeta_site_min = min over sites of X^(i),  X^(i) = 1 - sum_k w_i(k) \|grad rho_k . u_ik\| / sum_k w_i(k) \|grad rho_k\| | uniform_density=0.0;non_magnetic=0.0 |
+| `zeta_within_element_var` | dimensionless | zeta_within_element_var = sum_e w_e Var_{i in e} of X^(i),  X^(i) = 1 - sum_k w_i(k) \|grad rho_k . u_ik\| / sum_k w_i(k) \|grad rho_k\| | uniform_density=0.0;non_magnetic=0.0;one_site_per_element=nan |
+| `zeta_between_element_var` | dimensionless | zeta_between_element_var = sum_e w_e (mean_e - mean)^2 of X^(i),  X^(i) = 1 - sum_k w_i(k) \|grad rho_k . u_ik\| / sum_k w_i(k) \|grad rho_k\| | uniform_density=0.0;non_magnetic=0.0;single_element=0.0 |
+| `mu_site_range` | mu_B | mu_site_range = max - min over sites of X^(i),  X^(i) = mu_i = sum_k w_i(k) m_k dV (signed; \|mu_i\| for non-collinear runs) | uniform_density=0.0;non_magnetic=0.0 |
+| `mu_site_max` | mu_B | mu_site_max = max over sites of X^(i),  X^(i) = mu_i = sum_k w_i(k) m_k dV (signed; \|mu_i\| for non-collinear runs) | uniform_density=0.0;non_magnetic=0.0 |
+| `mu_site_min` | mu_B | mu_site_min = min over sites of X^(i),  X^(i) = mu_i = sum_k w_i(k) m_k dV (signed; \|mu_i\| for non-collinear runs) | uniform_density=0.0;non_magnetic=0.0 |
+| `mu_within_element_var` | (mu_B)^2 | mu_within_element_var = sum_e w_e Var_{i in e} of X^(i),  X^(i) = mu_i = sum_k w_i(k) m_k dV (signed; \|mu_i\| for non-collinear runs) | uniform_density=0.0;non_magnetic=0.0;one_site_per_element=nan |
+| `mu_between_element_var` | (mu_B)^2 | mu_between_element_var = sum_e w_e (mean_e - mean)^2 of X^(i),  X^(i) = mu_i = sum_k w_i(k) m_k dV (signed; \|mu_i\| for non-collinear runs) | uniform_density=0.0;non_magnetic=0.0;single_element=0.0 |
+<!-- catalogue:heterogeneity:end -->
+
+### 6.5 Compositional
+
+The 132 features of `matminer.featurizers.composition.ElementProperty.from_preset("magpie")`,
+not reimplemented, named `magpie_<stat>_<property>` (e.g.
+`magpie_mean_Electronegativity`) and tagged `domain="compositional"`,
+`adopted=True`, so they can be kept out of novelty claims and used as an
+explicit baseline. Needs `pydemi[full]`.
+
+## 7. Sentinels, flags and metadata
+
+A descriptor that is undefined for a degenerate input returns a documented
+constant and sets its companion flag `<name>__flag` in the metadata; it never
+emits a bare NaN. The one exception allowed by the specification is a
+within-element variance when no element has two sites: NaN, flagged, with the
+per-element site counts (`site_counts`, `max_sites_per_element`).
+
+| Case | Affected | Value |
+|---|---|---|
+| uniform density | zeta, lnf, lnf_charge_weighted, f_NCI, NCI_*, zeta_ELF, per-site zeta | 0.0 |
+| uniform density | lap_concentration(_valence) | 0.5 |
+| uniform density | T_eigenvalues_t1..t3 / charge_FA | 1/3 / 0.0 |
+| non-magnetic | every magnetic descriptor and every mu statistic | 0.0, `magnetic = False` |
+| single element | X_between_element_var | 0.0 |
+| no voxels in a region | shell-restricted averages | 0.0 (`empty_region`) |
+| rho -> 0 voxels | ELF_D, g, H, s, Fisher information | excluded below RHO_FLOOR_AU = 1e-8 e/bohr^3 |
+
+Metadata of every structure (and every `featurize_batch` row): `n_atoms`,
+`volume`, `grid_shape`, `density_source`, `spin_mode`, `magnetic`, `M_abs`,
+`M_net` (extensive, so metadata only), `euler_consistency`, `site_counts`,
+`partition`, `shells`, `derivative_backend`, `laplacian_method`,
+`elf_source`, `potential_source`, `deformation_reference`,
+`def_charge_mismatch`, `precision`, the `__flag` columns, `sentinels`,
+`wall_time_s`, `pydemi_version`, `error`.
+
+## 8. Where pydemi departs from the specification
+
+Each change is documented at the point of use and backed by a test or a
+dataset figure.
+
+| Item | Specification | pydemi | Why |
+|---|---|---|---|
+| `lap_concentration` | sum over lap < 0 of \|lap\| / sum \|lap\| | kept, plus `lap_concentration_valence` (r > c1) | int lap rho dV = 0 on a periodic grid, so the whole-cell value is identically 1/2 (tested for both backends) |
+| `rho_perc_*` | lowest spanning level | highest spanning level | the lowest is always min(rho): the whole cell spans |
+| percolation test | a cluster touching both faces | a cluster with nonzero winding | a blob across the periodic boundary touches both faces without spanning; the face test makes the level depend on the cell origin (translation test) |
+| `"aeccar0"` reference | AECCAR0 as the promolecule | AECCAR0 + tabulated free-atom valence (ZVAL) | AECCAR0 is the frozen core; rho - AECCAR0 would be the whole valence density |
+| `hirshfeld_charges` | q_i = Z_i - int w_i rho | Z_i = ZVAL for a pseudo-density, Z for all-electron | the reference must count the electrons the density holds |
+| saddles in the census | 26-neighbour | Freudenthal (14-neighbour) link | a saddle cannot be classified on the 26-neighbour shell, which is not a triangulated sphere: every adjacency on it miscounts the 3 + 3 saddles of cos 2 pi x + cos 2 pi y + cos 2 pi z. Extrema stay 26-neighbour, so `euler_consistency` is 0 exactly when the grid resolves every extremum |
+| information measures | S = -int rho~ ln rho~, D = int rho~^2 | S - ln V, V D (V in bohr^3) | the unnormalized S shifts by ln 8 and D divides by 8 for a 2x2x2 supercell (spec §10 demands intensivity) |
+| extensive quantities | M_abs, M_net, counts, Q_NNM | per atom / per volume / fraction of Q_tot; raw values in metadata | spec §10 |
+| equidistant images | - | ordered by the largest fractional displacement; shell and cutoff tests with a 1e-8 A tolerance | atoms on high-symmetry grid points put voxels exactly on Voronoi facets and shell boundaries; without a geometric rule the supercell and translation tests fail |
+
+## 9. PAW pseudo-densities and the `paw` extension
+
+A VASP CHGCAR is the PAW pseudo-density plus compensation charge, not an
+all-electron density. On a 6,059-structure VASP dataset: the density is
+negative somewhere in 61% of structures, so `rho_min` is usually a PAW
+artefact near a nucleus; pseudized atoms can lack a maximum at the nucleus
+and show lobes inside the augmentation sphere (CaSi3Pt: 8 lobes 0.81-0.83 A
+from Si holding 6.3 e, just beyond a 0.8 A cutoff); and a median 87% of the
+whole-cell int |delta rho| lies inside the augmentation spheres, which fill
+45% of the volume. The `paw` extension (`extensions=["paw"]`, off by default)
+excludes the spheres, with R_PAW = RCORE from the POTCAR / OUTCAR or, when
+unknown, the covalent radius (`paw_radii_source` in the metadata):
+
+<!-- catalogue:paw:start -->
+| Name | Units | Definition | Sentinel cases |
+|---|---|---|---|
+| `m1_def_out` | Angstrom | m1_def_out = sum \|drho_k\| r_k / sum \|drho_k\| over voxels outside every PAW augmentation sphere (r > R_PAW of the nearest nucleus) | empty_region=0.0;zero_deformation=0.0 |
+| `m2_def_out` | Angstrom^2 | m2_def_out = sum \|drho_k\| r_k^2 / sum \|drho_k\| over voxels outside every PAW augmentation sphere (r > R_PAW of the nearest nucleus) | empty_region=0.0;zero_deformation=0.0 |
+| `sigma_r2_def_out` | Angstrom^2 | sigma_r2_def_out = m2_def_out - m1_def_out^2 over voxels outside every PAW augmentation sphere (r > R_PAW of the nearest nucleus) | empty_region=0.0;zero_deformation=0.0 |
+| `f_bond_def_out` | dimensionless | f_bond_def_out = sum_{bond, drho > 0} drho / sum_{drho > 0} drho over voxels outside every PAW augmentation sphere (r > R_PAW of the nearest nucleus) | empty_region=0.0;no_accumulation=0.0 |
+| `f_int_def_out` | dimensionless | f_int_def_out = sum_{int, drho > 0} drho / sum_{drho > 0} drho over voxels outside every PAW augmentation sphere (r > R_PAW of the nearest nucleus) | empty_region=0.0;no_accumulation=0.0 |
+| `f_bond_dep_out` | dimensionless | f_bond_dep_out = sum_{bond, drho < 0} \|drho\| / sum_{drho < 0} \|drho\| over voxels outside every PAW augmentation sphere (r > R_PAW of the nearest nucleus) | empty_region=0.0;no_depletion=0.0 |
+| `def_polarity_out` | dimensionless | def_polarity_out = sum \|drho_k\| dV / Q_tot over voxels outside every PAW augmentation sphere (r > R_PAW of the nearest nucleus) | empty_region=0.0;zero_density=0.0 |
+| `def_out_volume_fraction` | dimensionless | def_out_volume_fraction = fraction of the cell outside every PAW augmentation sphere | - |
+
+| Name | Units | Definition | Sentinel cases |
+|---|---|---|---|
+| `rho_min_int` | e/Angstrom^3 | rho_min_int = min of rho over voxels with r > max(c2, R_PAW) of their nearest nucleus | empty_region=0.0 |
+| `rho_min_int_ratio` | dimensionless | rho_min_int_ratio = rho_min_int / <rho>_V | empty_region=0.0;zero_density=0.0 |
+| `n_NNM_paw` | 1/Angstrom^3 | n_NNM_paw = (number of local maxima with r > max(r_cut, R_PAW,i)) / V_cell | - |
+| `Q_NNM_paw` | dimensionless | Q_NNM_paw = (charge in the basins of the maxima counted by n_NNM_paw) / Q_tot | - |
+<!-- catalogue:paw:end -->
+
+For all-electron work read AECCAR0 + AECCAR2 (`read_vasp(..., aeccar0=, aeccar2=)`).
+
+## 10. Validation
+
+830 tests (`pytest`), organized by the milestones of the specification:
+
+- **I/O**: volume division, Fortran order, spin block after augmentation
+  lines, non-collinear four blocks, VASP 4 headers, ELFCAR / LOCPOT not
+  scaled, AECCAR sum, POTCAR ZVAL / RCORE, cube unit conversion against a
+  hand-written known file, cube / XSF round trips, format sniffing.
+- **Derivatives**: FFT exact (1e-12) on band-limited Gaussians in
+  orthorhombic and triclinic cells; finite differences at their nominal order
+  (2, 4, 6); the diagonal Laplacian 12% wrong on a triclinic cell; Hessian
+  symmetric with trace = Laplacian; chunked eigenvalues exact; FFT ringing on
+  a Slater cusp documented by a test.
+- **Geometry**: nearest atom and power diagram against brute force, including
+  a cell where a fixed 3x3x3 supercell misses the nearest image.
+- **Analytic densities** (spec §11): Slater 1s int rho = 1, m1 = 3/(2 zeta),
+  m2 = 3/zeta^2, sigma_r2 = 3/(4 zeta^2), zeta = 0, lnf = volume fraction of
+  r < 1/zeta; uniform density exercises every sentinel; two-atom
+  superposition with a custom reference gives int delta rho = 0 or the
+  known N/2; the recommended mesh (0.08 A at 2%) is read off
+  `analytic_convergence`.
+- **Invariance** (spec §10): every registered descriptor (232) on a
+  low-symmetry crystal equals its value on the 2x2x2 supercell, a rigid
+  translation and a rigid rotation to 1e-6 relative; also under the power,
+  Hirshfeld and Becke partitions.
+- **Identities**: ANOVA within + between = total; sum_i mu_i = M_net for
+  every tiling partition; partition weights sum to 1; Hirshfeld charges of a
+  promolecule equal Z_i - int rho_free_i exactly; lap_concentration = 1/2.
+- **Fields**: ELF_D in [0, 1] on real PAW data; uniform-gas limits (ELF_D =
+  1/2, H = -g); the Hartree potential of a Gaussian against erf(r)/r with the
+  neutralizing background; a neutral electron + ion cell gives V = 0;
+  bond-midpoint density against the two-Gaussian closed form.
+- **Topology**: the census of a periodic function with known critical points
+  (1, 1, 3, 3; Euler 0); a simple cubic lattice of Gaussians percolates at the
+  bond-midpoint density; a planted non-nuclear maximum and its basin charge.
+- **Tooling**: batch with recorded errors, CLI commands, sweep, grid
+  convergence, float32 agreement, matminer equality.
+
+`mypy --strict` passes on `io`, `core`, `fields`, `operators`, `constants`
+and `data`.
+
+## 11. Performance
+
+One core (`OMP_NUM_THREADS=1`), a 16-atom Heusler cell (ScAlAu2) on its 96^3
+VASP grid: 8.4 s for every default domain (bonding 7.7 s, of which the
+promolecule 2.8 s and the pair regions 2.3 s; structural 2.1 s; heterogeneity
+1.2 s; compositional 0.3 s). Cost is linear in the voxel count: about 10 us
+per voxel from 64^3 to 120^3. Batch parallelism is per structure
+(`featurize_batch(n_workers=...)`). float32 halves memory; against float64
+the median relative difference is below 1e-5 and the largest is the
+ellipticity spread (2%), whose lambda1/lambda2 - 1 diverges as lambda2 -> 0.
+
+## 12. Limitations
+
+- The FFT backend rings on cusps: for all-electron (AECCAR) densities use
+  `derivative_backend="fd"`. PAW pseudo-densities are smooth enough for FFT.
+- The promolecule is point-sampled: a nucleus exactly on a grid point
+  over-counts its free-atom cusp (+0.18% of the valence charge at 0.06 A,
+  +5% at 0.15 A); `def_charge_mismatch` reports int delta rho per structure.
+- Becke weights are truncated to the 60 nearest images (converged to ~1e-2 in
+  weight); exact ties at the truncation break symmetry at the 1e-5 level.
+- The tabulated free atoms are spherical, non-relativistic LDA; ELF_D and
+  the energy densities are gradient expansions derived for all-electron
+  densities, so on PAW densities they are meaningful from the bond shell out.
+- Within-element variances are NaN for structures with one site per element.
+- Native Quantum ESPRESSO HDF5 and ABINIT binary densities are not read;
+  export cube or XSF (pp.x, cut3d).
+
+## 13. API
+
+| Function | Purpose |
 |---|---|
-| 180³ grid, 32 atoms, all default families except H | ~13 s, 2.1 GB peak |
-| Hirshfeld family at 180³, 32 atoms | ~34 s |
-| 48³ grid, 4 atoms, all default families | ~3 s |
-| 6,059-structure VASP dataset (80–160³ grids), 24 workers | ~56 structures/min |
+| `read`, `read_vasp`, `read_all_electron` | VolumetricData from files |
+| `featurize(vd, ...)` | descriptors (and metadata) of one structure |
+| `featurize_batch(paths, ...)` | tidy DataFrame of many structures |
+| `catalogue()` | descriptor metadata DataFrame |
+| `descriptor_names(domains, extensions)` | the fixed column order |
+| `hirshfeld_charges(vd)` | q_i = Z_i - int w_i rho dV |
+| `sensitivity_sweep(vd, c1_range, c2_range)` | shell descriptors over cutoffs |
+| `validate.convergence.grid_convergence`, `analytic_convergence`, `recommended_spacing` | grid adequacy |
+| `validate.elf_fidelity(elf_true, elf_reconstructed)` | Pearson r, MAE, RMSE |
+| `validate.invariance.supercell`, `translate`, `rotate` | the invariance transformations |
 
-The dominant costs are the Hessian eigendecomposition (F3/F4) and the
-Hirshfeld partition; drop families you do not need with `--families`.
+## 14. Data sources and citations
 
-## 14. Limitations
+- Free-atom densities: pydemi's spherical LDA solver (Slater exchange + PW92
+  correlation; validated against the NIST LDA atomic reference data,
+  Kotochigova et al., Phys. Rev. A 55, 191 (1997)), `tools/`.
+- Covalent radii: Cordero et al., Dalton Trans. 2832 (2008), via Magpie
+  (BSD licence, `src/pydemi/data/LICENSE-matminer`).
+- Magpie features: L. Ward et al., npj Comput. Mater. 2, 16028 (2016);
+  matminer, Comput. Mater. Sci. 152, 60 (2018).
+- ELF from rho: V. G. Tsirelson, A. Stash, Chem. Phys. Lett. 351, 142 (2002).
+- Local energy densities: Yu. A. Abramov, Acta Cryst. A53, 264 (1997).
+- Becke partition: A. D. Becke, J. Chem. Phys. 88, 2547 (1988).
+- Hirshfeld partition: F. L. Hirshfeld, Theor. Chim. Acta 44, 129 (1977).
+- Piecewise-linear critical points: T. Banchoff, Amer. Math. Monthly 77, 475 (1970).
 
-- The whole-cell Family A entries need AECCAR0 + AECCAR2 (or
-  `IsolatedAtomReference`); without them they are NaN. The `*_def_out`
-  variants work from the CHGCAR but only see the region outside the PAW
-  spheres (21–76% of the cell, 5th–95th percentile over the 6,059-structure
-  dataset; median 53%).
-- Family D needs calibration files fitted on reference compounds you have
-  computed; the literature table is supplied, the densities are not.
-- Half of the Phillips table (`recalled` rows) has not been checked against a
-  source.
-- The atomic solver is non-relativistic and spherical, non-spin-polarized LDA.
-- ELF_D, energy densities and NCI are gradient-expansion approximations
-  derived for all-electron densities; applied to PAW densities they are
-  meaningful in the bonding shell and beyond, not in the core.
-- Critical-point counts are sensitive to low-amplitude ripple in near-flat
-  regions; prefer the persistence-filtered `n_NNM_persistent` /
-  `Q_NNM_persistent`, and check with `pydemi convergence`.
-- On PAW CHGCARs the plain density floor (`rho_min`, `rho_min_ratio`) is
-  usually set by negative pseudo-density near a nucleus; use `rho_min_int`.
-- Small cells: site statistics over a handful of atoms are noisy; report
-  `n_atoms`.
-- Native Quantum ESPRESSO HDF5 and ABINIT binary density files are not read.
-
-## 15. API overview
-
-| Module | Main contents |
-|---|---|
-| `pydemi` | `Engine`, `Field`, `Grid`, `Structure`, `Shells`, `nearest_atom`, `assign_atoms`, partitions, readers |
-| `pydemi.engine` | `Engine.from_vasp_dir / from_chgcar / from_file / from_charge_density`, `geometry`, `shell_masks`, `partition`, `valence`, `reference` |
-| `pydemi.grid` | periodic `gradient`, `hessian`, `laplacian` (`fd` / `spectral`), `hessian_eigenvalues` |
-| `pydemi.geometry` | `nearest_atom`, `assign_atoms` (nearest / power diagram) |
-| `pydemi.partition` | `HardPartition`, `HirshfeldPartition`, `BeckePartition`, `PairChunk` |
-| `pydemi.shells` | `Shells`, `ShellMasks` |
-| `pydemi.io` | `read_chgcar`, `read_aeccar`, `read_elfcar`, `read_locpot`, `read_volumetric`, `write_volumetric`; `io.grids`: `read_cube`, `read_xsf`, `write_cube`, `write_xsf`, `read_density` |
-| `pydemi.descriptors` | `compute_descriptors`, `describe`, `names`, `REGISTRY`, one function per family (`tier1`, `tier2`, `tier3`, `elf_family`, `potential_family`, `nci_family`, `ellipticity_family`, `energy_family`, `information_family`, `anisotropy_family`, `site_family`, `spin_family`, `partition_family`, `topology_family`, `bond_family`, `deformation_family`), per-site helpers (`site_charges`, `hirshfeld_charges`, `site_moments`, `site_potentials`), fields (`elf_d_field`, `promolecule`) |
-| `pydemi.descriptors.dataset` | `zeta_ellip_agreement`, `correlation` |
-| `pydemi.atoms` | `solver.solve_atom`; `reference.AtomicLDAReference`, `IsolatedAtomReference`, `default_zval`, `read_potcar_zval`, `read_potcar_rcore` |
-| `pydemi.calibration` | `phillips_table`, `fit_ionicity`, `fit_bulk_modulus`, `IonicityCalibration`, `BulkModulusCalibration`, `cohen_bulk_modulus`, `cohen_lambda` |
-| `pydemi.resample` | `resample_engine`, `fourier_resample`, `shape_for_spacing` |
-| `pydemi.convergence` | `convergence_report`, `format_report` |
-| `pydemi.strain` | `strain_response` |
-| `pydemi.batch` | `run_batch`, `find_runs`, `compute_one` |
-| `pydemi.elements` | Magpie element properties, covalent radii |
-| `pydemi.testing` | analytic Slater and Gaussian densities with closed-form statistics |
-
-## 16. Data sources and citations
-
-- **Magpie element data** (Tier 2), bundled from matminer 0.10.1 under its
-  BSD licence (`pydemi/data/LICENSE-matminer`): L. Ward, A. Agrawal,
-  A. Choudhary, C. Wolverton, *npj Comput. Mater.* **2**, 16028 (2016);
-  L. Ward et al., *Comput. Mater. Sci.* **152**, 60 (2018).
-- **Phillips ionicity:** J. C. Phillips, *Rev. Mod. Phys.* **42**, 317 (1970);
-  *Bonds and Bands in Semiconductors* (1973). Secondary tables used for
-  verification: arXiv:1509.01457 (Tables 1–2); *Sci. Adv.* **9**, eadf8706 (2023).
-- **Cohen bulk modulus:** M. L. Cohen, *Phys. Rev. B* **32**, 7988 (1985).
-- **Approximate ELF:** V. G. Tsirelson, A. Stash, *Chem. Phys. Lett.* **351**, 142 (2002).
-- **Local energy densities:** Yu. A. Abramov, *Acta Cryst.* **A53**, 264 (1997).
-- **Becke partition:** A. D. Becke, *J. Chem. Phys.* **88**, 2547 (1988).
-- **Hirshfeld partition:** F. L. Hirshfeld, *Theor. Chim. Acta* **44**, 129 (1977).
-- **LDA correlation:** J. P. Perdew, Y. Wang, *Phys. Rev. B* **45**, 13244 (1992);
-  S. H. Vosko, L. Wilk, M. Nusair, *Can. J. Phys.* **58**, 1200 (1980).
-- **Atomic reference data (solver validation):** S. Kotochigova, Z. H. Levine,
-  E. L. Shirley, M. D. Stiles, C. W. Clark, *Phys. Rev. A* **55**, 191 (1997).
-- **Piecewise-linear critical points:** T. Banchoff, *Amer. Math. Monthly* **77**, 475 (1970).
-
-## 17. Author and license
-
-**Shubham Maurya**, CMS Lab, IIT Kanpur.
-
-License: MIT, as declared in `pyproject.toml`. Bundled Magpie data remain
-under matminer's BSD licence.
+Licence: MIT (as declared in `pyproject.toml`). Author: **Shubham Maurya**,
+CMS Lab, IIT Kanpur.

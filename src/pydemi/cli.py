@@ -1,111 +1,180 @@
 """
-pydemi command line.
+pydemi.cli
+==========
+Command line (spec §12):
 
-    pydemi compute RUN_DIR_OR_ROOT ... -o descriptors.csv [--families tier1 F2 ...] [--workers 4]
-    pydemi list [--family F] [--kind K]
-    pydemi describe NAME
-    pydemi convergence RUN_DIR_OR_FILE [--factors 1 0.8 0.6] [--rtol 0.02]
-    pydemi resample IN OUT --spacing 0.1
+    pydemi featurize CHGCAR --out features.json
+    pydemi batch ./runs --glob "*/CHGCAR" --out features.csv --workers 8 --domains bonding,magnetic
+    pydemi catalogue --out catalogue.csv
+    pydemi sweep CHGCAR --param c2 --range 1.0:2.5:0.05 --out sweep.csv
+
+``--paw-table FILE.json`` gives per-element PAW data for runs without a
+POTCAR or OUTCAR: ``{"Sb": {"zval": 5, "rcore_bohr": 2.3}, ...}`` (either
+key may be left out). The run's own POTCAR / OUTCAR takes precedence.
 """
 
+from __future__ import annotations
+
 import argparse
+import json
+import math
 import sys
-
-from .descriptors import FAMILIES, REGISTRY, describe, names
-from .descriptors.registry import SCALAR_KINDS
-
-
-def _cmd_compute(a):
-    from .batch import run_batch
-    counts = run_batch(a.inputs, a.output, families=a.families, workers=a.workers,
-                       resume=not a.no_resume, ionicity_cal=a.ionicity_cal,
-                       bulk_cal=a.bulk_cal, progress=not a.quiet)
-    print(f"done {counts['done']} (failed {counts['failed']}), skipped {counts['skipped']} "
-          f"-> {a.output}")
-    return 1 if counts["failed"] else 0
+from pathlib import Path
+from typing import Any, Optional, Sequence
 
 
-def _cmd_list(a):
-    kinds = None if a.all_kinds else (tuple(a.kind) if a.kind else SCALAR_KINDS)
-    for n in names(family=a.family, kinds=kinds, opt_in=True):
-        i = REGISTRY[n]
-        entry = "" if i.entry is None else str(i.entry)
-        print(f"{entry:>4} {i.family:6s} {i.kind:13s} {n}")
-    return 0
+def _options(p: argparse.ArgumentParser) -> None:
+    p.add_argument("--domains", default=None,
+                   help="comma-separated: bonding,structural,magnetic,heterogeneity,compositional")
+    p.add_argument("--extensions", default="", help="comma-separated, e.g. paw")
+    p.add_argument("--partition", default="nearest", choices=["nearest", "power", "becke", "hirshfeld"])
+    p.add_argument("--shells", default=None, help="c1,c2 in Angstrom (default 0.8,1.5)")
+    p.add_argument("--deformation-reference", default="auto",
+                   choices=["auto", "aeccar0", "tabulated", "custom"])
+    p.add_argument("--custom-reference", default=None, help="directory for --deformation-reference custom")
+    p.add_argument("--elf-source", default="auto", choices=["auto", "reconstruct", "file"])
+    p.add_argument("--potential-source", default="auto", choices=["auto", "locpot", "hartree", "esp"])
+    p.add_argument("--laplacian-method", default="metric", choices=["metric", "diagonal"])
+    p.add_argument("--derivative-backend", default="fft", choices=["fft", "fd"])
+    p.add_argument("--fd-order", type=int, default=4)
+    p.add_argument("--float32", action="store_true")
+    p.add_argument("--paw-table", default=None,
+                   help="JSON {element: {zval, rcore_bohr}} for runs without POTCAR/OUTCAR")
 
 
-def _cmd_describe(a):
-    i = describe(a.name)
-    for k in ("name", "entry", "family", "kind", "inputs", "formula", "note", "opt_in"):
-        print(f"{k:8s} {getattr(i, k)}")
-    return 0
+def _kwargs(a: argparse.Namespace) -> dict[str, Any]:
+    kw: dict[str, Any] = {
+        "domains": a.domains, "extensions": a.extensions, "partition": a.partition,
+        "deformation_reference": a.deformation_reference, "custom_reference": a.custom_reference,
+        "elf_source": a.elf_source, "potential_source": a.potential_source,
+        "laplacian_method": a.laplacian_method, "derivative_backend": a.derivative_backend,
+        "fd_order": a.fd_order, "float32": a.float32}
+    if a.shells:
+        c1, c2 = (float(x) for x in a.shells.split(","))
+        kw["shells"] = (c1, c2)
+    return kw
 
 
-def _load(path):
-    from pathlib import Path
-    from .engine import Engine
-    p = Path(path)
-    return Engine.from_vasp_dir(p) if p.is_dir() else Engine.from_file(p)
+def _read_options(a: argparse.Namespace) -> dict[str, Any]:
+    """``read_vasp`` tables from ``--paw-table``."""
+    if not a.paw_table:
+        return {}
+    from .constants import BOHR_ANGSTROM
+    table = json.loads(Path(a.paw_table).read_text())
+    out: dict[str, Any] = {}
+    zval = {e: float(v["zval"]) for e, v in table.items() if "zval" in v}
+    radii = {e: float(v["rcore_bohr"]) * BOHR_ANGSTROM for e, v in table.items() if "rcore_bohr" in v}
+    if zval:
+        out["zval"] = zval
+    if radii:
+        out["paw_radii"] = radii
+    return out
 
 
-def _cmd_convergence(a):
-    from .convergence import convergence_report, format_report
-    rep = convergence_report(_load(a.input), factors=a.factors, rtol=a.rtol)
-    print(format_report(rep, limit=a.limit))
-    return 0
+def _read_one(a: argparse.Namespace) -> Any:
+    from .io.registry import read, sniff
+    extra = {k: getattr(a, k) for k in ("elf", "locpot", "aeccar0", "aeccar2")
+             if getattr(a, k, None)}
+    if sniff(a.path) == "chgcar":
+        extra.update(_read_options(a))
+    return read(a.path, **extra)
 
 
-def _cmd_resample(a):
-    from .io.vasp import write_volumetric
-    from .resample import resample_engine
-    eng = resample_engine(_load(a.input), spacing=a.spacing)
-    field = "rho" if "rho" in eng else eng.field_names[0]
-    write_volumetric(a.output, eng.structure, [eng[field].values])
-    print(f"{field}: {eng[field].grid.shape} -> {a.output}")
-    return 0
+def _json_safe(x: Any) -> Any:
+    if isinstance(x, float) and not math.isfinite(x):
+        return None
+    if hasattr(x, "item"):
+        return _json_safe(x.item())
+    return x
 
 
-def main(argv=None) -> int:
-    ap = argparse.ArgumentParser(prog="pydemi", description="Charge-density descriptors.")
-    sub = ap.add_subparsers(dest="cmd", required=True)
+def main(argv: Optional[Sequence[str]] = None) -> int:
+    parser = argparse.ArgumentParser(prog="pydemi", description=__doc__,
+                                     formatter_class=argparse.RawDescriptionHelpFormatter)
+    sub = parser.add_subparsers(dest="command", required=True)
 
-    c = sub.add_parser("compute", help="descriptors for run directories or density files")
-    c.add_argument("inputs", nargs="+")
-    c.add_argument("-o", "--output", default="descriptors.csv")
-    c.add_argument("--families", nargs="+", default=list(FAMILIES), choices=FAMILIES)
-    c.add_argument("--workers", type=int, default=1)
-    c.add_argument("--no-resume", action="store_true")
-    c.add_argument("--ionicity-cal", help="IonicityCalibration JSON for Family D")
-    c.add_argument("--bulk-cal", help="BulkModulusCalibration JSON for entry 106")
-    c.add_argument("-q", "--quiet", action="store_true")
-    c.set_defaults(func=_cmd_compute)
+    f = sub.add_parser("featurize", help="descriptors of one structure")
+    f.add_argument("path")
+    f.add_argument("--out", required=True, help=".json (or .csv)")
+    for k in ("elf", "locpot", "aeccar0", "aeccar2"):
+        f.add_argument(f"--{k}", default=None)
+    _options(f)
 
-    l = sub.add_parser("list", help="registered descriptors")
-    l.add_argument("--family")
-    l.add_argument("--kind", nargs="+")
-    l.add_argument("--all-kinds", action="store_true", help="include field/site/dataset entries")
-    l.set_defaults(func=_cmd_list)
+    b = sub.add_parser("batch", help="descriptors of many structures")
+    b.add_argument("root")
+    b.add_argument("--glob", default="*/CHGCAR")
+    b.add_argument("--out", required=True)
+    b.add_argument("--workers", type=int, default=8)
+    b.add_argument("--on-error", default="record", choices=["record", "raise", "skip"])
+    b.add_argument("--companions", action="store_true",
+                   help="also read ELFCAR, LOCPOT, AECCAR0/2 next to each CHGCAR")
+    b.add_argument("--quiet", action="store_true")
+    _options(b)
 
-    d = sub.add_parser("describe", help="formula, inputs and caveats of one descriptor")
-    d.add_argument("name")
-    d.set_defaults(func=_cmd_describe)
+    c = sub.add_parser("catalogue", help="descriptor metadata")
+    c.add_argument("--out", required=True)
 
-    v = sub.add_parser("convergence", help="per-descriptor grid-convergence report")
-    v.add_argument("input")
-    v.add_argument("--factors", nargs="+", type=float, default=[1.0, 0.8, 0.6])
-    v.add_argument("--rtol", type=float, default=0.02)
-    v.add_argument("--limit", type=int, default=60)
-    v.set_defaults(func=_cmd_convergence)
+    s = sub.add_parser("sweep", help="shell-cutoff sensitivity")
+    s.add_argument("path")
+    s.add_argument("--param", required=True, choices=["c1", "c2"])
+    s.add_argument("--range", required=True, help="start:stop:step (inclusive)")
+    s.add_argument("--out", required=True)
+    for k in ("elf", "locpot", "aeccar0", "aeccar2"):
+        s.add_argument(f"--{k}", default=None)
+    _options(s)
 
-    r = sub.add_parser("resample", help="Fourier-resample a density to a grid spacing")
-    r.add_argument("input")
-    r.add_argument("output")
-    r.add_argument("--spacing", type=float, required=True, help="Angstrom")
-    r.set_defaults(func=_cmd_resample)
+    a = parser.parse_args(argv)
 
-    a = ap.parse_args(argv)
-    return a.func(a)
+    if a.command == "featurize":
+        from .descriptors import featurize
+        feats, meta = featurize(_read_one(a), return_metadata=True, **_kwargs(a))
+        out = Path(a.out)
+        if out.suffix == ".csv":
+            import pandas as pd
+            pd.DataFrame([{"path": a.path, **feats, **meta}]).to_csv(out, index=False)
+        else:
+            out.write_text(json.dumps({"path": a.path,
+                                       "features": {k: _json_safe(v) for k, v in feats.items()},
+                                       "metadata": {k: _json_safe(v) for k, v in meta.items()}},
+                                      indent=1))
+        return 0
+
+    if a.command == "batch":
+        from .batch import featurize_batch, find_runs
+        paths = find_runs(a.root, a.glob)
+        if not paths:
+            print(f"no files match {a.glob!r} under {a.root}", file=sys.stderr)
+            return 1
+        df = featurize_batch(paths, n_workers=a.workers, on_error=a.on_error,
+                             progress=not a.quiet, companions=a.companions,
+                             read_options=_read_options(a), **_kwargs(a))
+        df.to_csv(a.out, index=False)
+        n_err = int((df["error"] != "").sum())
+        print(f"wrote {a.out}: {len(df)} structures, {n_err} errors", file=sys.stderr)
+        return 0
+
+    if a.command == "catalogue":
+        from .descriptors import catalogue
+        catalogue().to_csv(a.out, index=False)
+        return 0
+
+    if a.command == "sweep":
+        import numpy as np
+
+        from .validate.convergence import sensitivity_sweep
+        start, stop, step = (float(x) for x in a.range.split(":"))
+        values = np.round(np.arange(start, stop + step / 2, step), 10)
+        kw = _kwargs(a)
+        kw.pop("shells", None)
+        vd = _read_one(a)
+        if a.param == "c1":
+            df = sensitivity_sweep(vd, c1_range=values, **kw)
+        else:
+            df = sensitivity_sweep(vd, c2_range=values, **kw)
+        df.to_csv(a.out, index=False)
+        return 0
+    return 2
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    raise SystemExit(main())

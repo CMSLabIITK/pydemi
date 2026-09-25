@@ -4,8 +4,8 @@ build-backend = "hatchling.build"
 
 [project]
 name = "pydemi"
-version = "0.0.1"
-description = "A grid engine for physically interpretable charge-density descriptors (rho, magnetization, ELF, electrostatic potential)."
+version = "0.1.0.dev0"
+description = "Interpretable, fixed-length descriptors from DFT charge-density grids."
 readme = "README.md"
 license = "MIT"
 authors = [{ name = "Shubham Maurya, CMS Lab, IIT Kanpur" }]
@@ -13,12 +13,12 @@ requires-python = ">=3.10"
 dependencies = [
     "numpy>=1.24",
     "scipy>=1.10",
-    "spglib>=2.0",
-    "pymatgen>=2023.3.10",
+    "pandas>=1.5",
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=7.0"]
+full = ["pymatgen>=2023.3.10", "spglib>=2.0", "matminer>=0.9"]
+dev = ["pytest>=7.0", "mypy>=1.8", "pandas-stubs", "scipy-stubs"]
 
 [project.scripts]
 pydemi = "pydemi.cli:main"
@@ -28,3 +28,10 @@ packages = ["src/pydemi"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+norecursedirs = ["legacy", "paper", "tools"]
+
+[tool.mypy]
+python_version = "3.10"
+files = ["src/pydemi/io", "src/pydemi/core", "src/pydemi/fields", "src/pydemi/operators",
+         "src/pydemi/constants.py", "src/pydemi/data"]
+strict = true

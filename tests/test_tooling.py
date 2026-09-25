@@ -1,276 +1,200 @@
-"""Phase 6: calibration (D, 106), strain response (107), resampling,
-convergence report, cube / XSF readers, batch runner and CLI."""
+"""Milestone 12: batch, CLI, sweep, convergence, float32, compositional, PAW extension (spec §5, §8.5, §11-13)."""
 
-import csv
+import json
+import math
 
 import numpy as np
 import pytest
 
-from pydemi import Engine, Grid, Structure
-from pydemi.calibration import (BulkModulusCalibration, IonicityCalibration,
-                                calibration_family, cohen_bulk_modulus, cohen_lambda,
-                                fit_bulk_modulus, fit_ionicity, phillips_table,
-                                reduced_formula)
-from pydemi.cli import main as cli
-from pydemi.convergence import convergence_report, format_report
-from pydemi.descriptors import compute_descriptors, names
-from pydemi.io.grids import read_cube, read_density, read_xsf, write_cube, write_xsf
+import pydemi
+from pydemi.cli import main
+from pydemi.io.base import Grid, Lattice, Structure, VolumetricData
 from pydemi.io.vasp import write_volumetric
-from pydemi.batch import done_ids, find_runs, run_batch
-from pydemi.resample import fft_friendly, fourier_resample, resample_engine, shape_for_spacing
-from pydemi.strain import strain_response
-from pydemi.testing import GaussianSuperposition
+from pydemi.validate.analytic import GaussianSuperposition, SlaterSuperposition, cubic_cell, uniform
+from pydemi.validate.convergence import (analytic_convergence, grid_convergence,
+                                         recommended_spacing, sensitivity_sweep)
 
-from conftest import TRICLINIC
-
-NACL = Structure(np.eye(3) * 5.6, ["Na", "Cl"], [[0, 0, 0], [0.5, 0.5, 0.5]])
+LAT = Lattice(np.array([[4.0, 0.0, 0.0], [0.5, 4.1, 0.0], [0.3, 0.4, 4.3]]))
+S = Structure(LAT, ["Fe", "O", "O"], [[0.0, 0.0, 0.0], [0.5, 0.45, 0.5], [0.2, 0.7, 0.35]])
 
 
-def _rho(structure, n=24, alphas=(1.1, 0.7), N=(1.0, 7.0)):
-    rho, _, _ = GaussianSuperposition(structure, list(alphas)[:structure.n_atoms],
-                                      list(N)[:structure.n_atoms]).on_grid(
-        Grid(structure.lattice, (n, n, n) if np.isscalar(n) else n), False)
-    return rho
+def _vd(shape=(20, 20, 22)):
+    return GaussianSuperposition(S, [1.4, 2.2, 2.2], [8.0, 6.0, 6.0], tol=1e-20).volumetric(shape)
 
 
-# ---------------------------------------------------------------- literature / Cohen
-
-def test_phillips_table():
-    t = phillips_table()
-    assert len(t) == 67
-    assert t["GaAs"]["f_i"] == 0.310 and t["NaCl"]["f_i"] == 0.935
-    assert {r["status"] for r in t.values()} == {"verified", "recalled"}
-    v = phillips_table(verified_only=True)
-    assert "GaAs" in v and "NaCl" not in v          # NaCl not yet checked against a source
-    assert all(r["source"] for r in t.values())
-
-
-@pytest.mark.parametrize("species,lam", [
-    (["Si"] * 8, 0), (["Si", "C"], 0), (["Ga", "As"], 1), (["Zn", "S"], 2),
-    (["Mg", "O"], 2), (["Na", "Cl"], None), (["Fe", "Co", "Ni", "Cr"], None),
-    (["Ga", "Ga", "O", "O", "O"], None)])
-def test_cohen_lambda(species, lam):
-    assert cohen_lambda(species) == lam
-
-
-def test_cohen_formula_reproduces_known_moduli():
-    # Si d = 2.35 A, B0 ~ 98 GPa; GaAs d = 2.45 A, B0 ~ 75 GPa
-    assert cohen_bulk_modulus(2.35, 0) == pytest.approx(98, rel=0.03)
-    assert cohen_bulk_modulus(2.45, 1) == pytest.approx(75.5, rel=0.03)
-    assert reduced_formula(["As", "Ga"]) == "GaAs"
-
-
-# ---------------------------------------------------------------- ionicity calibration
-
-def _synthetic_rows(noise=0.0, seed=0):
-    rng = np.random.default_rng(seed)
-    rows = {}
-    for formula, r in phillips_table().items():
-        f = r["f_i"]
-        logit = np.log((f + 0.01) / (1.01 - f))
-        rows[formula] = {"fint_over_lnf": 0.5 + 0.4 * logit + noise * rng.normal(),
-                         "VH_spread": 2.0 + 1.5 * logit + noise * rng.normal()}
-    return rows
-
-
-def test_fit_ionicity_recovers_a_monotone_relation(tmp_path):
-    cal = fit_ionicity(_synthetic_rows())
-    assert cal.n == 67 and cal.n_tetrahedral > 30
-    assert cal.rmse < 0.01 and cal.loocv_rmse < 0.02
-    rows = _synthetic_rows()
-    assert cal.predict(rows["GaAs"]) == pytest.approx(0.310, abs=0.02)
-    cal.save(tmp_path / "ion.json")
-    again = IonicityCalibration.load(tmp_path / "ion.json")
-    assert again.predict(rows["NaCl"]) == pytest.approx(cal.predict(rows["NaCl"]))
-    assert np.isnan(cal.predict({"fint_over_lnf": 1.0}))       # missing feature
-    noisy = fit_ionicity(_synthetic_rows(noise=0.3))
-    assert noisy.loocv_rmse > cal.loocv_rmse
-
-
-def test_fit_ionicity_needs_enough_compounds():
-    rows = {k: v for k, v in list(_synthetic_rows().items())[:3]}
-    with pytest.raises(ValueError):
-        fit_ionicity(rows)
-
-
-def test_fit_bulk_modulus_power_law(tmp_path):
-    rows = [{"rho_mid_mean": r, "bond_length_mean": d} for r, d in
-            [(0.3, 2.3), (0.5, 2.5), (0.2, 2.9), (0.8, 2.1), (0.4, 2.7)]]
-    x = np.array([r["rho_mid_mean"] / r["bond_length_mean"] ** 3 for r in rows])
-    B0 = 3000.0 * x ** 0.9
-    cal = fit_bulk_modulus(rows, B0)
-    assert cal.a == pytest.approx(3000.0, rel=1e-8) and cal.b == pytest.approx(0.9, rel=1e-8)
-    cal.save(tmp_path / "b.json")
-    assert BulkModulusCalibration.load(tmp_path / "b.json").predict(rows[0]) == pytest.approx(B0[0])
-
-
-def test_family_d_in_compute_descriptors():
-    eng = Engine(NACL, {"rho": _rho(NACL)})
-    d = compute_descriptors(eng, families=("D",))
-    assert set(d) == set(names(family="D"))                    # inputs computed, not returned
-    assert np.isnan(d["grid_ionicity"]) and np.isnan(d["B0_rho_proxy"])
-    assert d["cohen_in_scope"] == 0 and np.isfinite(d["cohen_B0_predicted"])
-    cal = fit_ionicity(_synthetic_rows())
-    full = compute_descriptors(eng, families=("tier2", "D"), calibrations={"ionicity": cal})
-    assert 0 < full["grid_ionicity"] < 1
-    assert full["ionicity_residual"] == pytest.approx(full["grid_ionicity"] - full["ionicity"])
-
-
-# ---------------------------------------------------------------- strain (107)
-
-def test_strain_response_ignores_uniform_dilation():
-    rho = _rho(NACL, 20)
-    for eps in (0.01,):
-        s_m = Structure(NACL.lattice * (1 - eps), NACL.species, NACL.frac_coords)
-        s_p = Structure(NACL.lattice * (1 + eps), NACL.species, NACL.frac_coords)
-        # same charge per voxel, density rescaled by the volume change
-        em = Engine(s_m, {"rho": rho / (1 - eps) ** 3})
-        ep = Engine(s_p, {"rho": rho / (1 + eps) ** 3})
-        out = strain_response(em, ep, eps)
-        assert out["drho_deps"] == pytest.approx(0.0, abs=1e-12)
-        assert out["charge_drift"] == pytest.approx(0.0, abs=1e-12)
-
-
-def test_strain_response_measures_redistribution():
-    rho = _rho(NACL, 20)
-    shift = np.zeros_like(rho)
-    shift[0, 0, 0], shift[10, 10, 10] = 1.0, -1.0              # move charge between two voxels
-    V = NACL.volume
-    em = Engine(NACL, {"rho": rho - 0.01 * shift})
-    ep = Engine(NACL, {"rho": rho + 0.01 * shift})
-    out = strain_response(em, ep, 0.01)
-    moved = 2 * 0.02 * V / rho.size                             # electrons |n+ - n-| summed
-    assert out["drho_deps"] == pytest.approx(moved / (2 * 0.01 * 8.0), rel=1e-6)
-    with pytest.raises(ValueError):
-        strain_response(em, Engine(Structure(NACL.lattice, ["K", "Cl"], NACL.frac_coords),
-                                   {"rho": rho}), 0.01)
-
-
-# ---------------------------------------------------------------- resampling
-
-def test_fft_friendly_and_spacing():
-    assert fft_friendly(97) == 98 and fft_friendly(128) == 128 and fft_friendly(11) == 12
-    assert shape_for_spacing(np.diag([5.0, 7.3, 10.0]), 0.1) == (50, 75, 100)
-
-
-def test_fourier_resample_is_exact_for_band_limited_fields():
-    grid = Grid(TRICLINIC, (12, 14, 16))
-    u = grid.frac_coords()
-    f = 1 + np.cos(2 * np.pi * u[..., 0]) + 0.3 * np.sin(2 * np.pi * (u[..., 1] - 2 * u[..., 2]))
-    up = fourier_resample(f, (24, 21, 32))
-    back = fourier_resample(up, f.shape)
-    np.testing.assert_allclose(back, f, atol=1e-12)
-    assert up.mean() == pytest.approx(f.mean())
-    u2 = Grid(TRICLINIC, (24, 21, 32)).frac_coords()
-    exact = 1 + np.cos(2 * np.pi * u2[..., 0]) + 0.3 * np.sin(2 * np.pi * (u2[..., 1] - 2 * u2[..., 2]))
-    np.testing.assert_allclose(up, exact, atol=1e-12)
-
-
-def test_resample_engine_keeps_grid_ratios():
-    eng = Engine(NACL, {"rho": _rho(NACL, 24), "elf": np.full((12, 12, 12), 0.5)})
-    eng.add_field("elf_d", np.zeros((24, 24, 24)))              # derived: dropped
-    eng.paw_radii = {"Na": 1.2, "Cl": 1.0}
-    new = resample_engine(eng, scale=0.5)
-    assert new.paw_radii == eng.paw_radii
-    assert new["rho"].grid.shape == (12, 12, 12) and new["elf"].grid.shape == (6, 6, 6)
-    assert "elf_d" not in new
-    assert new["rho"].integral() == pytest.approx(eng["rho"].integral(), rel=1e-10)
-    with pytest.raises(ValueError):
-        resample_engine(eng, spacing=0.1, scale=0.5)
-
-
-# ---------------------------------------------------------------- convergence report
-
-def test_convergence_report_on_smooth_density():
-    eng = Engine(NACL, {"rho": _rho(NACL, 40)})
-    rep = convergence_report(eng, factors=(1.0, 0.8), families=("tier1",), rtol=0.02)
-    assert rep["shapes"] == [(40, 40, 40), (32, 32, 32)]
-    rows = {r["name"]: r for r in rep["rows"]}
-    assert rows["m1"]["converged"] and rows["Q_tot"]["rel_change"] < 1e-10
-    changes = [r["rel_change"] for r in rep["rows"]]
-    assert changes == sorted(changes, reverse=True)
-    assert "descriptors change by more than" in format_report(rep)
-
-
-# ---------------------------------------------------------------- cube / XSF
-
-@pytest.mark.parametrize("ext,writer,reader", [(".cube", write_cube, read_cube),
-                                               (".xsf", write_xsf, read_xsf)])
-def test_grid_format_round_trip(tmp_path, ext, writer, reader):
-    s = Structure(TRICLINIC, ["Si", "O"], [[0.1, 0.2, 0.3], [0.6, 0.55, 0.7]])
-    rho = np.random.default_rng(0).random((6, 7, 8))
-    p = tmp_path / f"rho{ext}"
-    writer(p, s, rho)
-    vol = reader(p)
-    # cube's conventional %13.5E keeps 6 significant digits
-    np.testing.assert_allclose(vol.blocks[0], rho, rtol=1e-5)
-    np.testing.assert_allclose(vol.structure.lattice, s.lattice, atol=1e-5)
-    np.testing.assert_allclose(vol.structure.frac_coords, s.frac_coords, atol=1e-5)
-    assert vol.structure.species == ("Si", "O")
-    eng = Engine.from_file(p)
-    np.testing.assert_allclose(eng["rho"].values, rho, rtol=1e-5)
-
-
-def test_cube_units(tmp_path):
-    s = Structure(np.eye(3) * 4.0, ["Na"], [[0, 0, 0]])
-    rho = np.full((4, 4, 4), 0.5)                               # e/A^3
-    write_cube(tmp_path / "a.cube", s, rho)                     # stored as e/bohr^3
-    raw = read_cube(tmp_path / "a.cube", density_unit=None).blocks[0]
-    np.testing.assert_allclose(raw, 0.5 * 0.529177210903 ** 3, rtol=1e-5)
-    np.testing.assert_allclose(read_density(tmp_path / "a.cube").total, 0.5, rtol=1e-5)
-    with pytest.raises(ValueError):
-        read_cube(tmp_path / "a.cube", density_unit="furlongs")
-
-
-# ---------------------------------------------------------------- batch / CLI
-
-def _runs(tmp_path):
-    for name, s in (("NaCl_225", NACL), ("KCl_225", Structure(NACL.lattice, ["K", "Cl"],
-                                                              NACL.frac_coords))):
-        d = tmp_path / "data" / name
-        d.mkdir(parents=True)
-        write_volumetric(d / "CHGCAR", s, [_rho(s, 16)])
-    bad = tmp_path / "data" / "broken"
+def _runs(tmp_path, n=3):
+    for k in range(n):
+        d = tmp_path / f"run{k}"
+        d.mkdir()
+        write_volumetric(d / "CHGCAR", S, [_vd((16 + 2 * k, 16, 18)).rho.data])
+    bad = tmp_path / "broken"
     bad.mkdir()
-    (bad / "CHGCAR").write_text("not a chgcar\n")
-    return tmp_path / "data"
+    (bad / "CHGCAR").write_text("not a CHGCAR\n")
+    return sorted(tmp_path.glob("*/CHGCAR"))
 
 
-def test_batch_runs_records_errors_and_resumes(tmp_path):
-    root = _runs(tmp_path)
-    assert [p.name for p in find_runs(root)] == ["KCl_225", "NaCl_225", "broken"]
-    out = tmp_path / "d.csv"
-    counts = run_batch([root], out, families=("tier1", "tier2"), progress=False)
-    assert counts == {"done": 3, "skipped": 0, "failed": 1}
-    rows = list(csv.DictReader(out.open()))
-    by_id = {r["material_id"]: r for r in rows}
-    assert by_id["broken"]["error"] and not by_id["NaCl_225"]["error"]
-    assert float(by_id["NaCl_225"]["m1"]) > 0
-    assert set(rows[0]) >= {"material_id", "path", "error", "zeta", "mean_mass"}
-    again = run_batch([root], out, families=("tier1", "tier2"), progress=False)
-    assert again["skipped"] == 3 and again["done"] == 0
-    assert done_ids(out) == {"NaCl_225", "KCl_225", "broken"}
+# ---------------------------------------------------------------- batch
+
+@pytest.mark.parametrize("workers", [1, 2])
+def test_batch_records_errors_and_keeps_a_fixed_schema(tmp_path, workers):
+    paths = _runs(tmp_path)
+    df = pydemi.featurize_batch(paths, n_workers=workers, progress=False,
+                                domains=["bonding", "structural"])
+    assert len(df) == 4
+    names = pydemi.descriptor_names(["bonding", "structural"])
+    assert list(df.columns[1:1 + len(names)]) == names
+    for col in ("n_atoms", "volume", "grid_shape", "density_source", "magnetic",
+                "euler_consistency", "wall_time_s", "pydemi_version", "error"):
+        assert col in df.columns
+    broken = df[df["path"].str.contains("broken")]
+    assert broken["error"].iloc[0] != "" and math.isnan(broken["m1"].iloc[0])
+    assert (df[~df["path"].str.contains("broken")]["error"] == "").all()
 
 
-def test_batch_parallel(tmp_path):
-    root = _runs(tmp_path)
-    counts = run_batch(find_runs(root)[:2], tmp_path / "p.csv", families=("tier1",),
-                       workers=2, progress=False)
-    assert counts["done"] == 2 and counts["failed"] == 0
+def test_batch_skip_and_raise(tmp_path):
+    paths = _runs(tmp_path, 1)
+    assert len(pydemi.featurize_batch(paths, n_workers=1, on_error="skip", progress=False,
+                                      domains=["bonding"])) == 1
+    with pytest.raises(RuntimeError, match="broken"):
+        pydemi.featurize_batch(paths, n_workers=1, on_error="raise", progress=False,
+                               domains=["bonding"])
 
 
-def test_cli(tmp_path, capsys):
-    root = _runs(tmp_path)
-    assert cli(["list", "--family", "D"]) == 0
-    assert "grid_ionicity" in capsys.readouterr().out
-    assert cli(["describe", "lap_concentration"]) == 0
-    assert "identically 1/2" in capsys.readouterr().out
-    out = tmp_path / "cli.csv"
-    code = cli(["compute", str(root / "NaCl_225"), "-o", str(out), "--families", "tier1", "-q"])
-    assert code == 0 and "NaCl_225" in out.read_text()
-    assert cli(["compute", str(root / "broken"), "-o", str(out), "-q"]) == 1
-    assert cli(["convergence", str(root / "NaCl_225"), "--factors", "1", "0.75"]) == 0
-    assert "rel.change" in capsys.readouterr().out
-    assert cli(["resample", str(root / "NaCl_225" / "CHGCAR"), str(tmp_path / "R"),
-                "--spacing", "0.5"]) == 0
-    assert Engine.from_chgcar(tmp_path / "R").grid().shape == (12, 12, 12)
+def test_batch_passes_read_options(tmp_path):
+    paths = _runs(tmp_path, 1)
+    df = pydemi.featurize_batch(paths, n_workers=1, progress=False, domains=["magnetic"],
+                                read_options={"zval": {"Fe": 16.0, "O": 6.0}})
+    ok = df[df["error"] == ""]
+    assert len(ok) == 1 and ok["zval_source"].iloc[0] == "table"
+
+
+# ---------------------------------------------------------------- CLI
+
+def test_cli_commands(tmp_path):
+    paths = _runs(tmp_path, 1)
+    good = str(paths[1])
+    assert main(["featurize", good, "--out", str(tmp_path / "f.json"), "--domains", "bonding"]) == 0
+    d = json.loads((tmp_path / "f.json").read_text())
+    assert "zeta" in d["features"] and d["metadata"]["density_source"] == "pseudo"
+    assert main(["catalogue", "--out", str(tmp_path / "cat.csv")]) == 0
+    assert (tmp_path / "cat.csv").read_text().startswith("name,domain")
+    assert main(["batch", str(tmp_path), "--glob", "*/CHGCAR", "--out", str(tmp_path / "b.csv"),
+                 "--workers", "1", "--domains", "bonding", "--quiet"]) == 0
+    assert (tmp_path / "b.csv").read_text().count("\n") == 3          # header + 2 rows
+    (tmp_path / "paw.json").write_text(json.dumps({"Fe": {"zval": 16, "rcore_bohr": 2.2},
+                                                   "O": {"zval": 6}}))
+    assert main(["featurize", good, "--out", str(tmp_path / "g.json"), "--domains", "magnetic",
+                 "--extensions", "paw", "--paw-table", str(tmp_path / "paw.json")]) == 0
+    meta = json.loads((tmp_path / "g.json").read_text())["metadata"]
+    assert meta["zval_source"] == "table" and meta["paw_radii_source"] == "table+covalent"
+    assert main(["sweep", good, "--param", "c2", "--range", "1.2:1.6:0.2",
+                 "--out", str(tmp_path / "s.csv"), "--domains", "bonding"]) == 0
+    assert (tmp_path / "s.csv").read_text().count("\n") == 4
+
+
+# ---------------------------------------------------------------- sweep and convergence
+
+def test_sensitivity_sweep():
+    df = sensitivity_sweep(_vd(), c1_range=[0.6, 0.8, 1.6], c2_range=[1.2, 1.5],
+                           domains=["bonding"])
+    assert len(df) == 4                                        # (1.6, *) skipped: c1 >= c2
+    assert {"c1", "c2", "f_core", "f_bond", "f_int"} <= set(df.columns)
+    np.testing.assert_allclose(df["f_core"] + df["f_bond"] + df["f_int"], 1.0)
+
+
+def test_grid_convergence_report():
+    df = grid_convergence(_vd((24, 24, 26)), scales=(0.8,), domains=["bonding"])
+    assert {"descriptor", "full", "x0.8", "rel_change_x0.8"} <= set(df.columns)
+    assert df.set_index("descriptor").loc["m1", "rel_change_x0.8"] < 1e-3
+
+
+def test_recommended_mesh_comes_from_the_analytic_tests():
+    """Spec §11: the minimum mesh is read off the Slater closed forms, not guessed."""
+    table = analytic_convergence(spacings=(0.1, 0.08, 0.06))
+    print(table.to_string())
+    errs = table["integral_rel_error"].to_numpy()
+    assert errs[0] > errs[1] > errs[2]
+    # m1, m2 reach a ~5e-4 floor set by the nearest-image distance in the 4 A box
+    assert recommended_spacing(table, tol=0.02) == pytest.approx(0.08)
+
+
+# ---------------------------------------------------------------- float32
+
+def test_float32_agrees_with_float64():
+    """Spec §13: float32 mode, with the discrepancy reported."""
+    vd = _vd((24, 24, 26))
+    a = pydemi.featurize(vd, domains=["bonding", "structural", "heterogeneity"])
+    b = pydemi.featurize(vd, domains=["bonding", "structural", "heterogeneity"], float32=True)
+    rel = {k: abs(a[k] - b[k]) / max(abs(a[k]), 1e-12) for k in a
+           if not (math.isnan(a[k]) and math.isnan(b[k]))}
+    worst = sorted(rel.items(), key=lambda kv: -kv[1])[:5]
+    print("float32 vs float64, largest relative discrepancies:", worst)
+    assert np.median(list(rel.values())) < 1e-5
+    assert sum(v > 1e-3 for v in rel.values()) <= 0.05 * len(rel)
+
+
+# ---------------------------------------------------------------- compositional
+
+def test_compositional_is_matminer_magpie():
+    matminer = pytest.importorskip("matminer.featurizers.composition")
+    from pymatgen.core import Composition
+    f = pydemi.featurize(_vd(), domains=["compositional"])
+    ref = matminer.ElementProperty.from_preset("magpie").featurize(Composition("FeO2"))
+    assert len(f) == len(ref) == 132
+    np.testing.assert_allclose(list(f.values()), ref)
+    cat = pydemi.catalogue()
+    comp = cat[cat.domain == "compositional"]
+    assert comp["adopted"].all() and not cat[cat.domain != "compositional"]["adopted"].any()
+
+
+# ---------------------------------------------------------------- PAW extension
+
+def test_paw_extension_is_off_by_default_and_uses_the_paw_radii():
+    vd = _vd()
+    assert "rho_min_int" not in pydemi.featurize(vd)
+    f, meta = pydemi.featurize(vd, extensions=["paw"], return_metadata=True)
+    assert meta["paw_radii_source"] == "covalent"
+    vd.paw_radii = {"Fe": 1.2, "O": 0.8}
+    _, meta = pydemi.featurize(vd, extensions=["paw"], return_metadata=True)
+    assert meta["paw_radii_source"] == "potcar"
+
+
+def test_rho_min_int_ignores_negative_pseudo_density_inside_the_spheres():
+    s = cubic_cell(6.0, ["Si"], [[0.5, 0.5, 0.5]])
+    shape = (40, 40, 40)
+    rho = SlaterSuperposition(s, [1.0], [4.0], tol=1e-30).on_grid(shape)[0]
+    dip = SlaterSuperposition(s, [6.0], [0.5], tol=1e-30).on_grid(shape)[0]
+    vd = VolumetricData(s, Grid(rho - dip, s.lattice), paw_radii={"Si": 1.0})
+    f = pydemi.featurize(vd, domains=["structural"], extensions=["paw"])
+    assert f["rho_min"] < 0.0 < f["rho_min_int"]
+
+
+def test_n_nnm_paw_ignores_lobes_inside_the_augmentation_sphere():
+    """A pseudized atom: no maximum at the nucleus, lobes on a shell at 0.9 A."""
+    s = cubic_cell(6.0, ["Si"], [[0.5, 0.5, 0.5]])
+    shape = (48, 48, 48)
+    lobes = Structure(s.lattice, ["X"] * 6, [[0.5 + dx, 0.5 + dy, 0.5 + dz] for dx, dy, dz in
+                                             [(0.15, 0, 0), (-0.15, 0, 0), (0, 0.15, 0),
+                                              (0, -0.15, 0), (0, 0, 0.15), (0, 0, -0.15)]])
+    rho = GaussianSuperposition(lobes, [4.0] * 6, [1.0] * 6, tol=1e-30).on_grid(shape)[0]
+    # a faint background peaked at the nucleus, so the far field has no exactly flat plateau
+    x = np.arange(48) / 48 - 0.5
+    X, Y, Z = np.meshgrid(x, x, x, indexing="ij")
+    rho = rho + 1e-3 * (3.0 + np.cos(2 * np.pi * X) + np.cos(2 * np.pi * Y) + np.cos(2 * np.pi * Z))
+    vd = VolumetricData(s, Grid(rho, s.lattice), paw_radii={"Si": 1.1})
+    f = pydemi.featurize(vd, domains=["structural"], extensions=["paw"])
+    assert f["n_NNM"] > 0.0                      # 0.8 A cutoff counts the lobes as non-nuclear
+    assert f["n_NNM_paw"] == 0.0                 # max(r_cut, R_PAW) does not
+
+
+# ---------------------------------------------------------------- sentinels across domains
+
+def test_uniform_density_no_bare_nan_in_any_domain():
+    """Spec §10: every degenerate case gives a documented constant, never a bare NaN; the only
+    NaN allowed is a within-element variance, which comes with its flag and the site counts."""
+    feats, meta = pydemi.featurize(uniform(Structure(LAT, ["Fe", "O"], [[0, 0, 0], [0.5, 0.5, 0.5]]),
+                                           (12, 12, 12)), extensions=["paw"], return_metadata=True)
+    for k, v in feats.items():
+        if math.isnan(v):
+            assert k.endswith("within_element_var") or k.startswith("magpie_"), k
+            assert meta[f"{k}__flag"] == 1

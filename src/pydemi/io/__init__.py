@@ -1,9 +1,14 @@
-"""File readers."""
+"""File I/O and the data model."""
 
-from .vasp import (SPIN_COLLINEAR, SPIN_NONCOLLINEAR, SPIN_NONE, ChargeDensity,
-                   VolumetricData, read_aeccar, read_chgcar, read_elfcar,
-                   read_locpot, read_volumetric, write_volumetric)
+from .base import Grid, Lattice, Structure, VolumetricData, as_structure
+from .cube import read_cube, write_cube
+from .registry import read, sniff
+from .vasp import (read_aeccar, read_all_electron, read_blocks, read_chgcar, read_elfcar,
+                   read_locpot, read_potcar_rcore, read_potcar_zval, read_vasp,
+                   write_volumetric)
+from .xsf import read_xsf, write_xsf
 
-__all__ = ["ChargeDensity", "VolumetricData", "read_volumetric", "read_chgcar",
-           "read_aeccar", "read_elfcar", "read_locpot", "write_volumetric",
-           "SPIN_NONE", "SPIN_COLLINEAR", "SPIN_NONCOLLINEAR"]
+__all__ = ["Grid", "Lattice", "Structure", "VolumetricData", "as_structure", "read", "sniff",
+           "read_vasp", "read_chgcar", "read_all_electron", "read_aeccar", "read_elfcar",
+           "read_locpot", "read_blocks", "read_potcar_zval", "read_potcar_rcore",
+           "write_volumetric", "read_cube", "write_cube", "read_xsf", "write_xsf"]

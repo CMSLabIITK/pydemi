@@ -1,101 +1,112 @@
+"""Milestone 3: geometry pass, shells and image machinery (spec §5, §16)."""
+
 import itertools
 
 import numpy as np
 import pytest
 
-from pydemi import Engine, Grid, Shells, nearest_atom
+from pydemi.core.geometry import (Shells, assign_atoms, geometry_of, image_blocks, nearest_atom,
+                                  shell_masks, shells_of)
+from pydemi.core.grid import cart_coords
+from pydemi.data import covalent_radius
+from pydemi.io.base import Grid, Lattice, Structure, VolumetricData
+
+# strongly sheared, low-symmetry cell: a fixed 3x3x3 supercell can miss the nearest image
+SHEARED = Lattice(np.array([[5.0, 0.0, 0.0], [4.1, 1.9, 0.0], [3.3, 1.2, 1.7]]))
+FRAC = [[0.03, 0.11, 0.07], [0.52, 0.47, 0.61], [0.81, 0.23, 0.39]]
 
 
-def _brute_force(grid, structure, reps=4):
-    x = grid.cart_coords().reshape(-1, 3)
-    best = np.full(x.shape[0], np.inf)
-    owner = np.zeros(x.shape[0], dtype=int)
-    for t in itertools.product(range(-reps, reps + 1), repeat=3):
-        shift = np.array(t) @ structure.lattice
-        for i, R in enumerate(structure.cart_coords):
-            d = np.linalg.norm(x - (R + shift), axis=1)
-            closer = d < best
-            best[closer], owner[closer] = d[closer], i
-    return best.reshape(grid.shape), owner.reshape(grid.shape)
+def _brute(shape, s, weights=None, reach=5):
+    x = cart_coords(shape, s.lattice).reshape(-1, 3)
+    shifts = np.array(list(itertools.product(range(-reach, reach + 1), repeat=3)))
+    frac = s.frac_coords % 1.0
+    pts = ((frac[None] + shifts[:, None]).reshape(-1, 3)) @ s.lattice.matrix
+    owner = np.tile(np.arange(s.n_atoms), len(shifts))
+    d2 = ((x[:, None, :] - pts[None]) ** 2).sum(-1)
+    if weights is not None:
+        d2 = d2 - (np.asarray(weights) ** 2)[owner][None]
+    k = d2.argmin(1)
+    return np.linalg.norm(x - pts[k], axis=1), owner[k], x - pts[k]
 
 
-@pytest.mark.parametrize("fixture", ["skewed_cell", "triclinic_two_atoms", "cubic_one_atom"])
-def test_matches_brute_force(request, fixture):
-    s = request.getfixturevalue(fixture)
-    grid = Grid(s.lattice, (9, 10, 11))
-    geo = nearest_atom(grid, s)
-    dist, owner = _brute_force(grid, s)
-    np.testing.assert_allclose(geo.distance, dist, atol=1e-10)
-    # ownership may legitimately differ only on exact ties
-    tie_free = np.abs(dist - geo.distance) < 1e-10
-    assert np.all((geo.atom_index == owner) | ~tie_free)
+def test_nearest_atom_matches_brute_force_in_a_sheared_cell():
+    s = Structure(SHEARED, ["Fe", "O", "Ni"], FRAC)
+    shape = (9, 10, 11)
+    geo = nearest_atom(shape, s)
+    d, owner, diff = _brute(shape, s)
+    np.testing.assert_allclose(geo.distance.ravel(), d, atol=1e-12)
+    np.testing.assert_array_equal(geo.atom_index.ravel(), owner)
+    u = geo.direction.reshape(-1, 3)
+    np.testing.assert_allclose(np.linalg.norm(u, axis=1), 1.0)
+    np.testing.assert_allclose(u * d[:, None], diff, atol=1e-12)
 
 
-def test_fractional_rounding_is_not_enough(skewed_cell):
-    # documents why the KD-tree search exists: the naive round() minimum
-    # image overestimates distances somewhere in this cell
-    grid = Grid(skewed_cell.lattice, (9, 10, 11))
-    x = grid.cart_coords().reshape(-1, 3)
-    inv = np.linalg.inv(skewed_cell.lattice)
-    naive = np.full(x.shape[0], np.inf)
-    for R in skewed_cell.cart_coords:
-        f = (x - R) @ inv
-        f -= np.round(f)
-        naive = np.minimum(naive, np.linalg.norm(f @ skewed_cell.lattice, axis=1))
-    exact = nearest_atom(grid, skewed_cell).distance.ravel()
-    assert np.max(naive - exact) > 0.1
+def test_extreme_shear_where_a_3x3x3_supercell_fails():
+    """Why the image range is widened adaptively (spec §16, minimum-image bugs):
+    in this cell the nearest image of some voxels lies outside the 3x3x3 supercell."""
+    lat = Lattice(np.array([[6.0, 0.0, 0.0], [5.7, 0.8, 0.0], [5.5, 0.6, 0.7]]))
+    s = Structure(lat, ["Fe", "O", "Ni"], FRAC)
+    shape = (9, 10, 11)
+    d_true, owner, _ = _brute(shape, s)
+    d_fixed, _, _ = _brute(shape, s, reach=1)
+    assert (d_fixed - d_true).max() > 0.01
+    geo = nearest_atom(shape, s)
+    np.testing.assert_allclose(geo.distance.ravel(), d_true, atol=1e-12)
+    np.testing.assert_array_equal(geo.atom_index.ravel(), owner)
 
 
-def test_direction_is_unit_and_points_away(triclinic_two_atoms):
-    grid = Grid(triclinic_two_atoms.lattice, (8, 8, 8))
-    geo = nearest_atom(grid, triclinic_two_atoms)
-    norms = np.linalg.norm(geo.direction, axis=-1)
-    assert np.allclose(norms[geo.distance > 1e-9], 1.0)
-    # voxel = nucleus image + r * r_hat
-    x = grid.cart_coords()
-    R = triclinic_two_atoms.cart_coords[geo.atom_index]
-    back = x - geo.distance[..., None] * geo.direction - R
-    frac = back @ np.linalg.inv(triclinic_two_atoms.lattice)
-    np.testing.assert_allclose(frac, np.round(frac), atol=1e-9)
+def test_power_diagram_matches_brute_force():
+    s = Structure(SHEARED, ["Fe", "O", "Ni"], FRAC)
+    shape = (8, 9, 10)
+    radii = np.array([1.3, 0.7, 1.1])
+    got = assign_atoms(shape, s, radii)
+    d, owner, _ = _brute(shape, s, weights=radii)
+    np.testing.assert_array_equal(got.atom_index.ravel(), owner)
+    np.testing.assert_allclose(got.distance.ravel(), d, atol=1e-12)
 
 
-def test_voxel_on_nucleus_has_zero_direction(cubic_one_atom):
-    geo = nearest_atom(Grid(cubic_one_atom.lattice, (4, 4, 4)), cubic_one_atom)
-    assert geo.distance[0, 0, 0] == pytest.approx(0.0)
-    assert np.all(geo.direction[0, 0, 0] == 0.0)
+def test_atom_on_a_grid_point_has_zero_direction():
+    s = Structure(Lattice(np.eye(3) * 4.0), ["H"], [[0.0, 0.0, 0.0]])
+    geo = nearest_atom((8, 8, 8), s)
+    assert geo.distance[0, 0, 0] == 0.0
+    np.testing.assert_array_equal(geo.direction[0, 0, 0], 0.0)
 
 
-def test_partition_site_sums(triclinic_two_atoms):
-    eng = Engine(triclinic_two_atoms, {"rho": np.ones((6, 7, 8))})
-    part = eng.partition()
-    assert part.site_count().sum() == 6 * 7 * 8
-    np.testing.assert_allclose(part.site_sum(eng["rho"].values), part.site_count())
-
-
-def test_shells_partition_every_voxel(triclinic_two_atoms):
-    eng = Engine(triclinic_two_atoms, {"rho": np.ones((10, 10, 10))})
-    m = eng.shell_masks()
-    total = m.core.astype(int) + m.bond + m.interstitial
-    assert np.all(total == 1)
-    r = eng.geometry().distance
-    assert np.all(r[m.core] <= 0.8) and np.all(r[m.interstitial] > 1.5)
-
-
-def test_scaled_shells(triclinic_two_atoms):
-    eng = Engine(triclinic_two_atoms, {"rho": np.ones((10, 10, 10))})
-    shells = Shells.scaled(0.5, 1.0, {"Si": 1.1, "O": 0.66})
-    m = eng.shell_masks(shells=shells)
-    geo = eng.geometry()
-    c2 = np.where(geo.atom_index == 0, 1.1, 0.66)
-    np.testing.assert_array_equal(m.interstitial, geo.distance > c2)
-    with pytest.raises(KeyError):
-        Shells.scaled(0.5, 1.0, {"Si": 1.1}).atom_cutoffs(triclinic_two_atoms)
+def test_shells_partition_the_cell_and_scale_with_radii():
+    s = Structure(SHEARED, ["Fe", "O", "Ni"], FRAC)
+    geo = nearest_atom((10, 10, 10), s)
+    m = shell_masks(geo, s, Shells())
+    total = m.core.astype(int) + m.bond.astype(int) + m.interstitial.astype(int)
+    np.testing.assert_array_equal(total, 1)
+    np.testing.assert_array_equal(m.core, geo.distance <= 0.8)
+    scaled = shell_masks(geo, s, Shells(0.5, 1.2, scaled=True))
+    c1 = 0.5 * np.array([covalent_radius(e) for e in s.species])[geo.atom_index]
+    np.testing.assert_array_equal(scaled.core, geo.distance <= c1)
     with pytest.raises(ValueError):
-        Shells(c1=1.5, c2=0.8)
+        Shells(1.5, 0.8)
 
 
-def test_geometry_cached_per_shape(triclinic_two_atoms):
-    eng = Engine(triclinic_two_atoms, {"rho": np.ones((6, 6, 6)), "elf": np.ones((3, 3, 3))})
-    assert eng.geometry() is eng.geometry()
-    assert eng.geometry((3, 3, 3)).shape == (3, 3, 3)
-    assert eng["elf"].grid is eng.grid((3, 3, 3))
+def test_geometry_is_computed_once_per_structure():
+    s = Structure(SHEARED, ["Fe", "O", "Ni"], FRAC)
+    vd = VolumetricData(s, Grid(np.ones((6, 6, 6)), s.lattice))
+    assert geometry_of(vd) is geometry_of(vd)
+    assert shells_of(vd, Shells()) is shells_of(vd, Shells())
+    assert geometry_of(vd.with_options("other")) is geometry_of(vd)      # shared cache
+
+
+def test_image_blocks_cover_every_image_within_the_cutoff():
+    s = Structure(SHEARED, ["Fe", "O", "Ni"], FRAC)
+    shape, cutoff = (7, 8, 9), 4.0
+    x = cart_coords(shape, s.lattice).reshape(-1, 3)
+    shifts = np.array(list(itertools.product(range(-6, 7), repeat=3)))
+    pts = ((s.frac_coords % 1.0)[None] + shifts[:, None]).reshape(-1, 3) @ s.lattice.matrix
+    owner = np.tile(np.arange(3), len(shifts))
+    d = np.linalg.norm(x[:, None] - pts[None], axis=-1)
+    f = np.where(d < cutoff, np.exp(-d), 0.0)
+    expect = np.stack([f[:, owner == a].sum(1) for a in range(3)], axis=1)
+    got = np.zeros_like(expect)
+    for b in image_blocks(shape, s, cutoff, block=4):
+        w = np.where(b.distance < cutoff, np.exp(-b.distance), 0.0)
+        for a in range(3):
+            got[b.voxel, a] += w[:, b.owner == a].sum(1)
+    np.testing.assert_allclose(got, expect, rtol=1e-12)
