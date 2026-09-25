@@ -140,7 +140,7 @@ def analytic_checks():
                                                                    mx=("abs_err", "max")).reset_index()
     fmt = lambda v: "0" if v == 0 else f"{v:.1e}".replace("e-0", "e-").replace("e-", r"\times10^{-") + "}"
     out = [r"\begin{table}[htbp]", r"\centering",
-           r"\caption{The %d analytic checks of the descriptor families (main text, Fig.~4): model density, "
+           r"\caption{The %d analytic checks of the descriptor families (main text, Fig.~5): model density, "
            r"number of cases, median and maximum absolute error against the exact value "
            r"(\texttt{paper/analysis/m\_validation\_figures.py}).}" % len(a),
            r"\label{tab:si-analytic}", r"\small", r"\begin{tabular}{llp{4.2cm}rrr}", r"\toprule",

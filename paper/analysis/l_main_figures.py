@@ -228,7 +228,46 @@ def fig_dataset():
     save(fig, "fig_dataset")
 
 
+# ------------------------------------------------------------------ Fig. 2
+def fig_descriptors():
+    from matplotlib.colors import SymLogNorm
+    za = np.load(DOCS / "anisotropy_descriptors/data/slices.npz")
+    zd = np.load(DOCS / "deformation_descriptors/data/slices.npz")
+    res = results()
+    runs = [("Si_227", "Si"), ("NaCl_225", "NaCl"), ("Cu_225", "Cu"), ("BN_194", "h-BN")]
+    fig, axes = plt.subplots(3, 4, figsize=(7.2, 5.6), gridspec_kw={"height_ratios": [1, 1, 1]})
+    for col, (run, name) in enumerate(runs):
+        X, Y = za[f"{run}__X"], za[f"{run}__Y"]
+        r = res.loc[run]
+        perc = min(r["rho_perc_a"], r["rho_perc_b"], r["rho_perc_c"])
+        rows = [(za[f"{run}__rho"], "rho"), (zd[f"{run}__drho"], "drho"), (za[f"{run}__elf"], "elf")]
+        for row, (F, kind) in enumerate(rows):
+            ax = axes[row, col]
+            if kind == "rho":
+                m = ax.pcolormesh(X, Y, np.clip(F, 1e-3, None), cmap="Greys", shading="auto", rasterized=True,
+                                  norm=LogNorm(vmin=1e-2, vmax=2.0))
+                ax.contour(X, Y, F, levels=[perc], colors="C3", linewidths=0.9)
+                ax.set_title(f"{name}\n" + r"$\rho$; iso-line at $\rho_{\mathrm{perc}}$" + f" = {perc:.3f}", fontsize=6.5)
+            elif kind == "drho":
+                m = ax.pcolormesh(X, Y, F, cmap="RdBu_r", shading="auto", rasterized=True,
+                                  norm=SymLogNorm(linthresh=0.005, vmin=-0.5, vmax=0.5))
+                ax.set_title(r"$\Delta\rho$" + "\n" + r"$f^{+}_{\mathrm{bond,out}}$" + f" = {r['f_bond_def_out']:.2f}, "
+                             + r"$P_{\Delta,\mathrm{out}}$" + f" = {r['def_polarity_out']:.3f}", fontsize=6.2)
+            else:
+                m = ax.pcolormesh(X, Y, F, cmap="viridis", shading="auto", rasterized=True, vmin=0, vmax=1)
+                ax.set_title(r"ELF$_D$" + "\n" + r"$\langle$ELF$\rangle_{\mathrm{bond}}$" + f" = {r['ELF_bond_avg']:.2f}, " + r"$\zeta$" +
+                             f" = {r['zeta']:.3f}", fontsize=6.2)
+            for (x, y, R, _), e in zip(zd[f"{run}__atoms"], zd[f"{run}__species"]):
+                if X.min() - R <= x <= X.max() + R and Y.min() - R <= y <= Y.max() + R:
+                    ax.add_patch(plt.Circle((x, y), R, fill=False, color="k" if kind != "elf" else "w", lw=0.4))
+            ax.set(xlim=(X.min(), X.max()), ylim=(Y.min(), Y.max()), xticks=[], yticks=[])
+            ax.set_aspect("equal")
+    fig.tight_layout(h_pad=0.6, w_pad=0.4)
+    save(fig, "fig_descriptors")
+
+
 if __name__ == "__main__":
+    fig_descriptors()
     fig_architecture()
     fig_paw()
     fig_stability()
