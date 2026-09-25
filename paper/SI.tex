@@ -842,10 +842,21 @@ including the compositional Pauling baseline.}
 \section{Validation details}
 \label{sec:si-validation}
 
-% To be written with main-text Section 5: the 876 tests grouped by kind
-% (analytic densities with closed forms, exact identities, invariance harness
-% over every descriptor, reference data, I/O and unit conversions, regression
-% tests), with the tolerances achieved.
+The test suite (876 tests, \texttt{tests/}) is organized by subject; the
+number of tests per file is: invariance harness 700 (\texttt{test\_invariance}),
+input/output 48, partitions 18, derivatives 16, deformation density 16,
+tooling (batch, command line, convergence report, float32, matminer) 14,
+first-tier descriptors 12, structural descriptors 11, derived fields 11,
+stability tags 8, geometry 7, site statistics 6, magnetic descriptors 6 and
+regressions 3. The invariance harness is parametrized over the registry: every
+registered descriptor, including the two extensions, is evaluated for a
+three-atom, magnetic, triclinic model crystal and for its $2\times2\times2$
+supercell, a translation of the origin by $(3,7,11)$ voxels and a rotation by
+$37^\circ$, and must agree to $10^{-6}$ relative (absolute $10^{-12}$ for values
+near zero). Table~\ref{tab:si-analytic} lists the analytic checks carried out
+for each family during the dataset analysis (Section~\ref{sec:si-families}).
+
+\input{si/analytic_checks_table}
 
 % ==========================================================================
 \section{Dataset and DFT settings}

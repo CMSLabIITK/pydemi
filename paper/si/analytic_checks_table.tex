@@ -1,0 +1,37 @@
+\begin{table}[htbp]
+\centering
+\caption{The 245 analytic checks of the descriptor families (main text, Fig.~4): model density, number of cases, median and maximum absolute error against the exact value (\texttt{paper/analysis/m\_validation\_figures.py}).}
+\label{tab:si-analytic}
+\small
+\begin{tabular}{llp{4.2cm}rrr}
+\toprule
+Family & Descriptor & Model & $n$ & Median & Max \\
+\midrule
+anisotropy & \texttt{t1} & anisotropic Gaussian & 9 & $1.1\times10^{-16}$ & $4.4\times10^{-15}$ \\
+anisotropy & \texttt{t3} & anisotropic Gaussian & 9 & $2.8\times10^{-16}$ & $2.4\times10^{-15}$ \\
+anisotropy & \texttt{charge\_FA} & anisotropic Gaussian & 9 & $7.8\times10^{-16}$ & $8.5\times10^{-15}$ \\
+deformation & \texttt{m1\_def} & breathing atom & 14 & $5.1\times10^{-5}$ & $2.5\times10^{-4}$ \\
+deformation & \texttt{m2\_def} & breathing atom & 14 & $1.6\times10^{-4}$ & $9.4\times10^{-4}$ \\
+deformation & \texttt{sigma\_r2\_def} & breathing atom & 14 & $7.7\times10^{-5}$ & $4.7\times10^{-4}$ \\
+deformation & \texttt{f\_bond\_def} & breathing atom & 14 & $5.9\times10^{-4}$ & $1.2\times10^{-3}$ \\
+deformation & \texttt{f\_int\_def} & breathing atom & 14 & $3.5\times10^{-4}$ & $7.3\times10^{-4}$ \\
+deformation & \texttt{f\_bond\_dep} & breathing atom & 14 & $1.8\times10^{-3}$ & $2.9\times10^{-3}$ \\
+deformation & \texttt{def\_polarity} & breathing atom & 14 & $3.9\times10^{-5}$ & $3.2\times10^{-4}$ \\
+magnetic & \texttt{m1\_spin} & Gaussian spin density & 9 & $4.5\times10^{-6}$ & $3.7\times10^{-5}$ \\
+magnetic & \texttt{sigma\_r2\_spin} & Gaussian spin density & 9 & $7.2\times10^{-6}$ & $2.9\times10^{-5}$ \\
+magnetic & \texttt{f\_bond\_spin} & Gaussian spin density & 9 & $7.8\times10^{-4}$ & $1.6\times10^{-3}$ \\
+magnetic & \texttt{spin\_charge\_correlation} & Gaussian spin density & 9 & $1.1\times10^{-14}$ & $5.2\times10^{-11}$ \\
+magnetic & \texttt{spin\_frustration} & two sublattices & 9 & $0$ & $7.3\times10^{-7}$ \\
+magnetic & \texttt{mu\_site\_std} & two sublattices & 9 & $6.0\times10^{-7}$ & $1.2\times10^{-6}$ \\
+structural & \texttt{rho\_perc\_a} & simple cubic lattice & 7 & $0$ & $0$ \\
+structural & \texttt{rho\_min} & simple cubic lattice & 7 & $0$ & $0$ \\
+structural & \texttt{rho\_min\_ratio} & simple cubic lattice & 7 & $0$ & $6.8\times10^{-21}$ \\
+structural & \texttt{perc\_anisotropy} & tetragonal lattice & 7 & $4.4\times10^{-16}$ & $5.7\times10^{-3}$ \\
+bonding & \texttt{V\_spread} & rock-salt charge transfer & 7 & $9.7\times10^{-8}$ & $2.4\times10^{-7}$ \\
+bonding & \texttt{V at a nucleus} & rock-salt charge transfer & 7 & $4.4\times10^{-7}$ & $5.8\times10^{-7}$ \\
+bonding & \texttt{rho\_mid\_mean} & tetragonal lattice & 10 & $4.2\times10^{-17}$ & $1.9\times10^{-16}$ \\
+bonding & \texttt{rho\_mid\_std} & tetragonal lattice & 10 & $5.0\times10^{-17}$ & $1.7\times10^{-16}$ \\
+bonding & \texttt{lap\_concentration\_valence} & Gaussian atom & 4 & $6.7\times10^{-4}$ & $1.1\times10^{-3}$ \\
+\bottomrule
+\end{tabular}
+\end{table}

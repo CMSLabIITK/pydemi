@@ -88,12 +88,24 @@ hours.
 %   an invariance harness; (v) dataset application; (vi) open-source release.
 
 \section{Framework design}
+\label{sec:framework}
+
 \subsection{Input paths}
-% - Input 1, DFT: VASP CHGCAR (1, 2 or 4 blocks), AECCAR0+2, ELFCAR, LOCPOT;
-%   ZVAL and PAW radii from POTCAR/OUTCAR or a per-element table; cube and
-%   XSF for other codes; VolumetricData (density_source pseudo/all_electron).
-% - Input 2, ML: charge densities predicted from CIF files.
-%   TODO: to be written when the model is integrated.
+pydemi separates reading from featurization: every input is converted into one
+data model, and every descriptor is computed from that model only
+(Fig.~\ref{fig:architecture}). The first input path reads DFT output. For VASP
+it reads \texttt{CHGCAR} files with one (non-spin-polarized), two (collinear)
+or four (non-collinear) blocks, the all-electron density
+\texttt{AECCAR0}\,+\,\texttt{AECCAR2}, \texttt{ELFCAR} and \texttt{LOCPOT}, and
+takes the valence counts (ZVAL) and augmentation radii ($R_{\mathrm{PAW}}$)
+from the \texttt{POTCAR} or \texttt{OUTCAR} of the run or from a per-element
+table; Gaussian cube and XSF files cover other plane-wave codes. Each density
+carries its source (\texttt{pseudo} or \texttt{all\_electron}), which several
+definitions depend on (Section~\ref{sec:numerics:paw}). The second input path,
+for densities predicted by machine learning from the crystal structure alone,
+is described in Section~\ref{sec:ml}.
+% TODO: expand once the CIF -> density path is integrated.
+
 \subsection{Data model and numerical core}
 
 \begin{figure}[htbp]
@@ -107,35 +119,106 @@ machine-learning input path (dashed) is being integrated
 \label{fig:architecture}
 \end{figure}
 
-% - Lattice (B = A^{-T}, G = B B^T), Grid, Structure, VolumetricData with a
-%   per-object cache shared by option views.
-% - Derivatives with the exact metric tensor: FFT (default) and central
-%   differences of order 2/4/6/8; packed Hessian, chunked eigenvalues.
-% - Geometry pass: nearest-atom distance, direction and index with an
-%   adaptive periodic image search and a geometric tie-break (exact supercell
-%   and translation invariance); shells core/bond/interstitial.
-% - Partitions nearest, power, Becke (truncated), Hirshfeld behind one pair
-%   interface; derived fields: ELF_D, energy densities, Hartree/ESP, promolecule.
-% - Figure: architecture / data-flow diagram.
-\subsection{Descriptor registry}
-% - @register metadata: domain, field, requirements, units, range,
-%   intensivity (enforced), sentinel cases and __flag columns (no bare NaN),
-%   references, adopted (matminer), extension (paw, robust), stability.
-% - featurize / featurize_batch / catalogue / CLI; metadata columns.
-\subsection{Free-atom references}
-% - Spherical LDA atoms Z = 1-96 shipped as tables; valence part by ZVAL;
-%   real-space promolecule to 1e-6 e/A^3; aeccar0 and custom references.
+A \texttt{VolumetricData} object holds the structure, the lattice with its
+reciprocal basis $B=A^{-\mathsf T}$ and metric $G=BB^{\mathsf T}$, and the
+grids of the density $\rho$ (in e\,\AA$^{-3}$), the magnetization, the ELF and
+the potential when available. Everything derived from them is cached on the
+object, keyed by the options it depends on, so that a descriptor set costs one
+evaluation of each field however many descriptors use it, and views of the
+same object with other options reuse whatever does not depend on them. The
+derived fields are the derivatives of $\rho$ (Section~\ref{sec:numerics:derivatives}),
+the electron localization function reconstructed from the density
+(ELF$_D$)~\cite{tsirelson2002} unless an \texttt{ELFCAR} is given, the kinetic,
+potential and total energy densities from the gradient
+expansion~\cite{abramov1997}, the electronic Hartree or full electrostatic
+potential by one Fourier transform, the promolecule and the deformation
+density, and $|m|$. A single geometry pass assigns every voxel its nearest
+nucleus, distance and direction, with a periodic image search that is extended
+until it provably contains every nearest image and a geometric tie-break for
+equidistant images; it defines the core ($r\leq c_1$), bond
+($c_1<r\leq c_2$) and interstitial ($r>c_2$) shells, with $c_1=0.8$ and
+$c_2=1.5$\,\AA{} by default or multiples of covalent radii. Four partitions
+(nearest atom, power diagram, Becke, Hirshfeld) share one interface that
+yields voxel--atom pairs with weights, distances and directions, so that every
+site-resolved operator works with any of them.
 
+\subsection{Descriptor registry}
+Descriptors are plain functions registered with a decorator that records their
+domain, the field they reduce, the cached quantities they require, units,
+admissible range, references, an extension tag for off-by-default families and
+a stability tag (Section~\ref{sec:numerics:convergence}). Registration enforces
+intensivity: every count is per unit volume and every charge a fraction. Each
+degenerate case, such as a uniform density or a non-magnetic structure, has a
+documented return value, emitted with a \texttt{<name>\_\_flag} column instead
+of a bare NaN. The same registry generates the descriptor catalogue
+(Supporting Information, Section~S1), the documentation and the parameter
+lists of the invariance tests, so that the three cannot drift apart. Adopted
+descriptors, the compositional Magpie set computed by
+matminer~\cite{ward2016,ward2018}, are tagged as such and can be filtered out
+of novelty claims. The Python interface (\texttt{featurize},
+\texttt{featurize\_batch}, \texttt{catalogue}, \texttt{descriptor\_names}) and a
+command line (\texttt{featurize}, \texttt{batch}, \texttt{catalogue},
+\texttt{sweep}) return a table whose metadata columns record the options, the
+sources of the valence counts and radii, the partition and the numerical
+diagnostics of each structure.
+
+\subsection{Free-atom references}
+The promolecule and the Hirshfeld weights use spherical, non-spin-polarized
+LDA free atoms for $Z=1$--96, shipped as radial tables of orbital densities,
+occupations and energies. For a pseudo-density the reference keeps the ZVAL
+highest-energy electrons of the atom; for an all-electron density it uses the
+frozen core from \texttt{AECCAR0} plus the tabulated valence densities. The
+promolecule is summed over periodic images until each free-atom density falls
+below $10^{-6}$\,e\,\AA$^{-3}$. Users can supply their own radial references,
+for instance from isolated-atom calculations with the PAW datasets of the
+crystal.
+
+% ==========================================================================
 \section{Descriptor families}
-% - Table: the five domains (36 bonding, 21 structural, 8 magnetic,
-%   23 heterogeneity, 132 compositional) + paw (12) and robust (1) extensions.
-% - Bonding: moments and shells, Laplacian, ellipticity, energy densities,
-%   ELF, NCI, potential, bond midpoints, deformation density, pair charge
-%   transfer. Structural: percolation, census, NNM, density floor,
-%   anisotropy tensor, information measures. Magnetic: moments, spin
-%   moments, site moments, frustration. Heterogeneity: site statistics and
-%   the within/between-element variance decomposition. Compositional:
-%   Magpie via matminer (adopted).
+\label{sec:families}
+
+The current release computes 220 descriptors in five domains
+(Table~\ref{tab:families}); two off-by-default extensions add 12 definitions
+for PAW pseudo-densities and one converged alternative to a fragile
+descriptor. The bonding domain reduces $\rho$ and its derived fields over the
+shells: radial moments and shell fractions of the charge, the Laplacian
+fractions and concentration, the bond ellipticity, the energy densities, ELF
+averages, the non-covalent-interaction region~\cite{johnson2010}, the site
+potentials, the density at the bond midpoints, the deformation density and the
+charge transferred between neighbouring atoms. The structural domain describes
+the density as a whole: percolation levels along each lattice vector, the
+critical-point census, non-nuclear maxima and their basin charge, the density
+floor, the anisotropy tensor of the density gradient and
+information-theoretic measures. The magnetic domain reduces the magnetization
+to moments, spatial moments of $|m|$, site moments, their compensation and the
+correlation of spin and charge. The heterogeneity domain is a meta-operator: it
+turns per-site values of $m_1$, $f_{\mathrm{bond}}$, $\zeta$ and the site moment
+into site statistics and an exact within/between-element decomposition of
+their variance. The formula of every descriptor is listed in the Supporting
+Information (Section~S1), and the behaviour of each family on model and real
+densities is analysed in Section~S3.
+
+\begin{table}[htbp]
+\centering
+\caption{Descriptor domains of the current release. Fields: $\rho$ density,
+$\Delta\rho$ deformation density, ELF, $V$ potential, $m$ magnetization.}
+\label{tab:families}
+\small
+\begin{tabular}{p{2.3cm}rp{2.2cm}p{9cm}}
+\toprule
+Domain & Count & Fields & Content \\
+\midrule
+Bonding & 36 & $\rho$ (21), $\Delta\rho$ (9), ELF (4), $V$ (2) & radial moments, shell fractions, Laplacian fractions, ellipticity, energy densities, ELF averages, NCI region, site potentials, bond midpoints, deformation moments and shares, pair charge transfer \\
+Structural & 21 & $\rho$ & percolation levels and anisotropy, critical-point census, non-nuclear maxima, density floor, anisotropy tensor, information measures \\
+Magnetic & 8 & $m$ & moments per atom, spatial moments of $|m|$, site-moment spread, spin compensation, spin--charge correlation \\
+Heterogeneity & 23 & $\rho$ (18), $m$ (5) & site statistics and within/between-element variances of $m_1$, $f_{\mathrm{bond}}$, $\zeta$ and the site moment \\
+Compositional & 132 & composition & Magpie statistics via matminer (adopted) \\
+\midrule
+\texttt{paw} extension & 12 & $\rho$, $\Delta\rho$ & deformation family and density floor outside the augmentation spheres, PAW-aware non-nuclear maxima \\
+\texttt{robust} extension & 1 & $\rho$ & bounded bond ellipticity \\
+\bottomrule
+\end{tabular}
+\end{table}
 
 \section{Numerical considerations}
 \label{sec:numerics}
@@ -345,12 +428,56 @@ Ellipticity, saddle counts & tagged fragile; bounded ellipticity as a converged 
 \end{table}
 
 \section{Validation}
-% - Analytic Slater/Gaussian densities with closed forms; exact identities
-%   (Morse relation of the Freudenthal census, variance decomposition,
-%   partitions of unity, sum of site moments = M_net); invariance harness
-%   (every descriptor: 2x2x2 supercell, translation, rotation at 1e-6);
-%   matminer agreement; unit conversions; float32 mode.
-% - Table: validation checks and achieved accuracy.
+\label{sec:validation}
+
+pydemi is tested by 876 automated tests (Table~\ref{tab:validation}). Most of
+them, 700, form an invariance harness that is parametrized over the registry:
+every descriptor, including the extensions, is computed for a low-symmetry,
+magnetic model crystal and for its $2\times2\times2$ supercell, a translation of
+the origin and a rigid rotation, and must agree to $10^{-6}$ relative, so that
+descriptors added later are checked automatically. The remaining tests compare
+with closed forms for Slater and Gaussian densities, exact identities and
+reference implementations. Beyond the test suite, each descriptor family was
+checked against model densities with known answers in the course of the
+dataset analysis (Supporting Information, Section~S3): 245 such checks agree
+with the exact values to the round-off of the method used, or, where voxels
+straddle a sharp shell boundary or a saddle falls between grid points, to a few
+$10^{-3}$ (Fig.~\ref{fig:validation}).
+
+\begin{table}[htbp]
+\centering
+\caption{Validation checks of the test suite and the accuracy required.}
+\label{tab:validation}
+\small
+\begin{tabular}{p{4.5cm}p{7.3cm}r}
+\toprule
+Check & Content & Tolerance \\
+\midrule
+Invariance harness (700 tests) & every descriptor under a $2\times2\times2$ supercell, a translation and a rotation & $10^{-6}$ rel. \\
+Derivatives & FFT exact for band-limited functions in a triclinic cell; FD convergence order; Hessian trace = Laplacian & $10^{-9}$--$10^{-10}$ \\
+Geometry & nearest-image distances against brute force, including an extreme shear & $10^{-12}$\,\AA \\
+Closed forms & radial moments of Slater densities; percolation of a simple cubic lattice at the midpoint density; uniform-gas limits of the energy densities and ELF & $10^{-2}$--$10^{-12}$ \\
+Exact identities & variance decomposition; site moments sum to the net moment; partitions of unity; charge conservation; Laplacian concentration $=\tfrac12$ & $10^{-10}$--$10^{-12}$ \\
+Deformation density & reference atoms equal to the crystal atoms give $\Delta\rho=0$; tabulated atoms hold ZVAL electrons & $2\times10^{-3}$ \\
+Input/output & CHGCAR layouts (1, 2, 4 blocks, VASP 4/5), volume scaling, cube and XSF round trips, unit conversion & exact \\
+Reference implementations & compositional descriptors against matminer; float32 mode against float64 & exact / reported \\
+Sentinels and schema & no bare NaN for degenerate inputs; fixed output schema in batch mode & -- \\
+Regressions & option-dependent caches, radius-scaled shells & -- \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth]{figures/fig_validation.pdf}
+\caption{Analytic checks of the descriptor families on model densities with
+known answers (anisotropic Gaussians, a breathing atom, bond-charge and
+magnetic-sublattice models, cubic and tetragonal lattices, a rock-salt charge
+transfer): (a) pydemi against the exact value, (b) median and maximum absolute
+error per descriptor. The largest errors, a few $10^{-3}$, occur where voxels
+straddle a sharp shell boundary or a saddle point falls between grid points.}
+\label{fig:validation}
+\end{figure}
 
 \section{Application to a 6,059-structure DFT dataset}
 \label{sec:application}
@@ -360,7 +487,7 @@ elemental solids, 3,195 intermetallics and 2,778 compounds with
 electronegative elements (354 borides and carbides, 80 hydrides, 653
 pnictides, 548 chalcogenides, 607 oxides and 536 halides). The 4,901 runs that
 include their OUTCAR share one protocol (Supporting Information,
-Table~S10): single-point PBE calculations with one PAW dataset per element, a
+Table~S11): single-point PBE calculations with one PAW dataset per element, a
 500\,eV plane-wave cutoff, collinear spin polarization, the tetrahedron
 method with Bl\"ochl corrections and an automatic $k$-mesh with a spacing of
 at most about 0.1\,\AA$^{-1}$; 4.5\% of them stopped at the maximum number of
@@ -381,12 +508,51 @@ cell and grid points, (d) wall time of the full featurization per structure
 \label{fig:dataset}
 \end{figure}
 
-% - Dataset: grid sizes and composition (Fig. dataset) discussed in text.
-% - Throughput (58 structures/min on 24 cores; 36.6 CPU-h, median 15 s per
-%   structure), zero failures, coverage of each domain, distributions of
-%   selected descriptors (robust set).
-% - TODO: property-prediction results (elastic moduli) if they are to be
-%   included.
+The cells contain 1--152 atoms (median 6) on grids of $1.8\times10^5$ to
+$1.7\times10^6$ points (5th--95th percentile; Fig.~\ref{fig:dataset}). pydemi
+computed all descriptors of the five domains for every structure without a
+single failure, in 105 minutes on 24 worker processes (58 structures per
+minute, 36.6 CPU hours in total). The median cost is 15\,s per structure and
+grows linearly with the number of grid points (log--log slope 1.04), so the
+cost is set by the grid rather than by the number of atoms.
+
+The descriptors separate the chemical classes in ways that composition alone
+does not (Fig.~\ref{fig:classes}). Outside the augmentation spheres, compounds
+with anions put almost all of their bonding charge accumulation in the bond
+shell (median share of the deformation charge 0.91--1.00), whereas elemental
+solids and intermetallics put about half of it in the interstitial region
+(Fig.~\ref{fig:classes}a). The interstitial density floor falls from 0.21--0.23
+of the mean density for elemental solids and intermetallics to 0.02 for
+halides, and follows the electronegativity difference (Spearman $-0.61$;
+Fig.~\ref{fig:classes}b). The fractional anisotropy of the gradient tensor is
+at the numerical floor for the non-magnetic cubic structures and exceeds $10^{-3}$ for most
+structures of lower symmetry, with layered and linear-unit structures at the
+top (Fig.~\ref{fig:classes}c). The percolation levels rank covalent
+frameworks (borides and carbides) highest and ionic halides lowest
+(Fig.~\ref{fig:classes}d). Across the 87 non-constant descriptors of the
+bonding, structural, magnetic and heterogeneity domains, the largest rank
+correlation of each with any of the 132 Magpie composition features has a
+median of 0.44, and only one descriptor, the mean interstitial density,
+exceeds 0.8 (Fig.~\ref{fig:classes}e): the density-derived descriptors carry
+information that compositional featurizations do not. Section~S3 of the
+Supporting Information analyses each family on the dataset in detail.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth]{figures/fig_classes.pdf}
+\caption{Descriptors across the chemical classes of the dataset: (a) bond-shell
+share of the deformation charge outside the augmentation spheres
+(\texttt{paw} extension), (b) interstitial density floor relative to the mean
+density, (c) fractional anisotropy of the gradient tensor, (d) percolation
+level along the first lattice vector (boxes: quartiles; whiskers: 1.5
+interquartile ranges). (e) For each non-constant descriptor of the four
+density-based domains, the largest absolute Spearman correlation with any of
+the 132 Magpie composition features over the 6,059 structures.}
+\label{fig:classes}
+\end{figure}
+
+% - TODO: property-prediction results, if they are to be included (targets to
+%   be decided with the dataset owner).
 
 \section{Machine-learning input path}
 \label{sec:ml}
