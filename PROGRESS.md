@@ -15,7 +15,7 @@ library see [README.md](README.md).
 | Governing specification | `prompt.md` (professor-verified), since 2026-09-24 |
 | Library | **rebuilt to prompt.md**: all 12 milestones of its §14 done; merged into `main` 2026-09-25; pushed to GitHub (45eba79, bd0438c) |
 | Descriptors | 220 by default (36 bonding, 21 structural, 8 magnetic, 23 heterogeneity, 132 compositional) + 12 in the off-by-default `paw` extension |
-| Tests | 876 pass; `mypy --strict` clean on io, core, fields, operators |
+| Tests | 894 pass; `mypy --strict` clean on io, core, fields, operators |
 | Dataset rerun | 6,059 structures, 0 errors, 105 min on 24 workers (`results/prompt_spec/`) |
 | Performance | 8.4 s for a 96^3, 16-atom cell on one core; ~10 us per voxel, linear |
 | Earlier (PDF-spec) version | tagged `pdf-spec-final`; code in `legacy/`, docs in `legacy/docs/` |
@@ -138,8 +138,11 @@ descriptor-level comparison is in `paper/analysis/out/ml_summary.txt`.
 ### 5.2 ML input path
 - [x] Evaluate the fine-tuned model on the 605 test structures; compare with
       the MP model as-is and the from-scratch model (2026-09-26).
-- [ ] CIF-only inference (grid from the structure, not an existing CHGCAR).
-- [ ] pydemi reader for predicted densities (charge renormalization, source tag).
+- [x] CIF-only inference (2026-09-26): `pydemi.vasp_grid_shape` (reproduces all 6,059 grids) and
+      `~/charge3net/charge3net/scripts/predict_from_cif.sh` (copy in `paper/analysis/ml_model/`);
+      8 test structures from CIF agree with the DFT-grid predictions (median descriptor difference 9e-6).
+- [x] pydemi reader for predicted densities: `read_predicted` / `write_predicted` (`.npz`), charge
+      renormalization, `density_origin` / `density_model` / `charge_scale` metadata; 18 tests.
 - [x] Descriptor-level DFT-vs-ML comparison on the test set
       (`paper/analysis/n_ml_descriptors.py`, `o_ml_analysis.py`; main-text
       Section 7, Fig. 8, SI S6; the docs reports' ML sections updated).

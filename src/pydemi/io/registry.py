@@ -5,7 +5,8 @@ Format sniffing and dispatch: :func:`read` turns any supported density file
 into :class:`~pydemi.io.base.VolumetricData`.
 
 Formats are recognized by file name first (CHGCAR, CHG, AECCAR0/2, ELFCAR,
-LOCPOT, ``*.cube`` / ``*.cub``, ``*.xsf``), then by content.
+LOCPOT, ``*.cube`` / ``*.cub``, ``*.xsf``, ``*.npz`` for ML predictions), then by
+content.
 """
 
 from __future__ import annotations
@@ -15,11 +16,12 @@ from typing import Any, Literal, Union
 
 from .base import VolumetricData
 from .cube import read_cube
+from .predicted import read_predicted
 from .vasp import read_vasp
 from .xsf import read_xsf
 
 PathLike = Union[str, Path]
-Format = Literal["chgcar", "aeccar", "elfcar", "locpot", "cube", "xsf"]
+Format = Literal["chgcar", "aeccar", "elfcar", "locpot", "cube", "xsf", "predicted"]
 
 _NAMES: dict[str, Format] = {"CHGCAR": "chgcar", "CHG": "chgcar", "AECCAR0": "aeccar",
                              "AECCAR1": "aeccar", "AECCAR2": "aeccar", "ELFCAR": "elfcar",
@@ -34,6 +36,8 @@ def sniff(path: PathLike) -> Format:
         return "cube"
     if suffix == ".xsf":
         return "xsf"
+    if suffix == ".npz":
+        return "predicted"
     stem = p.name.split(".")[0].split("_")[0].upper()
     if stem in _NAMES:
         return _NAMES[stem]
@@ -60,11 +64,16 @@ def read(path: PathLike, **kwargs: Any) -> VolumetricData:
 
     VASP files go through :func:`pydemi.io.vasp.read_vasp` (keyword arguments
     such as ``elf=``, ``locpot=``, ``aeccar0=``, ``aeccar2=`` are passed on);
-    cube and XSF files hold one density and are read with unit conversion.
+    cube and XSF files hold one density and are read with unit conversion;
+    ``.npz`` files of an ML model go through
+    :func:`pydemi.io.predicted.read_predicted` (``zval=``, ``paw_radii=``,
+    ``renormalize=``).
     """
     fmt = sniff(path)
     if fmt == "chgcar":
         return read_vasp(path, **kwargs)
+    if fmt == "predicted":
+        return read_predicted(path, **kwargs)
     if fmt in ("cube", "xsf"):
         reader = read_cube if fmt == "cube" else read_xsf
         structure, grid = reader(path, "density")

@@ -842,7 +842,7 @@ including the compositional Pauling baseline.}
 \section{Validation details}
 \label{sec:si-validation}
 
-The test suite (876 tests, \texttt{tests/}) is organized by subject; the
+The test suite (894 tests, \texttt{tests/}) is organized by subject; the
 number of tests per file is: invariance harness 700 (\texttt{test\_invariance}),
 input/output 48, partitions 18, derivatives 16, deformation density 16,
 tooling (batch, command line, convergence report, float32, matminer) 14,
@@ -962,6 +962,34 @@ descriptor error is lowest for oxides and chalcogenides (median 0.57\% and
 0.61\%) and highest for hydrides (1.6\%) and elemental solids (1.0\%).
 
 \input{si/ml_table}
+
+\subsection{The path from a structure alone}
+The grid of a prediction is chosen from the lattice alone
+(\texttt{pydemi.vasp\_grid\_shape}): VASP~5 sets the wavefunction grid along
+each lattice vector $\mathbf a_i$ to the smallest even size with prime factors
+2, 3, 5 and 7 that is at least $\mathrm{nint}(2w\,x_i)$, with
+$x_i=|\mathbf a_i|\sqrt{E_{\mathrm{cut}}/\mathrm{Ry}}/2\pi$ in atomic units and
+$w=2$ for \texttt{PREC = Accurate}, and doubles it for the density. With
+VASP's own constants and $E_{\mathrm{cut}}=500$\,eV this reproduces all three
+grid dimensions of every one of the 6,059 calculations; the simpler variants
+tried first (rounding $w\,x_i$ before doubling, or rounding up) match only
+60--74\% of them. The ChargE3Net side of the path
+(\texttt{paper/analysis/ml\_model/predict\_from\_cif.py}) builds the model
+input from a CIF file with this grid, runs the unchanged full-grid test
+pipeline of the ChargE3Net code, and writes one prediction file per
+structure, which \texttt{pydemi.read\_predicted} reads with the valence
+counts and PAW radii of the dataset. Table~\ref{tab:si-cif} compares the
+result for eight test structures with the predictions on the DFT grids of
+Section~S6.3. The CIF files rebuild the cell from its parameters, so the
+model sees a rotated Cartesian frame; its equivariance holds to float32
+precision, and the densities differ by at most $1.1\times10^{-4}$ of the
+density maximum. The descriptors that transfer differ by a median
+$9\times10^{-6}$; the largest 90th percentile, $8\times10^{-3}$ for
+Li$_2$AgAu, comes from its within-element variances, which are at the
+numerical noise level for a structure whose sites of each element are
+equivalent. The path adds nothing measurable to the error of the prediction.
+
+\input{si/cif_path_table}
 
 \bibliographystyle{unsrt}
 \bibliography{references}

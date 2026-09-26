@@ -1,0 +1,20 @@
+\begin{table}[htbp]
+\centering
+\caption{The path from a structure alone for eight test structures written out as CIF files: grid chosen by \texttt{vasp\_grid\_shape} (identical to the DFT grid in every case), charge rescaling factor, largest density difference from the fine-tuned model's prediction on the DFT grid (relative to the density maximum), median and 90th-percentile relative difference of the 68 descriptors with $\rho_s\geq0.95$ between the two paths, and their median relative error against DFT (\texttt{paper/analysis/p\_cif\_path.py}).}
+\label{tab:si-cif}
+\small
+\begin{tabular}{llrrrrr}
+\toprule
+Structure & Grid & Scale & $\max|\Delta\rho|$ & Median & p90 & Error vs DFT \\
+\midrule
+CaO (225) & 72$\times$72$\times$72 & 0.9987 & $1.9\times10^{-6}$ & $2.7\times10^{-6}$ & $3.3\times10^{-5}$ & 0.28\% \\
+CaTiF$_{6}$ (225) & 96$\times$96$\times$96 & 0.9980 & $3.1\times10^{-5}$ & $1.8\times10^{-5}$ & $9.6\times10^{-4}$ & 1.70\% \\
+HfBRh$_{3}$ (221) & 60$\times$60$\times$60 & 1.0041 & $1.1\times10^{-6}$ & $1.4\times10^{-6}$ & $1.3\times10^{-5}$ & 0.53\% \\
+Li$_{2}$AgAu (225) & 64$\times$64$\times$64 & 0.9971 & $4.9\times10^{-5}$ & $4.9\times10^{-6}$ & $8.4\times10^{-3}$ & 0.62\% \\
+LiBr (186) & 60$\times$60$\times$100 & 0.9946 & $1.1\times10^{-4}$ & $3.0\times10^{-5}$ & $8.4\times10^{-4}$ & 1.83\% \\
+RuS$_{2}$ (205) & 84$\times$84$\times$84 & 1.0021 & $1.1\times10^{-4}$ & $1.5\times10^{-5}$ & $2.2\times10^{-4}$ & 0.69\% \\
+Ta$_{3}$O$_{7}$F (65) & 96$\times$96$\times$56 & 0.9976 & $4.9\times10^{-5}$ & $1.3\times10^{-5}$ & $1.2\times10^{-4}$ & 1.12\% \\
+YbPrZn$_{2}$ (225) & 80$\times$80$\times$80 & 0.9998 & $1.2\times10^{-6}$ & $3.1\times10^{-6}$ & $7.9\times10^{-5}$ & 20.45\% \\
+\bottomrule
+\end{tabular}
+\end{table}

@@ -334,3 +334,12 @@ def zval_source(vd: VolumetricData) -> str:
 @metadata_hook
 def _zval_metadata(vd: VolumetricData) -> dict[str, Any]:
     return {"zval_source": zval_source(vd)}
+
+
+@metadata_hook
+def _origin_metadata(vd: VolumetricData) -> dict[str, Any]:
+    """Whether rho was computed (DFT) or predicted by a model, and the charge rescaling."""
+    return {"density_origin": vd.sources.get("origin", "dft"),
+            "density_model": vd.sources.get("rho", "")[len("predicted:"):]
+            if vd.sources.get("rho", "").startswith("predicted:") else "",
+            "charge_scale": float(vd.sources.get("charge_scale", 1.0))}

@@ -48,14 +48,12 @@ adopted from matminer, composition --- each registered with its formula,
 units, range and documented values for degenerate cases, and each tested for
 invariance under supercell expansion, translation and rotation. pydemi reads
 densities from VASP and, through cube and XSF files, from other plane-wave
-codes, and is designed with a second input path for charge densities
-predicted by ML directly from crystal structures. With ChargE3Net models
+codes; a second input path takes densities that an ML model predicts from the
+crystal structure alone, on the grid that VASP would use. With ChargE3Net models
 trained on the dataset, 68 of the 85 non-constant descriptors of the bonding,
 structural and heterogeneity domains computed from predicted densities keep a
 rank correlation of at least 0.95 with their DFT values; the critical-point
 census and descriptors built on higher derivatives do not transfer.
-% TODO: revise the two previous sentences once the grid can be chosen from the
-% structure alone (CIF -> descriptors without a DFT grid).
 On a 6,059-structure VASP dataset we quantify how numerical choices affect
 the descriptors. Projector-augmented-wave pseudo-densities require dedicated
 definitions: 61\% of the densities are negative somewhere, pseudized atoms can
@@ -67,7 +65,7 @@ bond ellipticity changes by 20--70\% between derivative schemes, and the
 critical-point census closes in only 9\% of the structures, the mismatch being
 exactly the number of stencil-dependent extrema. pydemi flags both and
 provides a converged, bounded ellipticity. The implementation is validated by
-876 automated tests against analytic densities, exact identities and
+894 automated tests against analytic densities, exact identities and
 reference data, and processes the full dataset without failure in 37 CPU
 hours.
 \end{abstract}
@@ -131,13 +129,14 @@ catalogue, the documentation and the tests are generated
 (Section~\ref{sec:families}). (iii) A quantitative account of how the grid,
 the derivative scheme, the partition and the PAW pseudization affect the
 descriptors, and the definitions that pydemi adopts as a result
-(Section~\ref{sec:numerics}). (iv) A validation suite of 876 tests, including
+(Section~\ref{sec:numerics}). (iv) A validation suite of 894 tests, including
 an invariance harness that covers every registered descriptor
 (Section~\ref{sec:validation}). (v) The featurization of the full dataset and
 the trends of the descriptors across chemical classes
-(Section~\ref{sec:application}). (vi) A descriptor-level comparison of DFT and
-ML-predicted densities on 605 test structures, which shows which descriptors
-can be obtained without DFT (Section~\ref{sec:ml}). The code, the tests and
+(Section~\ref{sec:application}). (vi) A path from a crystal structure alone to
+descriptors, through an ML-predicted density, and a descriptor-level
+comparison of DFT and predicted densities on 605 test structures, which shows
+which descriptors can be obtained without DFT (Section~\ref{sec:ml}). The code, the tests and
 the scripts that regenerate every number of this paper are released under the
 MIT licence.
 
@@ -155,10 +154,22 @@ takes the valence counts (ZVAL) and augmentation radii ($R_{\mathrm{PAW}}$)
 from the \texttt{POTCAR} or \texttt{OUTCAR} of the run or from a per-element
 table; Gaussian cube and XSF files cover other plane-wave codes. Each density
 carries its source (\texttt{pseudo} or \texttt{all\_electron}), which several
-definitions depend on (Section~\ref{sec:numerics:paw}). The second input path,
-for densities predicted by machine learning from the crystal structure alone,
-is described in Section~\ref{sec:ml}.
-% TODO: expand once the CIF -> density path is integrated.
+definitions depend on (Section~\ref{sec:numerics:paw}). The second input path
+takes densities predicted by a machine-learning model from the crystal
+structure alone. Its grid is the one VASP would use for the density:
+along each lattice vector $\mathbf a_i$ the wavefunction grid is the smallest
+even size with prime factors 2, 3, 5 and 7 that is at least
+$\mathrm{nint}(2w\,x_i)$, with $x_i=|\mathbf a_i|\sqrt{E_{\mathrm{cut}}/\mathrm{Ry}}/2\pi$ in
+atomic units and $w=2$ for accurate precision, and the density grid is twice
+that. For $E_{\mathrm{cut}}=500$\,eV this rule reproduces the CHGCAR grid of
+all 6,059 calculations of Section~\ref{sec:application}. The model, which
+lives outside pydemi, writes the density on this grid to a small file (lattice,
+species, positions, density and model metadata), and \texttt{read\_predicted}
+turns it into the same data model as a DFT density: a pseudo-density, by
+default rescaled to the valence electron count $N=\sum Z_{\mathrm{val}}$, with
+its origin, the model and the rescaling factor recorded in the metadata of
+every output row. pydemi therefore does not depend on any ML framework
+(Section~\ref{sec:ml}).
 
 \subsection{Data model and numerical core}
 
@@ -168,9 +179,8 @@ is described in Section~\ref{sec:ml}.
 \caption{Architecture of pydemi. Both input paths produce the same data model;
 derived fields and the geometry pass are computed once per structure and
 cached, and the operators reduce them to the registered descriptors. The
-machine-learning input path (dashed) is evaluated in Section~\ref{sec:ml} with
-densities predicted on the grid of the DFT calculation; choosing the grid from
-the structure alone is not yet part of pydemi.}
+machine-learning input path starts from the crystal structure alone
+(Section~\ref{sec:ml}).}
 \label{fig:architecture}
 \end{figure}
 
@@ -504,7 +514,7 @@ Ellipticity, saddle counts & tagged fragile; bounded ellipticity as a converged 
 \section{Validation}
 \label{sec:validation}
 
-pydemi is tested by 876 automated tests (Table~\ref{tab:validation}). Most of
+pydemi is tested by 894 automated tests (Table~\ref{tab:validation}). Most of
 them, 700, form an invariance harness that is parametrized over the registry:
 every descriptor, including the extensions, is computed for a low-symmetry,
 magnetic model crystal and for its $2\times2\times2$ supercell, a translation of
@@ -534,6 +544,7 @@ Closed forms & radial moments of Slater densities; percolation of a simple cubic
 Exact identities & variance decomposition; site moments sum to the net moment; partitions of unity; charge conservation; Laplacian concentration $=\tfrac12$ & $10^{-10}$--$10^{-12}$ \\
 Deformation density & reference atoms equal to the crystal atoms give $\Delta\rho=0$; tabulated atoms hold ZVAL electrons & $2\times10^{-3}$ \\
 Input/output & CHGCAR layouts (1, 2, 4 blocks, VASP 4/5), volume scaling, cube and XSF round trips, unit conversion & exact \\
+ML input path & VASP grid rule against dataset runs at rounding boundaries; prediction-file round trip; charge renormalization; a prediction equal to a DFT density gives identical descriptors & exact / $10^{-12}$ \\
 Reference implementations & compositional descriptors against matminer; float32 mode against float64 & exact / reported \\
 Sentinels and schema & no bare NaN for degenerate inputs; fixed output schema in batch mode & -- \\
 Regressions & option-dependent caches, radius-scaled shells & -- \\
@@ -699,24 +710,29 @@ descriptor error over the 68 transferable descriptors is 0.66\% and follows
 the density error (Spearman 0.59; Fig.~\ref{fig:ml}c); it exceeds 5\% only
 for YbPrZn$_2$, Yb$_2$MgIn and Ba$_3$N.
 
-Two limitations remain. The models predict the total density only, so the
-magnetic domain is not available from them. And in this evaluation the
-density was predicted on the grid of the DFT calculation; the prediction
-itself needs only the structure and a set of points, but choosing the grid
-from the structure alone, which completes the path from a crystal structure
-to descriptors, is not yet part of pydemi. The prediction took a median of
-37\,s per structure on one shared GPU and pydemi a further 5\,s on one core,
-against a median of 154\,s on 40 cores for the DFT single point that
-produced the reference density.
-% TODO: CIF-only inference (grid from the structure) and the reader for
-% predicted densities; update this paragraph when they are integrated.
+The evaluation above used the grids of the DFT calculations, which the grid
+rule of Section~\ref{sec:framework} reproduces for every structure. To test the
+path from a structure alone, eight test structures (cubic, hexagonal and
+base-centred orthorhombic cells, including YbPrZn$_2$) were written out as CIF
+files and passed through it: grid from the lattice, prediction with the
+fine-tuned model, \texttt{read\_predicted} with renormalization, and
+\texttt{featurize}. The grids were those of the DFT calculations in all eight
+cases, the densities agreed with the predictions on the DFT grids to
+$1.1\times10^{-4}$ of the density maximum (float32 inference in a rotated
+Cartesian frame), and the 68 transferable descriptors to a median relative
+difference of $9\times10^{-6}$, three orders of magnitude below their error
+against DFT. A prediction took 21--74\,s per structure on one GPU and pydemi a
+median of 5\,s on one core, against a median of 154\,s on 40 cores for the
+DFT single point that produced the reference density. One limitation remains: the models predict the total
+density only, so the magnetic domain is not available from them, and its
+descriptors return their documented non-magnetic values.
 
 \section{Software availability}
 pydemi is written in Python ($\geq$3.10). The numerical core requires only
 NumPy~\cite{harris2020}, SciPy~\cite{virtanen2020} and pandas;
 pymatgen~\cite{ong2013} and matminer~\cite{ward2018} are optional and are
 needed only for the compositional domain and for converting structures to and
-from pymatgen. The source code, the 876 tests, the
+from pymatgen. The source code, the 894 tests, the
 documentation generated from the registry, the per-family descriptor reports
 and the scripts that regenerate every number, table and figure of this paper
 from the dataset are available at
@@ -737,7 +753,7 @@ pydemi reduces a volumetric charge density to 220 intensive, individually
 interpretable descriptors through one data model, cached derived fields and a
 registry that records the formula, units, range, degenerate cases and
 stability of every descriptor. It featurized 6,059 VASP densities without a
-failure in 37 CPU hours, and its 876 tests, together with 245 analytic checks
+failure in 37 CPU hours, and its 894 tests, together with 245 analytic checks
 of the descriptor families, verify it against closed forms, exact identities
 and invariance under supercell expansion, translation and rotation.
 
@@ -769,12 +785,15 @@ without the fragile descriptors, and, for predicted densities, the
 descriptors with $\rho_s\geq0.95$ in Tables~S12 and S13 of the Supporting
 Information.
 
-Three extensions follow directly. Choosing the prediction grid from the
-structure alone will complete the path from a crystal structure to
-descriptors; models that predict the magnetization will make the magnetic
-domain available to it; and the descriptors, which are fixed-length and
-interpretable, can now be tested as inputs of property models alongside
-compositional and structural features.
+The path from a crystal structure to these descriptors needs no DFT
+calculation: pydemi chooses the grid that VASP would use, which reproduces
+every grid of the dataset, and reads the prediction through the same data
+model, giving descriptors that differ from those on the DFT grid by a median
+of $10^{-5}$.
+Two extensions follow directly: models that predict the magnetization will
+make the magnetic domain available to this path, and the descriptors, which
+are fixed-length and interpretable, can now be tested as inputs of property
+models alongside compositional and structural features.
 
 \section*{Data availability}
 The DFT dataset of 6,059 charge densities was generated by members of the CMS

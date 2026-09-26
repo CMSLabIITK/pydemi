@@ -108,7 +108,7 @@ electrostatic potential (read or FFT-solved).
 
 ```
 src/pydemi/
-  io/          base.py (Lattice, Grid, Structure, VolumetricData), vasp.py, cube.py, xsf.py, registry.py
+  io/          base.py (Lattice, Grid, Structure, VolumetricData), vasp.py, cube.py, xsf.py, predicted.py, registry.py
   core/        grid.py, derivatives.py, geometry.py, partition.py
   fields/      density.py, deformation.py, elf.py, potential.py
   operators/   moments.py, fractions.py, anisotropy.py, laplacian.py, topology.py, sitestats.py
@@ -136,6 +136,7 @@ band-limited data) and `"fd"` (central differences, order 2/4/6/8, default 4).
 | POTCAR / OUTCAR | ZVAL, RCORE | found next to the CHGCAR by `read_vasp` (`potcar="auto"`); without either, per-element tables `read_vasp(zval=, paw_radii=)` / `--paw-table`, then the fallback below |
 | `*.cube` | rho | bohr and e/bohr^3 converted to Angstrom and e/Angstrom^3 on read |
 | `*.xsf` | rho | Angstrom; periodic duplicate plane dropped |
+| `*.npz` (ML prediction) | `read_predicted` | written by `write_predicted`; e/Angstrom^3; rescaled to N = sum ZVAL by default |
 
 `pydemi.read(path)` sniffs the format; `read_vasp(chgcar, elf=, locpot=,
 aeccar0=, aeccar2=)` assembles one VASP run. A pymatgen `Structure` is
@@ -151,6 +152,33 @@ cannot know the semicore choices (K_pv vs K_sv, Ca_pv, Sr_sv, Y_sv, Zr_sv,
 Nb_pv, ...). A run without POTCAR or OUTCAR should get a table from the
 other runs of the same POTCAR set; a wrong count shows as a large
 `def_charge_mismatch` (integer multiples of the missing electrons).
+
+### Densities predicted by a machine-learning model
+
+A model that predicts the valence density from the crystal structure (for
+example ChargE3Net trained on VASP CHGCARs) hands its result to pydemi as a
+`.npz` file: lattice, species, fractional coordinates and rho in
+e/Angstrom^3, written with `pydemi.write_predicted`. pydemi itself does not
+depend on any ML framework.
+
+```python
+import pydemi
+shape = pydemi.vasp_grid_shape(lattice, encut=500)   # the grid VASP would use (PREC = Accurate)
+# ... the model predicts rho at the points of that grid ...
+pydemi.write_predicted("x.npz", structure, rho, model="ChargE3Net")
+vd = pydemi.read_predicted("x.npz", zval=zval_table, paw_radii=radius_table)
+features, meta = pydemi.featurize(vd, return_metadata=True)
+```
+
+`vasp_grid_shape` reproduces the CHGCAR grid of every run of the
+6,059-structure dataset from the lattice and ENCUT alone, so no DFT
+calculation is needed. `read_predicted` treats the prediction as a PAW
+pseudo-density (`density_source="pseudo"`) and by default rescales it to
+N = sum ZVAL. The metadata record `density_origin="predicted"`, the model and
+`charge_scale`. A model of the total density gives no magnetization, so the
+magnetic descriptors return their documented non-magnetic sentinels, flagged. Which descriptors
+survive the prediction error is measured in `paper/` (Section 7): the
+critical-point census and the higher-derivative descriptors do not.
 
 Internal units: Angstrom, electrons / Angstrom^3, eV. ELF_D, g, v, H, the NCI
 thresholds and the information measures are evaluated in atomic units, with
@@ -378,7 +406,8 @@ data gives NaN there, flagged `missing_element_data`.
 | rho -> 0 voxels | ELF_D, g, H, s, Fisher information | excluded below RHO_FLOOR_AU = 1e-8 e/bohr^3 |
 
 Metadata of every structure (and every `featurize_batch` row): `n_atoms`,
-`volume`, `grid_shape`, `density_source`, `spin_mode`, `magnetic`, `M_abs`,
+`volume`, `grid_shape`, `density_source`, `density_origin` (`dft` or
+`predicted`), `density_model`, `charge_scale`, `zval_source`, `spin_mode`, `magnetic`, `M_abs`,
 `M_net` (extensive, so metadata only), `euler_consistency` (below), `site_counts`,
 `partition`, `shells`, `derivative_backend`, `laplacian_method`,
 `elf_source`, `potential_source`, `deformation_reference`,
@@ -521,6 +550,7 @@ ellipticity spread (2%), whose lambda1/lambda2 - 1 diverges as lambda2 -> 0
 | Function | Purpose |
 |---|---|
 | `read`, `read_vasp`, `read_all_electron` | VolumetricData from files |
+| `read_predicted`, `write_predicted`, `vasp_grid_shape` | densities predicted by an ML model; the grid VASP would use |
 | `featurize(vd, ...)` | descriptors (and metadata) of one structure |
 | `featurize_batch(paths, ...)` | tidy DataFrame of many structures |
 | `catalogue()` | descriptor metadata DataFrame |

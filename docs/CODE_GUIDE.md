@@ -97,7 +97,7 @@ pydemi/
 │   ├── constants.py                every unit factor, cutoff and threshold
 │   ├── batch.py                    featurize_batch: one process per structure, errors recorded
 │   ├── cli.py                      the `pydemi` command line
-│   ├── io/                         base.py (data model), vasp.py, cube.py, xsf.py, registry.py
+│   ├── io/                         base.py (data model), vasp.py, cube.py, xsf.py, predicted.py, registry.py
 │   ├── core/                       grid.py, derivatives.py, geometry.py, partition.py
 │   ├── fields/                     density.py, elf.py, potential.py, deformation.py
 │   ├── operators/                  moments.py, fractions.py, anisotropy.py, laplacian.py,
@@ -573,7 +573,7 @@ the periodic duplicate, and writes Fortran order.
 ### `sniff(path)`
 
 Returns one of `"chgcar"`, `"aeccar"`, `"elfcar"`, `"locpot"`, `"cube"`,
-`"xsf"`. In order: the suffix (`.cube` / `.cub`, `.xsf`); the file name
+`"xsf"`, `"predicted"`. In order: the suffix (`.cube` / `.cub`, `.xsf`, `.npz`); the file name
 stem before the first `.` and `_`, upper-cased, looked up in `_NAMES`
 (CHGCAR, CHG, AECCAR0/1/2, ELFCAR, LOCPOT); a name prefix; then the content
 of the first 8 lines (`PRIMVEC`, or `CRYSTAL` on the first line -> XSF; an
@@ -585,7 +585,8 @@ integer on line 3 and a 4-token numeric line 4 -> cube); otherwise
 VASP densities go through `read_vasp(path, **kwargs)` (so `elf=`,
 `locpot=`, `aeccar0=`, `aeccar2=`, `zval=`, ... pass through). Cube and XSF
 files hold one density and become a `VolumetricData` with `sources={"rho":
-path}`. An AECCAR, ELFCAR or LOCPOT raises `ValueError(... "is not a charge
+path}`. A `.npz` goes through `io/predicted.read_predicted` (`zval=`,
+`paw_radii=`, `renormalize=`). An AECCAR, ELFCAR or LOCPOT raises `ValueError(... "is not a charge
 density" ...)` with a pointer to the `read_vasp` keywords: an ELFCAR read as
 a density would give plausible-looking nonsense.
 
@@ -593,7 +594,31 @@ Test: `test_io.py::test_sniff_and_read`.
 
 `io/__init__.py` re-exports the data model, `read`, `sniff`, every VASP
 reader and writer except `read_potcar_elements`, and the cube / XSF readers
-and writers.
+and writers, and the ML-prediction functions of `io/predicted.py`.
+
+### `io/predicted.py`
+
+The ML input path. `vasp_grid_shape(lattice, encut, prec)` is VASP 5's grid
+rule: along each lattice vector, x = |a_i| sqrt(ENCUT/Ry)/(2 pi) in atomic
+units (VASP's own RYTOEV and AUTOA, so boundary cases round as in VASP); the
+wavefunction grid is the smallest even size with prime factors 2, 3, 5, 7
+that is at least nint(2 WFACT x), WFACT = 2 for Accurate, 1.5 for Normal;
+the density grid is twice that. For Accurate it reproduces all 6,059 grids
+of the paper's dataset. `predicted_grid` adds the Cartesian positions of the
+grid points. `write_predicted` stores lattice, species, fractional
+coordinates, rho and JSON metadata (model, checkpoint, grid rule) in an
+`.npz`; `read_predicted` loads it (or takes arrays), rejects NaN, keeps
+`density_source="pseudo"`, sets `sources["origin"]="predicted"`, and with
+`renormalize=True` rescales rho to N = sum ZVAL (default_zval with a warning
+for elements the table does not cover), recording `charge_scale` and
+`n_electrons_raw`. The metadata hook `_origin_metadata` in
+`descriptors/registry.py` turns these into the `density_origin`,
+`density_model` and `charge_scale` columns (`dft`, "", 1.0 for every other
+reader).
+
+Test: `test_predicted.py` (grid rule against ten dataset runs chosen at
+rounding boundaries; round trip; renormalization; errors; metadata; a
+prediction equal to a DFT density gives identical descriptors).
 
 ---
 

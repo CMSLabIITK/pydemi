@@ -52,8 +52,8 @@ def fig_architecture():
     ax.axis("off")
     box(ax, 0.00, 0.63, 0.23, 0.33, "Input 1: DFT", ["VASP CHGCAR (1/2/4 blocks)", "AECCAR0 + AECCAR2", "ELFCAR, LOCPOT",
         "cube, XSF", "ZVAL, R_PAW from POTCAR/", "OUTCAR or a PAW table"], "#dbe9f6")
-    box(ax, 0.00, 0.20, 0.23, 0.33, "Input 2: ML", ["crystal structure (CIF)", "density-prediction model", "(ChargE3Net, trained on", "the 6,059 densities)",
-        "predicted rho on a grid"], "#f6e8db", dashed=True)
+    box(ax, 0.00, 0.20, 0.23, 0.33, "Input 2: ML", ["crystal structure (CIF)", "grid: vasp_grid_shape", "ChargE3Net, trained on",
+        "the 6,059 densities", "prediction file (.npz)", "read_predicted: rescale to N"], "#f6e8db")
     box(ax, 0.30, 0.40, 0.19, 0.40, "VolumetricData", ["Structure, Lattice", "(B = A^-T, G = B B^T)", "Grid: rho, m, ELF, V",
         "density_source,", "zval, paw_radii", "per-object cache", "shared by option views"], "#e8f3e0")
     box(ax, 0.56, 0.62, 0.20, 0.34, "Derived fields", ["derivatives: FFT or FD 2-8", "(exact metric)", "ELF_D, energy densities",
@@ -66,13 +66,12 @@ def fig_architecture():
         "extension, stability", "featurize / featurize_batch / CLI  ->  descriptor table with __flag and metadata columns"],
         "#eeeeee")
     arrow(ax, (0.23, 0.79), (0.30, 0.66))
-    arrow(ax, (0.23, 0.37), (0.30, 0.54), dashed=True)
+    arrow(ax, (0.23, 0.37), (0.30, 0.54))
     arrow(ax, (0.49, 0.66), (0.56, 0.78))
     arrow(ax, (0.49, 0.54), (0.56, 0.38))
     arrow(ax, (0.76, 0.78), (0.81, 0.66))
     arrow(ax, (0.76, 0.38), (0.81, 0.54))
     arrow(ax, (0.905, 0.40), (0.905, 0.13))
-    ax.text(0.115, 0.165, "in progress", ha="center", fontsize=6.5, style="italic")
     save(fig, "fig_architecture")
 
 
