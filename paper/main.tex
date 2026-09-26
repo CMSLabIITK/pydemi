@@ -54,7 +54,8 @@ trained on the dataset, 68 of the 85 non-constant descriptors of the bonding,
 structural and heterogeneity domains computed from predicted densities keep a
 rank correlation of at least 0.95 with their DFT values; the critical-point
 census and descriptors built on higher derivatives do not transfer.
-% TODO: revise the previous sentence once the CIF -> CHGCAR model is integrated.
+% TODO: revise the two previous sentences once the grid can be chosen from the
+% structure alone (CIF -> descriptors without a DFT grid).
 On a 6,059-structure VASP dataset we quantify how numerical choices affect
 the descriptors. Projector-augmented-wave pseudo-densities require dedicated
 definitions: 61\% of the densities are negative somewhere, pseudized atoms can
@@ -71,25 +72,74 @@ reference data, and processes the full dataset without failure in 37 CPU
 hours.
 \end{abstract}
 
-% ==========================================================================
-% OUTLINE -- each section lists what it will contain; replace the notes with
-% text as the sections are written.
-% ==========================================================================
-
 \section{Introduction}
-% - Charge density as the fundamental DFT output (Hohenberg-Kohn); why it is
-%   an attractive, physically grounded source of ML features.
-% - Current practice: composition/structure featurizers (Magpie/matminer),
-%   graph networks; density analyses (QTAIM, Bader, critic2) run per
-%   structure, not as batch featurizers.
-% - Gap: no batch, grid-based, interpretable, numerically controlled
-%   density featurizer; ML-predicted densities make such descriptors
-%   available without DFT (the dual-input motivation).
-% - Contributions: (i) one data model and cached derived fields; (ii) 220
-%   descriptors in five domains with a machine-readable registry (formula,
-%   units, range, sentinels, stability); (iii) measured numerical and PAW
-%   pitfalls and the definitions that avoid them; (iv) validation suite with
-%   an invariance harness; (v) dataset application; (vi) open-source release.
+\label{sec:intro}
+The electronic charge density $\rho(\mathbf{r})$ is the central quantity of
+density-functional theory: it determines the ground state and all of its
+properties~\cite{hohenberg1964}, and it shows directly where electrons
+accumulate between atoms, how much charge they transfer and how localized
+they are. Every plane-wave DFT calculation produces it on a real-space grid,
+and the Materials Project now distributes them for a large and continuously
+updated collection of materials~\cite{shen2022}. Yet most machine-learning (ML) models of materials
+properties do not use them. Compositional featurizers compute statistics of
+elemental properties~\cite{ward2016,ward2018}, and graph neural networks learn
+from the atomic structure~\cite{xie2018,chen2019,choudhary2021}; the bonding
+that the density records is learned only implicitly, from the positions and
+species of the atoms.
+
+Where the density has been used as a model input, it has mostly been as a
+learned representation. Three-dimensional convolutional networks read the
+density on a voxel grid~\cite{kajita2017,zhao2020} or its compressed latent
+representation~\cite{kumar2026}, and persistent homology reduces it to Betti
+curves over density thresholds~\cite{szymanski2025}. These representations
+predict properties well, but their features have no individual physical
+meaning, and they depend on how the grid was resampled or thresholded. The
+interpretable quantities of density analysis, on the other hand --- atoms and
+bond critical points of the quantum theory of atoms in
+molecules~\cite{bader1990}, Bader charges~\cite{henkelman2006}, the electron
+localization function (ELF)~\cite{becke1990}, non-covalent interaction
+regions~\cite{johnson2010} --- are computed by programs such as
+critic2~\cite{oterodelaroza2014} and the Bader code~\cite{henkelman2006} that
+are built to analyse one structure in depth. Their output is a list of atoms
+or critical points whose length varies from structure to structure, not a
+fixed-length vector, and the numerical choices behind it (grid, derivative
+scheme, partition, and the pseudized density that a PAW code writes) are left
+to the user. For a dataset of thousands of structures these choices are not
+cosmetic: as we show below, several standard density quantities are
+ill-defined or not converged on the pseudo-densities that plane-wave codes
+provide.
+
+A second obstacle is cost: a descriptor that needs a DFT density needs a DFT
+calculation. Models that predict the density from the atomic structure
+alone~\cite{chandrasekaran2019,jorgensen2022,koker2024} remove this
+obstacle in principle, and would make density-derived descriptors far
+cheaper to obtain than a DFT calculation. Whether the descriptors survive the
+error of a predicted density, however, has to our knowledge not been measured
+systematically: a density that is
+accurate to 1\% on average can still have spurious extrema, or errors in its
+derivatives, that particular descriptors amplify.
+
+Here we present pydemi, an open-source Python framework that turns volumetric
+charge densities, from DFT or from ML models, into fixed-length vectors of
+physically interpretable descriptors, and we characterize these descriptors
+on a dataset of 6,059 VASP densities. Its contributions are the following.
+(i) A single data model with cached derived fields and one periodic geometry
+pass, shared by every descriptor (Section~\ref{sec:framework}). (ii) 220
+intensive descriptors in five domains, registered with formula, units, range,
+documented values for degenerate cases and a stability tag, from which the
+catalogue, the documentation and the tests are generated
+(Section~\ref{sec:families}). (iii) A quantitative account of how the grid,
+the derivative scheme, the partition and the PAW pseudization affect the
+descriptors, and the definitions that pydemi adopts as a result
+(Section~\ref{sec:numerics}). (iv) A validation suite of 876 tests, including
+an invariance harness that covers every registered descriptor
+(Section~\ref{sec:validation}). (v) The featurization of the full dataset and
+the trends of the descriptors across chemical classes
+(Section~\ref{sec:application}). (vi) A descriptor-level comparison of DFT and
+ML-predicted densities on 605 test structures, which shows which descriptors
+can be obtained without DFT (Section~\ref{sec:ml}). The code, the tests and
+the scripts that regenerate every number of this paper are released under the
+MIT licence.
 
 \section{Framework design}
 \label{sec:framework}
@@ -118,8 +168,9 @@ is described in Section~\ref{sec:ml}.
 \caption{Architecture of pydemi. Both input paths produce the same data model;
 derived fields and the geometry pass are computed once per structure and
 cached, and the operators reduce them to the registered descriptors. The
-machine-learning input path (dashed) is being integrated
-(Section~\ref{sec:ml}).}
+machine-learning input path (dashed) is evaluated in Section~\ref{sec:ml} with
+densities predicted on the grid of the DFT calculation; choosing the grid from
+the structure alone is not yet part of pydemi.}
 \label{fig:architecture}
 \end{figure}
 
@@ -131,8 +182,8 @@ object, keyed by the options it depends on, so that a descriptor set costs one
 evaluation of each field however many descriptors use it, and views of the
 same object with other options reuse whatever does not depend on them. The
 derived fields are the derivatives of $\rho$ (Section~\ref{sec:numerics:derivatives}),
-the electron localization function reconstructed from the density
-(ELF$_D$)~\cite{tsirelson2002} unless an \texttt{ELFCAR} is given, the kinetic,
+the electron localization function~\cite{becke1990} reconstructed from the
+density (ELF$_D$)~\cite{tsirelson2002} unless an \texttt{ELFCAR} is given, the kinetic,
 potential and total energy densities from the gradient
 expansion~\cite{abramov1997}, the electronic Hartree or full electrostatic
 potential by one Fourier transform, the promolecule and the deformation
@@ -159,7 +210,11 @@ of a bare NaN. The same registry generates the descriptor catalogue
 lists of the invariance tests, so that the three cannot drift apart. Adopted
 descriptors, the compositional Magpie set computed by
 matminer~\cite{ward2016,ward2018}, are tagged as such and can be filtered out
-of novelty claims. The Python interface (\texttt{featurize},
+of novelty claims. The descriptor set follows a written specification drawn up before the
+implementation, which fixes the formula, the degenerate cases and the defaults
+of every descriptor; where the analysis of Section~\ref{sec:numerics} showed a
+definition to be ill-posed, pydemi documents its correction
+(Table~\ref{tab:corrections}). The Python interface (\texttt{featurize},
 \texttt{featurize\_batch}, \texttt{catalogue}, \texttt{descriptor\_names}) and a
 command line (\texttt{featurize}, \texttt{batch}, \texttt{catalogue},
 \texttt{sweep}) return a table whose metadata columns record the options, the
@@ -506,7 +561,8 @@ elemental solids, 3,195 intermetallics and 2,778 compounds with
 electronegative elements (354 borides and carbides, 80 hydrides, 653
 pnictides, 548 chalcogenides, 607 oxides and 536 halides). The 4,901 runs that
 include their OUTCAR share one protocol (Supporting Information,
-Table~S11): single-point PBE calculations with one PAW dataset per element, a
+Table~S11): single-point VASP~\cite{kresse1996} calculations with the PBE
+functional~\cite{perdew1996} and one PAW dataset~\cite{kresse1999} per element, a
 500\,eV plane-wave cutoff, collinear spin polarization, the tetrahedron
 method with Bl\"ochl corrections and an automatic $k$-mesh with a spacing of
 at most about 0.1\,\AA$^{-1}$; 4.5\% of them stopped at the maximum number of
@@ -657,8 +713,10 @@ produced the reference density.
 
 \section{Software availability}
 pydemi is written in Python ($\geq$3.10). The numerical core requires only
-NumPy, SciPy and pandas; pymatgen, spglib and matminer are optional and are
-needed only for the compositional domain. The source code, the 876 tests, the
+NumPy~\cite{harris2020}, SciPy~\cite{virtanen2020} and pandas;
+pymatgen~\cite{ong2013} and matminer~\cite{ward2018} are optional and are
+needed only for the compositional domain and for converting structures to and
+from pymatgen. The source code, the 876 tests, the
 documentation generated from the registry, the per-family descriptor reports
 and the scripts that regenerate every number, table and figure of this paper
 from the dataset are available at
@@ -675,6 +733,49 @@ structures that fail, recording the error.
 % ML predictions (to be decided with the dataset owner).
 
 \section{Conclusions}
+\label{sec:conclusions}
+pydemi reduces a volumetric charge density to 220 intensive, individually
+interpretable descriptors through one data model, cached derived fields and a
+registry that records the formula, units, range, degenerate cases and
+stability of every descriptor. It featurized 6,059 VASP densities without a
+failure in 37 CPU hours, and its 876 tests, together with 245 analytic checks
+of the descriptor families, verify it against closed forms, exact identities
+and invariance under supercell expansion, translation and rotation.
+
+The dataset analysis shows that density descriptors computed in bulk need
+definitions that account for how the density was obtained. PAW
+pseudo-densities are negative somewhere in 61\% of the structures and put 87\%
+of the deformation density inside the augmentation spheres, so the density
+floor, the non-nuclear maxima and the deformation descriptors are defined, in
+an extension, outside the spheres; valence counts must be read from the
+calculation, since a rule based on the electron configuration is wrong for 43
+of 87 elements. Most descriptors are converged on typical grids, but the
+voxel-averaged bond ellipticity and the saddle counts are not, and the
+critical-point census closes for only 9\% of the structures; pydemi tags these
+as fragile, provides a bounded ellipticity, and reports the exact size of the
+census mismatch. Across the dataset, the descriptors separate chemical classes
+and are largely independent of composition: the median largest rank
+correlation of a descriptor with any of 132 Magpie features is 0.44.
+
+Descriptors can also be obtained without a DFT calculation. For densities
+predicted by a ChargE3Net model fine-tuned on the dataset (mean NMAPE
+0.72\%), 68 of 85 descriptors keep a rank correlation of at least 0.95 with
+their DFT values, including the region shares and moments, the deformation
+and heterogeneity families and the percolation levels; the critical-point
+census and quantities built on higher derivatives do not survive the
+prediction error, and robustness to the numerical choices is necessary but
+not sufficient for transfer. For users we therefore recommend the
+\texttt{paw} extension for plane-wave pseudo-densities, the model-ready set
+without the fragile descriptors, and, for predicted densities, the
+descriptors with $\rho_s\geq0.95$ in Tables~S12 and S13 of the Supporting
+Information.
+
+Three extensions follow directly. Choosing the prediction grid from the
+structure alone will complete the path from a crystal structure to
+descriptors; models that predict the magnetization will make the magnetic
+domain available to it; and the descriptors, which are fixed-length and
+interpretable, can now be tested as inputs of property models alongside
+compositional and structural features.
 
 \section*{Acknowledgements}
 % TODO

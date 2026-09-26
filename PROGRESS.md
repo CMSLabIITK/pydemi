@@ -20,7 +20,7 @@ library see [README.md](README.md).
 | Performance | 8.4 s for a 96^3, 16-atom cell on one core; ~10 us per voxel, linear |
 | Earlier (PDF-spec) version | tagged `pdf-spec-final`; code in `legacy/`, docs in `legacy/docs/` |
 | ML input path | ChargE3Net from scratch and fine-tuned from the MP checkpoint, both evaluated on the 605 test structures (2026-09-26): fine-tuned NMAPE 0.72% (scratch 0.96%); 68 of 85 descriptors keep Spearman >= 0.95 (`paper/analysis/o_ml_analysis.py`) |
-| Paper (`paper/main.tex`) | all sections written except Introduction and Conclusions (2026-09-26); SI S1-S6 written |
+| Paper (`paper/main.tex`) | all sections written (2026-09-26); open: acknowledgements, data availability, compilation check; SI S1-S6 written |
 
 ---
 
@@ -153,7 +153,8 @@ descriptor-level comparison is in `paper/analysis/out/ml_summary.txt`.
       of the other sections updated. Template untouched.
 - [x] Framework design, descriptor families, validation, application,
       ML input path (Section 7, Fig. 8), software availability (2026-09-26).
-- [ ] Introduction and Conclusions.
+- [x] Introduction and Conclusions (2026-09-26); consistency pass (specification defined,
+      architecture caption, uncited VASP/PBE/ELF/software references added).
 - [ ] Data availability (dataset, predictions) and an archived release (DOI):
       to be decided with the dataset owner and the PI.
 - [x] SI skeleton `paper/SI.tex` (same preamble as main.tex): S1 catalogue
@@ -168,7 +169,10 @@ descriptor-level comparison is in `paper/analysis/out/ml_summary.txt`.
 - Target journal: most likely Computational Materials Science (else CPC).
 
 ### 5.4 Decisions for the user / PI
-- [ ] Verify the DOIs in `paper/references.bib`.
+- [x] Verify the DOIs in `paper/references.bib` (all 34 entries checked against Crossref, 2026-09-26).
+- [ ] Acknowledgements (funding, computing facility, dataset owner).
+- [ ] Compile main.tex and SI.tex (no LaTeX here) and fix what the log reports.
+- [ ] `spglib` is listed in `pyproject.toml [full]` but not used by the code: drop it or use it.
 - [x] MIT licence: `LICENSE` added (2026-09-25).
 - [ ] Journal choice (Computer Physics Communications or Computational
       Materials Science recommended for the current scope).
