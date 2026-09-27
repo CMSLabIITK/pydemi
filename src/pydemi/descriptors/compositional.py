@@ -50,8 +50,8 @@ def magpie_features(vd: VolumetricData) -> dict[str, float]:
             import warnings
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")
-                from matminer.featurizers.composition import ElementProperty
-                from pymatgen.core import Composition
+                from matminer.featurizers.composition import ElementProperty  # type: ignore[import-untyped]
+                from pymatgen.core.composition import Composition
         except ImportError as exc:
             raise ImportError("the compositional domain needs matminer and pymatgen: "
                               "pip install 'pydemi[full]'") from exc

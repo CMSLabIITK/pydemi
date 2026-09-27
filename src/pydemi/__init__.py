@@ -12,7 +12,7 @@ Interpretable, named, fixed-length descriptors from DFT charge-density grids.
 Author: Shubham Maurya, CMS Lab, IIT Kanpur.
 """
 
-__version__ = "0.1.0.dev0"
+__version__ = "0.1.0"
 __author__ = "Shubham Maurya, CMS Lab, IIT Kanpur"
 
 from .batch import featurize_batch  # noqa: E402

@@ -45,8 +45,9 @@ the raw values appear only as metadata.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import Any, Callable, Iterable, Mapping, Optional, Sequence, Union
+from dataclasses import dataclass
+from dataclasses import field as dataclass_field
+from typing import Any, Callable, Iterable, Literal, Mapping, Optional, Sequence, Union
 
 import numpy as np
 
@@ -158,7 +159,7 @@ class DescriptorSpec:
     references: tuple[str, ...]
     adopted: bool
     extension: Optional[str]
-    func: DescriptorFn = field(compare=False)
+    func: DescriptorFn = dataclass_field(compare=False)
     doc: str = ""
     stability: str = "robust"
 
@@ -251,7 +252,7 @@ def field_derivatives(vd: VolumetricData, name: str) -> Derivatives:
     stale derivatives.
     """
     o = options(vd)
-    backend = "fft" if o.derivative_backend == "fft" else "fd"
+    backend: Literal["fft", "fd"] = "fft" if o.derivative_backend == "fft" else "fd"
     key = name if name in _OPTION_FREE_FIELDS else (
         f"{name}|{o.derivative_backend}{o.fd_order}|{o.laplacian_method}|{o.deformation_reference}"
         f"|{o.custom_reference}|{o.elf_source}|{o.potential_source}")
@@ -259,7 +260,7 @@ def field_derivatives(vd: VolumetricData, name: str) -> Derivatives:
 
 
 def laplacian(vd: VolumetricData, name: str = "rho") -> FloatArray:
-    method = "metric" if options(vd).laplacian_method == "metric" else "diagonal"
+    method: Literal["metric", "diagonal"] = "metric" if options(vd).laplacian_method == "metric" else "diagonal"
     return field_derivatives(vd, name).laplacian(method)
 
 
@@ -292,7 +293,7 @@ def _source_label(vd: VolumetricData, key: str, file_label: str) -> str:
     return "table" if src == "table" else file_label if src else "given"
 
 
-def augmentation_radii(vd: VolumetricData) -> tuple["np.ndarray", str]:
+def augmentation_radii(vd: VolumetricData) -> tuple[FloatArray, str]:
     """(per-atom PAW augmentation radius R_PAW in Angstrom, source).
 
     RCORE from the POTCAR / OUTCAR (``source="potcar"``), a per-element

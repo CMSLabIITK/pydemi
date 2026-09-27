@@ -17,6 +17,7 @@ from __future__ import annotations
 from typing import Any
 
 import numpy as np
+from numpy.typing import NDArray
 
 from ..constants import ANGSTROM_BOHR, DENSITY_TO_AU, GEOMETRY_EPS, GRADIENT_TO_AU, RHO_FLOOR_AU
 from ..io.base import FloatArray, VolumetricData
@@ -112,7 +113,7 @@ def _census_metadata(vd: VolumetricData) -> dict[str, Any]:
     return {"euler_consistency": int(census(vd)["euler_consistency"])}
 
 
-def _nnm(vd: VolumetricData, r_cut: FloatArray) -> tuple[np.ndarray, np.ndarray]:
+def _nnm(vd: VolumetricData, r_cut: FloatArray) -> tuple[NDArray[np.intp], FloatArray]:
     """(flat indices of the non-nuclear maxima, their basins' charge / Q_tot)."""
     c = census(vd)
     maxima = np.flatnonzero(c["maxima"])
@@ -194,7 +195,7 @@ def _tensor(vd: VolumetricData) -> "tuple[FloatArray, float] | Sentinel":
     return np.linalg.eigvalsh(T), fractional_anisotropy(T)
 
 
-def _t(k: int) -> None:
+def _register_t_eigenvalue(k: int) -> None:
     def fn(vd: VolumetricData) -> Result:
         r = _tensor(vd)
         if isinstance(r, Sentinel):
@@ -210,7 +211,7 @@ def _t(k: int) -> None:
 
 
 for _k in range(3):
-    _t(_k)
+    _register_t_eigenvalue(_k)
 
 
 @register(name="charge_FA", domain="structural", field="rho", requires=["gradient"],
@@ -303,7 +304,7 @@ def LMC_complexity(vd: VolumetricData) -> Result:
 from .registry import augmentation_radii  # noqa: E402
 
 
-def _outside_spheres(vd: VolumetricData, inner: "np.ndarray") -> "np.ndarray":
+def _outside_spheres(vd: VolumetricData, inner: FloatArray) -> NDArray[np.bool_]:
     """Voxels farther than max(inner_i, R_PAW_i) from their nearest nucleus i (per-atom arrays)."""
     R, _ = augmentation_radii(vd)
     geo = geometry(vd)

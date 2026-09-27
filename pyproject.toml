@@ -4,12 +4,22 @@ build-backend = "hatchling.build"
 
 [project]
 name = "pydemi"
-version = "0.1.0.dev0"
+dynamic = ["version"]
 description = "Interpretable, fixed-length descriptors from DFT charge-density grids."
 readme = "README.md"
 license = "MIT"
 authors = [{ name = "Shubham Maurya, CMS Lab, IIT Kanpur" }]
 requires-python = ">=3.10"
+keywords = ["charge density", "DFT", "descriptors", "featurization", "materials informatics", "VASP"]
+classifiers = [
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Physics",
+    "Topic :: Scientific/Engineering :: Chemistry",
+]
 dependencies = [
     "numpy>=1.24",
     "scipy>=1.10",
@@ -17,11 +27,22 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-full = ["pymatgen>=2023.3.10", "spglib>=2.0", "matminer>=0.9"]
+full = ["pymatgen>=2023.3.10", "matminer>=0.9"]
+analysis = ["spglib>=2.0"]                      # paper/analysis scripts only
 dev = ["pytest>=7.0", "mypy>=1.8", "pandas-stubs", "scipy-stubs"]
+
+[project.urls]
+Homepage = "https://github.com/shubhamkmaurya03/pydemi"
+Issues = "https://github.com/shubhamkmaurya03/pydemi/issues"
 
 [project.scripts]
 pydemi = "pydemi.cli:main"
+
+[tool.hatch.version]
+path = "src/pydemi/__init__.py"
+
+[tool.hatch.build.targets.sdist]
+include = ["/src", "/tests", "/README.md", "/LICENSE", "/CHANGELOG.md", "/CITATION.cff", "/pyproject.toml"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/pydemi"]
@@ -32,6 +53,5 @@ norecursedirs = ["legacy", "paper", "tools"]
 
 [tool.mypy]
 python_version = "3.10"
-files = ["src/pydemi/io", "src/pydemi/core", "src/pydemi/fields", "src/pydemi/operators",
-         "src/pydemi/constants.py", "src/pydemi/data"]
+files = ["src/pydemi"]
 strict = true

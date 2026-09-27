@@ -1,5 +1,7 @@
 # pydemi
 
+[![tests](https://github.com/shubhamkmaurya03/pydemi/actions/workflows/tests.yml/badge.svg)](https://github.com/shubhamkmaurya03/pydemi/actions/workflows/tests.yml)
+
 **Interpretable, named, fixed-length descriptors from DFT charge-density grids.**
 
 pydemi turns a charge-density grid plus its structure into a flat
@@ -43,7 +45,8 @@ A file-by-file, function-by-function walk through the source is in
 
 ```bash
 pip install -e .            # numpy, scipy, pandas: the numerical core
-pip install -e ".[full]"    # + pymatgen, spglib, matminer (compositional domain)
+pip install -e ".[full]"    # + pymatgen, matminer (compositional domain)
+pip install -e ".[analysis]" # + spglib (only for the scripts in paper/analysis)
 pip install -e ".[dev]"     # + pytest, mypy
 ```
 
@@ -514,8 +517,9 @@ For all-electron work read AECCAR0 + AECCAR2 (`read_vasp(..., aeccar0=, aeccar2=
 - **Tooling**: batch with recorded errors, CLI commands, sweep, grid
   convergence, float32 agreement, matminer equality.
 
-`mypy --strict` passes on `io`, `core`, `fields`, `operators`, `constants`
-and `data`.
+`mypy --strict` passes on the whole package (`src/pydemi`). Continuous
+integration (`.github/workflows/tests.yml`) runs the tests on Python 3.10,
+3.11 and 3.12, the type check, and a build of the sdist and wheel.
 
 ## 11. Performance
 
@@ -562,6 +566,9 @@ ellipticity spread (2%), whose lambda1/lambda2 - 1 diverges as lambda2 -> 0
 | `validate.invariance.supercell`, `translate`, `rotate` | the invariance transformations |
 
 ## 14. Data sources and citations
+
+To cite pydemi itself, use `CITATION.cff` (GitHub's "Cite this repository");
+the release history is in `CHANGELOG.md`.
 
 - Free-atom densities: pydemi's spherical LDA solver (Slater exchange + PW92
   correlation; validated against the NIST LDA atomic reference data,

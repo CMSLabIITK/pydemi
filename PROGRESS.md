@@ -15,7 +15,7 @@ library see [README.md](README.md).
 | Governing specification | `prompt.md` (professor-verified), since 2026-09-24 |
 | Library | **rebuilt to prompt.md**: all 12 milestones of its §14 done; merged into `main` 2026-09-25; pushed to GitHub (45eba79, bd0438c) |
 | Descriptors | 220 by default (36 bonding, 21 structural, 8 magnetic, 23 heterogeneity, 132 compositional) + 12 in the off-by-default `paw` extension |
-| Tests | 894 pass; `mypy --strict` clean on io, core, fields, operators |
+| Tests | 894 pass on Python 3.10 and 3.11; `mypy --strict` clean on the whole package; CI in `.github/workflows/tests.yml` |
 | Dataset rerun | 6,059 structures, 0 errors, 105 min on 24 workers (`results/prompt_spec/`) |
 | Performance | 8.4 s for a 96^3, 16-atom cell on one core; ~10 us per voxel, linear |
 | Earlier (PDF-spec) version | tagged `pdf-spec-final`; code in `legacy/`, docs in `legacy/docs/` |

@@ -1,0 +1,28 @@
+cff-version: 1.2.0
+message: "If you use pydemi, please cite it as below."
+title: "pydemi: interpretable, fixed-length descriptors from charge-density grids"
+version: 0.1.0
+date-released: 2026-09-27
+license: MIT
+repository-code: "https://github.com/shubhamkmaurya03/pydemi"
+abstract: >-
+  pydemi turns volumetric charge densities, from DFT calculations or predicted
+  by machine-learning models from the crystal structure, into named,
+  fixed-length vectors of physically interpretable descriptors in five domains
+  (bonding, structural, magnetic, site heterogeneity and composition), each
+  registered with its formula, units, range, degenerate-case values and
+  stability.
+keywords:
+  - charge density
+  - density-functional theory
+  - materials descriptors
+  - featurization
+  - materials informatics
+  - VASP
+authors:
+  - family-names: Maurya
+    given-names: Shubham Kumar
+    affiliation: "CMS Lab, Department of Materials Science & Engineering, Indian Institute of Technology Kanpur"
+  - family-names: Bhowmick
+    given-names: Somnath
+    affiliation: "Department of Materials Science & Engineering, Indian Institute of Technology Kanpur"

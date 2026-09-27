@@ -2476,7 +2476,7 @@ compositional rows).
 
 ## 32. `pydemi/__init__.py` — the public API
 
-`__version__ = "0.1.0.dev0"`, `__author__`, and the exports: `Grid`,
+`__version__ = "0.1.0"`, `__author__`, and the exports: `Grid`,
 `Lattice`, `Structure`, `VolumetricData`, `read`, `read_vasp`,
 `read_all_electron`, `featurize`, `featurize_batch`, `catalogue`,
 `descriptor_names` (with `include_fragile=`), `hirshfeld_charges`,
@@ -2757,14 +2757,18 @@ throughout).
 
 ## 40. Packaging (`pyproject.toml`)
 
-Hatchling build of `src/pydemi`, version 0.1.0.dev0, `license = "MIT"`,
-Python >= 3.10. Dependencies numpy >= 1.24, scipy >= 1.10, pandas >= 1.5;
-extra `full` = pymatgen, spglib, matminer (the compositional domain and
-pymatgen structures); extra `dev` = pytest, mypy, pandas-stubs, scipy-stubs.
+Hatchling build of `src/pydemi`; the version (0.1.0) is read from
+`__version__` in `src/pydemi/__init__.py` (`[tool.hatch.version]`), its only
+definition. `license = "MIT"`, Python >= 3.10. Dependencies numpy >= 1.24,
+scipy >= 1.10, pandas >= 1.5; extra `full` = pymatgen, matminer (the
+compositional domain and pymatgen structures); extra `analysis` = spglib (the
+paper's site-symmetry analysis only); extra `dev` = pytest, mypy,
+pandas-stubs, scipy-stubs.
 Console script `pydemi = "pydemi.cli:main"`. pytest collects `tests/` only
-(`legacy`, `paper`, `tools` excluded). `mypy --strict` covers `io`, `core`,
-`fields`, `operators`, `constants.py` and `data`, the modules spec §15 calls
-the core; the descriptor modules are outside it.
+(`legacy`, `paper`, `tools` excluded). `mypy --strict` covers the whole
+package (the core modules of spec §15 and, since 0.1.0, the descriptors,
+batch, CLI and validation modules). The sdist contains only `src`, `tests`
+and the top-level metadata files. CI: `.github/workflows/tests.yml`.
 
 ---
 
