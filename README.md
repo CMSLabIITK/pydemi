@@ -1,6 +1,7 @@
 # pydemi
 
 [![tests](https://github.com/CMSLabIITK/pydemi/actions/workflows/tests.yml/badge.svg)](https://github.com/CMSLabIITK/pydemi/actions/workflows/tests.yml)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.22995680.svg)](https://doi.org/10.5281/zenodo.22995680)
 
 **Interpretable, named, fixed-length descriptors from DFT charge-density grids.**
 
@@ -569,8 +570,10 @@ ellipticity spread (2%), whose lambda1/lambda2 - 1 diverges as lambda2 -> 0
 
 ## 14. Data sources and citations
 
-To cite pydemi itself, use `CITATION.cff` (GitHub's "Cite this repository");
-the release history is in `CHANGELOG.md`.
+To cite pydemi itself, use `CITATION.cff` (GitHub's "Cite this repository"):
+version 0.1.0 is archived at Zenodo, doi:10.5281/zenodo.22995681
+(all versions: doi:10.5281/zenodo.22995680). The release history is in
+`CHANGELOG.md`.
 
 - Free-atom densities: pydemi's spherical LDA solver (Slater exchange + PW92
   correlation; validated against the NIST LDA atomic reference data,

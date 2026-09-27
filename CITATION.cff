@@ -4,6 +4,14 @@ title: "pydemi: interpretable, fixed-length descriptors from charge-density grid
 version: 0.1.0
 date-released: 2026-09-27
 license: MIT
+doi: 10.5281/zenodo.22995681
+identifiers:
+  - type: doi
+    value: 10.5281/zenodo.22995681
+    description: "pydemi 0.1.0"
+  - type: doi
+    value: 10.5281/zenodo.22995680
+    description: "All versions of pydemi"
 repository-code: "https://github.com/CMSLabIITK/pydemi"
 abstract: >-
   pydemi turns volumetric charge densities, from DFT calculations or predicted

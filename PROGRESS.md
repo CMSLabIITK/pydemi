@@ -13,6 +13,7 @@ library see [README.md](README.md).
 | Item | State |
 |---|---|
 | Governing specification | `prompt.md` (professor-verified), since 2026-09-24 |
+| Release | v0.1.0 (2026-09-27): github.com/CMSLabIITK/pydemi, Zenodo doi:10.5281/zenodo.22995681 (concept 10.5281/zenodo.22995680); CI green on Python 3.10-3.12 |
 | Library | **rebuilt to prompt.md**: all 12 milestones of its §14 done; merged into `main` 2026-09-25; pushed to GitHub (45eba79, bd0438c) |
 | Descriptors | 220 by default (36 bonding, 21 structural, 8 magnetic, 23 heterogeneity, 132 compositional) + 12 in the off-by-default `paw` extension |
 | Tests | 894 pass on Python 3.10 and 3.11 (zeta_ELF tagged fragile 2026-09-27: 5 fragile descriptors); `mypy --strict` clean on the whole package; CI in `.github/workflows/tests.yml` |
