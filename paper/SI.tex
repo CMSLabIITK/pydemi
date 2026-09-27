@@ -872,8 +872,10 @@ OUTCAR, from which the settings in Table~\ref{tab:si-dft} were parsed. All
 parsed runs share one protocol: PBE with one PAW dataset per element, a
 500\,eV cutoff, collinear spin polarization, the tetrahedron method and an
 automatic $k$-mesh of spacing at most about 0.1\,\AA$^{-1}$, as single-point
-calculations (\texttt{NSW = 0}) on the supplied structures. The relaxation that
-produced these structures is not part of the dataset; for 373 structures the
+calculations (\texttt{NSW = 0}) on the supplied structures. The structures
+were taken from the Materials Project and relaxed beforehand, with residual
+forces below $10^{-3}$\,eV\,\AA$^{-1}$, as described in Ref.~\cite{kumar2026};
+the relaxation runs are not part of the files analysed here. For 373 structures the
 crystal system of the relaxed structure differs from the space group in the
 run name. 221 of the parsed runs (4.5\%, 133 of them intermetallics) stopped
 at \texttt{NELM = 200} without reaching \texttt{EDIFF}; they are kept in the

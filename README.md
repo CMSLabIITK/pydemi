@@ -45,6 +45,12 @@ A file-by-file, function-by-function walk through the source is in
 ## 1. Installation
 
 ```bash
+pip install pydemi          # from PyPI; pip install "pydemi[full]" adds the compositional domain
+```
+
+From a clone of the repository:
+
+```bash
 pip install -e .            # numpy, scipy, pandas: the numerical core
 pip install -e ".[full]"    # + pymatgen, matminer (compositional domain)
 pip install -e ".[analysis]" # + spglib (only for the scripts in paper/analysis)
