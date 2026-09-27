@@ -4,7 +4,7 @@ title: "pydemi: interpretable, fixed-length descriptors from charge-density grid
 version: 0.1.0
 date-released: 2026-09-27
 license: MIT
-repository-code: "https://github.com/shubhamkmaurya03/pydemi"
+repository-code: "https://github.com/CMSLabIITK/pydemi"
 abstract: >-
   pydemi turns volumetric charge densities, from DFT calculations or predicted
   by machine-learning models from the crystal structure, into named,
@@ -21,8 +21,5 @@ keywords:
   - VASP
 authors:
   - family-names: Maurya
-    given-names: Shubham Kumar
-    affiliation: "CMS Lab, Department of Materials Science & Engineering, Indian Institute of Technology Kanpur"
-  - family-names: Bhowmick
-    given-names: Somnath
-    affiliation: "Department of Materials Science & Engineering, Indian Institute of Technology Kanpur"
+    given-names: Shubham
+    affiliation: "CMS Lab, Indian Institute of Technology Kanpur"

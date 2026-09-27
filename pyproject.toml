@@ -32,8 +32,8 @@ analysis = ["spglib>=2.0"]                      # paper/analysis scripts only
 dev = ["pytest>=7.0", "mypy>=1.8", "pandas-stubs", "scipy-stubs"]
 
 [project.urls]
-Homepage = "https://github.com/shubhamkmaurya03/pydemi"
-Issues = "https://github.com/shubhamkmaurya03/pydemi/issues"
+Homepage = "https://github.com/CMSLabIITK/pydemi"
+Issues = "https://github.com/CMSLabIITK/pydemi/issues"
 
 [project.scripts]
 pydemi = "pydemi.cli:main"

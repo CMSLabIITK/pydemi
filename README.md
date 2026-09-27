@@ -1,6 +1,6 @@
 # pydemi
 
-[![tests](https://github.com/shubhamkmaurya03/pydemi/actions/workflows/tests.yml/badge.svg)](https://github.com/shubhamkmaurya03/pydemi/actions/workflows/tests.yml)
+[![tests](https://github.com/CMSLabIITK/pydemi/actions/workflows/tests.yml/badge.svg)](https://github.com/CMSLabIITK/pydemi/actions/workflows/tests.yml)
 
 **Interpretable, named, fixed-length descriptors from DFT charge-density grids.**
 
