@@ -46,8 +46,8 @@ Main findings:
    and Lu. Yet it changes by 18–26% between derivative schemes without converging. It carries
    a baseline of 0.0003–0.24 for a perfectly spherical atom, where the exact value is 0. It is
    the least ML-predictable of the 85 non-constant descriptors tested (Spearman 0.22 from scratch,
-   0.26 fine-tuned). **Recommendation:**
-   tag it `fragile`, like the ellipticity statistics and saddle counts.
+   0.26 fine-tuned). It is tagged
+   `fragile` (decision of 2026-09-27), like the ellipticity statistics and saddle counts.
 5. **The four descriptors are largely independent** of one another and of the other
    descriptors. The largest rank correlation of `zeta` with any other descriptor is 0.67
    (with `f_bond`); for `charge_FA` it is 0.62 (with `perc_anisotropy`).
@@ -660,7 +660,7 @@ than FA. Remember that only two of the three T eigenvalues are independent.
 
 ## 10. Caveats and recommendations
 
-1. **Tag `zeta_ELF` as fragile.** Every test points the same way:
+1. **`zeta_ELF` is tagged fragile** (decision of 2026-09-27). Every test points the same way:
    - 18–26% change between derivative schemes, not converging;
    - 25% change on an 80% grid;
    - a spherical-atom baseline of up to 0.24;
@@ -668,8 +668,8 @@ than FA. Remember that only two of the three T eigenvalues are independent.
 
    These are the same criteria that led to tagging `ellip_bond_avg`, `ellip_bond_std`,
    `n_saddle1` and `n_saddle2` (decision of 2026-09-25). `zeta_ELF` meets them as clearly,
-   so it should join them in `descriptor_names(include_fragile=False)`. That is a one-line
-   change, not made here pending your approval. A converged variant would need ELF only
+   so it has joined them: `descriptor_names(include_fragile=False)` leaves it out. A
+   converged variant would need ELF only
    where the density is high enough, e.g. over ρ ≥ 0.1 e/Å³, where the spherical-atom
    baseline vanishes. That would be a new descriptor beyond prompt.md.
 2. **Read `zeta` on CHGCAR data with the PAW spheres in mind.** 86% of its weight is inside

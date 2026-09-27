@@ -1789,14 +1789,16 @@ loop) supplies the formula. Tests:
 specified but is not numerically converged on typical VASP grids: its value
 changes by more than about 10% between derivative schemes or when the grid
 is coarsened to 80% (measured on the 6,059-structure dataset with the
-scripts in `paper/analysis/`). Four are tagged: `ellip_bond_avg`,
-`ellip_bond_std` (section 27) and `n_saddle1`, `n_saddle2` (section 28).
+scripts in `paper/analysis/`). Five are tagged: `ellip_bond_avg`,
+`ellip_bond_std` (section 27), `n_saddle1`, `n_saddle2` (section 28) and
+`zeta_ELF` (decision of 2026-09-27: about 20% between FFT and FD4 without
+converging, 25% on an 80% grid, a spherical-atom baseline of up to 0.24).
 Fragile descriptors stay in the default `featurize` output, so every table
 keeps the specified columns; `descriptor_names(..., include_fragile=False)`
-gives the model-ready set without them (216 of the 220 defaults), and
+gives the model-ready set without them (215 of the 220 defaults), and
 `catalogue()` has a `stability` column. Tests:
 `test_stability.py::test_fragile_set_is_the_measured_one` (the tagged set is
-exactly those four), `test_fragile_descriptors_stay_in_the_default_output`
+exactly those five), `test_fragile_descriptors_stay_in_the_default_output`
 (and the order is kept when they are removed).
 
 ### `selected(opts)`, `finite_or(value, sentinel, case)`
@@ -2794,7 +2796,7 @@ taken after the milestones.
 | `test_structural.py` | 11 | 10. Census (1, 1, 3, 3; Euler 0) at three resolutions, counts per volume, simple-cubic percolation at the midpoint density, origin independence, the winding test, the highest spanning level, a planted non-nuclear maximum, uniform limits, the layered-density tensor |
 | `test_partitions.py` | 18 | 11. Weights sum to 1 and charge is conserved (four schemes), symmetric atoms, Becke's s(mu), Hirshfeld charges of a promolecule, site descriptors follow the partition, invariance of partitioned descriptors (three schemes x three transforms) |
 | `test_tooling.py` | 14 | 12. Batch (record, skip, raise, read options), the CLI, sweep, grid convergence, the recommended mesh, float32 vs float64 (median relative difference below 1e-5, at most 5% of descriptors above 1e-3), matminer equality, the PAW extension (off by default, radii source, `rho_min_int`, `n_NNM_paw`), no bare NaN in any domain (both extensions on) on a uniform density |
-| `test_stability.py` | 8 | The fragile set is exactly the four measured descriptors (registry and catalogue); fragile names stay in the default output and `include_fragile=False` removes only them; the `robust` extension is off by default; `register` validates `stability`; `ellip_bond_bounded_avg` against the exact Hessian of anisotropic Gaussians, 0 for a spherical atom, and a monotone map of the ellipticity |
+| `test_stability.py` | 8 | The fragile set is exactly the five measured descriptors (registry and catalogue); fragile names stay in the default output and `include_fragile=False` removes only them; the `robust` extension is off by default; `register` validates `stability`; `ellip_bond_bounded_avg` against the exact Hessian of anisotropic Gaussians, 0 for a spherical atom, and a monotone map of the ellipticity |
 
 Notes:
 

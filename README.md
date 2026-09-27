@@ -10,7 +10,7 @@ datasets of thousands of structures. It is a featurization layer: there is no
 critical-point search anywhere, and every descriptor is computed by direct
 grid operations that always terminate.
 
-<!-- counts -->220 descriptors by default (36 bonding, 21 structural, 8 magnetic, 23 heterogeneity, 132 compositional; 4 of them tagged fragile), plus 12 in the off-by-default PAW extension and 1 in the robust extension<!-- /counts -->.
+<!-- counts -->220 descriptors by default (36 bonding, 21 structural, 8 magnetic, 23 heterogeneity, 132 compositional; 5 of them tagged fragile), plus 12 in the off-by-default PAW extension and 1 in the robust extension<!-- /counts -->.
 Every one is registered with its formula, units, range, sentinel cases and
 references, and the catalogue below is generated from that registry.
 
@@ -235,7 +235,7 @@ table, with ranges and references, is `docs/catalogue.csv` or
 | `f_ELF_localized` | dimensionless | f_ELF_localized = (1/N_bond) sum_{k in bond} 1(ELF_k > 0.5) | empty_region=0.0 | robust |
 | `ELF_bond_avg` | dimensionless | ELF_bond_avg = <ELF_k> over the bond shell | empty_region=0.0 | robust |
 | `ELF_core_valence_contrast` | dimensionless | ELF_core_valence_contrast = <ELF>_core / <ELF>_bond | empty_region=0.0;zero_denominator=0.0 | robust |
-| `zeta_ELF` | dimensionless | zeta_ELF = 1 - sum_k \|grad ELF_k . u_k\| / sum_k \|grad ELF_k\| | uniform_density=0.0 | robust |
+| `zeta_ELF` | dimensionless | zeta_ELF = 1 - sum_k \|grad ELF_k . u_k\| / sum_k \|grad ELF_k\| | uniform_density=0.0 | **fragile** |
 | `f_NCI` | dimensionless | f_NCI = (1/N) sum_k 1(s_k < 0.5 and rho_k < 0.05 a.u.),  s = \|grad rho\| / (2 (3 pi^2)^(1/3) rho^(4/3)) | uniform_density=0.0 | robust |
 | `NCI_attractive` | dimensionless | NCI_attractive = fraction of NCI voxels with lambda2 < 0 | uniform_density=0.0;no_nci_voxels=0.0 | robust |
 | `sign_lambda2_rho_mean` | e/bohr^3 | sign_lambda2_rho_mean = mean of sign(lambda2) rho_k over NCI voxels (rho in a.u.) | uniform_density=0.0;no_nci_voxels=0.0 | robust |
@@ -361,15 +361,17 @@ converged on typical VASP grids, and are registered as `stability="fragile"`
 | `ellip_bond_avg` | 22% | 21% | lambda1/lambda2 - 1 diverges as lambda2 -> 0 at many bond-shell voxels |
 | `ellip_bond_std` | 67% | 62% | same |
 | `n_saddle1`, `n_saddle2` | - | 20%, 17% | saddles of near-flat, rippled regions appear and vanish with the grid |
+| `zeta_ELF` | 21% | 25% | third derivatives of rho through ELF_D; does not converge with the FD order; spherical-atom baseline up to 0.24 |
 
 (median relative change; 48 random structures for the derivative schemes and
-the ellipticity grid test, 30 for the census grid test.)
+the ellipticity grid test, 30 for the census grid test; `zeta_ELF`: 100
+structures for the derivative schemes, 30 for the grid, tagged 2026-09-27.)
 
 They stay in the default `featurize` output, so every table keeps the
 specified columns. For models use the robust set:
 
 ```python
-names = pydemi.descriptor_names(include_fragile=False)   # 216 of the 220 defaults
+names = pydemi.descriptor_names(include_fragile=False)   # 215 of the 220 defaults
 ```
 
 `catalogue()` has a `stability` column. The off-by-default `robust`

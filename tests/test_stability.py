@@ -1,4 +1,4 @@
-"""Stability tags and the robust ellipticity (decision of 2026-09-25: E2, E3, C2)."""
+"""Stability tags and the robust ellipticity (decisions of 2026-09-25: E2, E3, C2; zeta_ELF 2026-09-27)."""
 
 import numpy as np
 import pytest
@@ -7,7 +7,7 @@ import pydemi
 from pydemi.descriptors.registry import REGISTRY, make_options, masks, register
 from pydemi.io.base import Grid, Lattice, Structure, VolumetricData
 
-FRAGILE = {"ellip_bond_avg", "ellip_bond_std", "n_saddle1", "n_saddle2"}
+FRAGILE = {"ellip_bond_avg", "ellip_bond_std", "n_saddle1", "n_saddle2", "zeta_ELF"}
 
 
 def test_fragile_set_is_the_measured_one():

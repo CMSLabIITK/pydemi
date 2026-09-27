@@ -505,9 +505,10 @@ mean of $\epsilon/(1+\epsilon)$ & 0.2\% & 1.1\% & 0.2\% & 0.987 & 0.999 \\
 
 pydemi keeps every descriptor of the specification in its default output, so
 that the columns of a descriptor table do not depend on these findings, but it
-records them in the registry. The four descriptors whose median change exceeds
+records them in the registry. The five descriptors whose median change exceeds
 10\% for a reason other than a vanishing reference value, the two ellipticity
-statistics and the two saddle counts, are tagged as fragile; the model-ready
+statistics, the two saddle counts and $\zeta_{\mathrm{ELF}}$, are tagged as
+fragile; the model-ready
 feature set, which leaves them out, is one function call. An extension that is
 off by default adds the bounded ellipticity as a converged alternative. Because
 the sensitivity of each descriptor also differs between structures, we
@@ -551,7 +552,8 @@ of the volume, carry 86\% of its denominator
 (Fig.~\ref{fig:si-aniso-regions}), so on a CHGCAR it partly measures the
 pseudized density near the nuclei. \texttt{zeta\_ELF} is high for electrides
 (Ca$_2$N 0.54) but changes by 18--26\% between derivative schemes and has a
-baseline of up to 0.24 for a spherical atom, whose exact value is 0.
+baseline of up to 0.24 for a spherical atom, whose exact value is 0; it is
+tagged fragile.
 
 \begin{figure}[htbp]
 \centering

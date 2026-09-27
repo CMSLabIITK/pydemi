@@ -425,11 +425,18 @@ def ELF_core_valence_contrast(vd: VolumetricData) -> Result:
 
 
 @register(name="zeta_ELF", domain="bonding", field="elf", requires=["elf", "gradient", "geometry"],
-          units="dimensionless", range=(0.0, 1.0), sentinel_cases={"uniform_density": 0.0})
+          units="dimensionless", range=(0.0, 1.0), sentinel_cases={"uniform_density": 0.0},
+          stability="fragile")
 def zeta_ELF(vd: VolumetricData) -> Result:
     """zeta_ELF = 1 - sum_k |grad ELF_k . u_k| / sum_k |grad ELF_k|
 
     The gradient-anisotropy operator applied to the ELF field. Uniform ELF: 0.0, flagged.
+    Fragile (decision of 2026-09-27): it depends on third derivatives of rho through
+    ELF_D, and on the 6,059-structure dataset it changes by a median 21% between FFT
+    and FD4 derivatives without converging with the order, and 25% on an 80% grid;
+    a spherical atom, whose exact value is 0, gives up to 0.24; and from ML-predicted
+    densities its rank correlation with DFT is 0.26, with a systematic upward bias
+    (docs/anisotropy_descriptors).
     """
     if is_uniform(_elf(vd)):
         return Sentinel(0.0, "uniform_density")

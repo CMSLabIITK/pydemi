@@ -59,12 +59,13 @@ the descriptors. Projector-augmented-wave pseudo-densities require dedicated
 definitions: 61\% of the densities are negative somewhere, pseudized atoms can
 lack a density maximum at the nucleus, 87\% of the deformation density lies
 inside the augmentation spheres, and valence counts inferred from electron
-configurations disagree with the PAW datasets for 43 of 87 elements. Two
+configurations disagree with the PAW datasets for 43 of 87 elements. Three
 descriptor families are not converged on typical grids: the voxel-averaged
-bond ellipticity changes by 20--70\% between derivative schemes, and the
-critical-point census closes in only 9\% of the structures, the mismatch being
-exactly the number of stencil-dependent extrema. pydemi flags both and
-provides a converged, bounded ellipticity. The implementation is validated by
+bond ellipticity changes by 20--70\% between derivative schemes, the gradient
+anisotropy of the reconstructed electron localization function by about 20\%,
+and the critical-point census closes in only 9\% of the structures, the
+mismatch being exactly the number of stencil-dependent extrema. pydemi flags
+them and provides a converged, bounded ellipticity. The implementation is validated by
 894 automated tests against analytic densities, exact identities and
 reference data, and processes the full dataset without failure in 37 CPU
 hours.
@@ -478,14 +479,19 @@ percolation anisotropy of cubic cells, which should be judged by absolute
 error; the within-element site variances, which are numerical noise (median
 $2\times10^{-9}$\,\AA$^2$ for $m_1$) in the 3,721 structures whose sites of each
 element are all equivalent; and genuinely unconverged quantities, the saddle
-counts and the bond ellipticity. The voxel-averaged ellipticity
+counts, the bond ellipticity and the gradient anisotropy of the ELF,
+$\zeta_{\mathrm{ELF}}$. The latter involves third derivatives of $\rho$
+through ELF$_D$: it changes by about 20\% between FFT and fourth-order
+derivatives without converging with the order, by 25\% on the coarsened grid,
+and takes values of up to 0.24 for a spherical atom, whose exact value is 0.
+The voxel-averaged ellipticity
 $\epsilon=\lambda_1/\lambda_2-1$ of the specification diverges as
 $\lambda_2\to0^-$ at bond-shell voxels away from the bond paths, and its mean
 and standard deviation change by 20--70\% between any two numerical choices;
 the bounded form $\epsilon/(1+\epsilon)$ changes by 0.2--1.1\% and preserves the
 ranking of structures. pydemi keeps every descriptor of the specification in
-its default output but tags the four unconverged ones (the two ellipticity
-statistics and the two saddle counts) as fragile, provides the model-ready set
+its default output but tags the five unconverged ones (the two ellipticity
+statistics, the two saddle counts and $\zeta_{\mathrm{ELF}}$) as fragile, provides the model-ready set
 without them in one call, and offers the bounded ellipticity in an
 off-by-default extension. Table~\ref{tab:corrections} lists the definitions in
 which pydemi departs from, or completes, the specification.
@@ -506,7 +512,7 @@ All-electron reference & \texttt{AECCAR0} is the frozen core: the promolecule is
 Hirshfeld charges & $Z_i=\mathrm{ZVAL}_i$ for pseudo-densities, so that the charges sum to zero \\
 Valence counts & read from the calculation; fallback rule excluding the $p$-block $d^{10}$ shell and including the lanthanide and actinide semicore \\
 Within-element variance & weighted by the site fraction of each element, which makes the variance decomposition exact \\
-Ellipticity, saddle counts & tagged fragile; bounded ellipticity as a converged alternative \\
+Ellipticity, saddle counts, $\zeta_{\mathrm{ELF}}$ & tagged fragile; bounded ellipticity as a converged alternative \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -700,7 +706,7 @@ value for every test structure (Fig.~\ref{fig:ml}i). The eigenvalues of the grad
 2--4\% across the test set, and its fractional anisotropy and the percolation
 anisotropy are zero or close to zero for many structures, so their ranks are
 fragile although the values are predicted accurately ($R^2\geq0.98$). All 68
-descriptors that transfer are tagged robust and the four scored descriptors
+descriptors that transfer are tagged robust and the five descriptors
 tagged fragile are among the 17: robustness to the numerical choices of
 Section~\ref{sec:numerics:convergence} is necessary for transfer here, but not
 sufficient. Fine-tuning improves the rank agreement of 74 of the 85
@@ -766,7 +772,8 @@ floor, the non-nuclear maxima and the deformation descriptors are defined, in
 an extension, outside the spheres; valence counts must be read from the
 calculation, since a rule based on the electron configuration is wrong for 43
 of 87 elements. Most descriptors are converged on typical grids, but the
-voxel-averaged bond ellipticity and the saddle counts are not, and the
+voxel-averaged bond ellipticity, the saddle counts and the gradient anisotropy
+of the ELF are not, and the
 critical-point census closes for only 9\% of the structures; pydemi tags these
 as fragile, provides a bounded ellipticity, and reports the exact size of the
 census mismatch. Across the dataset, the descriptors separate chemical classes
