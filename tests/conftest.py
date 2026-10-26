@@ -2,11 +2,23 @@
 
 import gzip
 import json
+import sys
 
 import numpy as np
 import pytest
 
 import pydemi
+
+
+@pytest.fixture(autouse=True)
+def _keep_main_module():
+    """Streamlit's AppTest installs the app script as sys.modules["__main__"] and leaves it
+    there; worker processes started with "spawn" (macOS, Windows) re-run __main__, so a
+    later featurize_batch would run the GUI script in each worker. Put the real one back."""
+    main = sys.modules.get("__main__")
+    yield
+    if main is not None:
+        sys.modules["__main__"] = main
 
 # a two-property element table in the format of a bundle's "composition" block
 MAGPIE = {"p": [0, 2, 3], "properties": ["Number", "Electronegativity"],

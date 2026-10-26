@@ -34,6 +34,12 @@ INSTALL_HINT = 'pip install "pydemi[props]"'
 ENV = "PYDEMI_PROPERTY_MODEL"
 BUNDLED = Path(__file__).with_name("properties_v1.json.xz")
 
+if sys.platform == "darwin":
+    # PyTorch's macOS wheels bring their own OpenMP runtime and LightGBM uses Homebrew's libomp;
+    # with the property models and ChargE3Net in one process (the GUI), the second runtime
+    # would abort the process unless duplicates are allowed. Respects a value set by the user.
+    os.environ.setdefault("KMP_DUPLICATE_LIB_OK", "TRUE")
+
 
 def missing() -> list[str]:
     """The packages ``predict`` needs that are not installed, or installed but not loadable."""

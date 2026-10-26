@@ -35,7 +35,13 @@ jobs:
           python -m pip install --upgrade pip
           pip install -e ".[full,gui,props,dev]" pytest-github-actions-annotate-failures
       - name: Tests
-        run: pytest -q
+        shell: bash
+        run: |
+          set +e
+          pytest -q 2>&1 | tee pytest.log
+          code=${PIPESTATUS[0]}
+          [ $code -ne 0 ] && echo "::error title=pytest exit $code::$(tail -c 3000 pytest.log | tr '\n' ' ')"
+          exit $code
 
   core-only:
     # without the gui extra: the library must not need Streamlit or plotly
@@ -85,8 +91,14 @@ jobs:
             pip install torch --index-url https://download.pytorch.org/whl/cpu
           fi
           pip install -e ".[ml,gui,dev]" pytest-github-actions-annotate-failures
-      - name: Tests (ML and GUI)
-        run: pytest -q tests/ml tests/gui
+      - name: Tests (ML and GUI, and the property models with PyTorch loaded)
+        shell: bash
+        run: |
+          set +e
+          pytest -q tests/ml tests/gui tests/test_props.py 2>&1 | tee pytest.log
+          code=${PIPESTATUS[0]}
+          [ $code -ne 0 ] && echo "::error title=pytest exit $code::$(tail -c 3000 pytest.log | tr '\n' ' ')"
+          exit $code
 
   types:
     runs-on: ubuntu-latest

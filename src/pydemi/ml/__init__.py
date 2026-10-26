@@ -26,6 +26,8 @@ import csv
 import hashlib
 import importlib.util
 import io
+import os
+import sys
 import tempfile
 import threading
 import time
@@ -39,6 +41,12 @@ from numpy.typing import NDArray
 
 from pydemi.io.base import Grid, Lattice, Structure, VolumetricData, as_structure
 from pydemi.ml.grid import grid_points, vasp_grid_shape
+
+if sys.platform == "darwin":
+    # PyTorch's macOS wheels bring their own OpenMP runtime and LightGBM uses Homebrew's libomp;
+    # with the property models and ChargE3Net in one process (the GUI), the second runtime
+    # would abort the process unless duplicates are allowed. Respects a value set by the user.
+    os.environ.setdefault("KMP_DUPLICATE_LIB_OK", "TRUE")
 
 HERE = Path(__file__).parent
 CHECKPOINT = HERE / "charge3net_cmslab_v1.pt"
