@@ -120,6 +120,9 @@ def test_properties_view_without_lightgbm(loaded, monkeypatch):
     from pydemi import props
     monkeypatch.setattr(props, "missing", lambda: ["lightgbm"])
     assert 'pip install &quot;pydemi[props]&quot;' in _html(_show(loaded, 3))
+    monkeypatch.setattr(props, "load_error", lambda: "LightGBM is installed but cannot load (x). "
+                        "On macOS, install OpenMP with: brew install libomp")
+    assert "brew install libomp" in _html(_show(loaded, 3))
 
 
 def test_properties_view_predicts_from_the_descriptors(loaded, property_bundle, monkeypatch):

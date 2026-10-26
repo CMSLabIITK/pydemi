@@ -502,7 +502,7 @@ def _bundle(path: str) -> props.Bundle:
 def _view_properties(label: str, feats: dict, meta: dict) -> None:
     lacking, path = props.missing(), props.model_path()
     if lacking:
-        _empty("Property models need LightGBM",
+        _empty("Property models need LightGBM", props.load_error() or
                f"Install it with: {props.INSTALL_HINT} (missing: {', '.join(lacking)}).")
         return
     if path is None or not path.exists():

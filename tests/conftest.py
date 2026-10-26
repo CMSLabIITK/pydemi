@@ -75,7 +75,9 @@ def _bundle(path, X: np.ndarray, counts: list[dict], rng: np.random.Generator) -
 @pytest.fixture(scope="session")
 def property_bundle(tmp_path_factory):
     """Path, descriptor matrix and site counts of a small property-model bundle (needs lightgbm)."""
-    pytest.importorskip("lightgbm")
+    from pydemi import props
+    if props.load_error():
+        pytest.skip(props.load_error())
     rng = np.random.default_rng(0)
     X = rng.random((200, len(pydemi.descriptor_names())))
     X[5, 10] = np.nan                                   # NaN descriptors are allowed

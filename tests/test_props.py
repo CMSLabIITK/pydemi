@@ -169,7 +169,8 @@ def _counts(formula: str) -> dict[str, float]:
 def test_shipped_bundle_reproduces_its_test_predictions():
     """The bundle in the package (trimmed models) gives back the test-set predictions made by
     the full models when it was built, from the stored descriptors and the formula."""
-    pytest.importorskip("lightgbm")
+    if props.load_error():
+        pytest.skip(props.load_error())
     assert _counts("Rb(ThSe3)2") == {"Rb": 1, "Th": 2, "Se": 6}
     b = props.load(props.BUNDLED)
     assert len(b.targets) == 22 and b.dataset is not None and b.composition is not None
@@ -185,3 +186,24 @@ def test_shipped_bundle_reproduces_its_test_predictions():
             if k in rows[name]:
                 assert p[name] == pytest.approx(t.test_p[rows[name].index(k)], rel=1e-9, abs=1e-12), \
                     (name, ds["formula"][k])
+
+
+def test_an_unloadable_lightgbm_is_reported(monkeypatch):
+    """On macOS the LightGBM wheel needs libomp; without it the import raises OSError, which
+    must not crash pydemi but say what to install."""
+    import builtins
+    real = builtins.__import__
+
+    def fake(name, *a, **k):
+        if name == "lightgbm":
+            raise OSError("Library not loaded: libomp.dylib")
+        return real(name, *a, **k)
+
+    monkeypatch.setattr(builtins, "__import__", fake)
+    monkeypatch.setattr(props.sys, "platform", "darwin")
+    props.load_error.cache_clear()
+    try:
+        assert "brew install libomp" in props.load_error() and "libomp.dylib" in props.load_error()
+        assert props.missing() == ["lightgbm"]
+    finally:
+        props.load_error.cache_clear()

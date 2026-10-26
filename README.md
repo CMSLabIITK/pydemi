@@ -22,6 +22,8 @@ The `ml` extra pulls in PyTorch. For a CPU-only machine the CPU build is much sm
 `pip install torch --index-url https://download.pytorch.org/whl/cpu` first. With an NVIDIA
 GPU, install the CUDA build of PyTorch first (see pytorch.org); pydemi then uses the GPU.
 
+On macOS, the property models (LightGBM) need the OpenMP runtime: `brew install libomp`.
+
 A separate environment keeps it tidy, e.g. `python -m venv pydemi-env` (then
 `source pydemi-env/bin/activate`, or `pydemi-env\Scripts\activate` on Windows), or
 `conda create -n pydemi python=3.12`.

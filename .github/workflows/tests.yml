@@ -27,10 +27,13 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
           cache: pip
+      - name: OpenMP for LightGBM (macOS)
+        if: runner.os == 'macOS'
+        run: brew install libomp
       - name: Install
         run: |
           python -m pip install --upgrade pip
-          pip install -e ".[full,gui,props,dev]"
+          pip install -e ".[full,gui,props,dev]" pytest-github-actions-annotate-failures
       - name: Tests
         run: pytest -q
 
@@ -71,6 +74,9 @@ jobs:
         with:
           python-version: "3.12"
           cache: pip
+      - name: OpenMP for LightGBM (macOS)
+        if: runner.os == 'macOS'
+        run: brew install libomp
       - name: Install (CPU PyTorch)
         shell: bash
         run: |
@@ -78,7 +84,7 @@ jobs:
           if [ "$RUNNER_OS" != "macOS" ]; then
             pip install torch --index-url https://download.pytorch.org/whl/cpu
           fi
-          pip install -e ".[ml,gui,dev]"
+          pip install -e ".[ml,gui,dev]" pytest-github-actions-annotate-failures
       - name: Tests (ML and GUI)
         run: pytest -q tests/ml tests/gui
 

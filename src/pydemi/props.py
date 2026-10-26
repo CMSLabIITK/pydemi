@@ -23,6 +23,7 @@ import json
 import lzma
 import math
 import os
+import sys
 from dataclasses import dataclass, field
 from functools import lru_cache
 from pathlib import Path
@@ -35,8 +36,22 @@ BUNDLED = Path(__file__).with_name("properties_v1.json.xz")
 
 
 def missing() -> list[str]:
-    """The packages ``predict`` needs that are not installed."""
-    return [m for m in REQUIRES if importlib.util.find_spec(m) is None]
+    """The packages ``predict`` needs that are not installed, or installed but not loadable."""
+    return [m for m in REQUIRES if importlib.util.find_spec(m) is None or load_error() is not None]
+
+
+@lru_cache(maxsize=1)
+def load_error() -> Optional[str]:
+    """Why LightGBM cannot be imported (None if it can). On macOS its wheel needs the OpenMP
+    runtime, so the import fails with an OSError until ``brew install libomp``."""
+    try:
+        import lightgbm  # noqa: F401
+    except ImportError:
+        return f"LightGBM is not installed: {INSTALL_HINT}"
+    except OSError as e:
+        hint = " On macOS, install OpenMP with: brew install libomp" if sys.platform == "darwin" else ""
+        return f"LightGBM is installed but cannot load ({e}).{hint}"
+    return None
 
 
 def model_path() -> Optional[Path]:
