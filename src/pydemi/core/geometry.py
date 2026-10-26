@@ -2,7 +2,7 @@
 pydemi.core.geometry
 ====================
 The geometry pass every descriptor shares (spec §5), shells, and the
-periodic-image machinery behind the promolecule and the partitions.
+periodic-image machinery behind the partitions and the bond census.
 
 Nearest-atom pass
 -----------------
@@ -48,7 +48,7 @@ from __future__ import annotations
 
 import itertools
 from dataclasses import dataclass
-from typing import Iterator, Optional, Sequence
+from typing import Optional, Sequence
 
 import numpy as np
 from numpy.typing import NDArray
@@ -242,52 +242,6 @@ def shell_masks(geometry: NearestAtom, structure: Structure, shells: Shells) -> 
 
 
 # ----------------------------------------------------------------------
-# image sums over voxel blocks (promolecule, Hirshfeld)
-# ----------------------------------------------------------------------
-
-@dataclass(frozen=True, eq=False)
-class ImageBlock:
-    """One block of voxels with every atom image within the cutoff of any of them."""
-
-    voxel: I64           # (M,) flat voxel indices
-    points: F64          # (M, 3) Cartesian voxel positions
-    diff: F64            # (M, C, 3) voxel - image
-    distance: F64        # (M, C)
-    owner: I64           # (C,) atom of each image
-
-
-def image_blocks(shape: Sequence[int], structure: Structure, cutoff: float,
-                 block: int = 8) -> Iterator[ImageBlock]:
-    """Blocks of ``block``^3 voxels with the atom images that can lie within ``cutoff``.
-
-    Candidates are found once per block (cutoff plus the block's radius),
-    then all voxel-image distances in the block are computed densely.
-    """
-    n1, n2, n3 = (int(m) for m in shape)
-    lat = structure.lattice.matrix
-    step = lat / np.array([n1, n2, n3], dtype=np.float64)[:, None]
-    corners = np.array(list(itertools.product((0, 1), repeat=3)), dtype=np.float64) * (block - 1)
-    cvec = corners @ step
-    radius = float(np.linalg.norm(cvec - cvec.mean(0), axis=1).max())
-    reach = cutoff + radius
-    pts, owner, _ = image_points(structure, reps_for(reach, structure.lattice))
-    tree = cKDTree(pts)
-    for i0 in range(0, n1, block):
-        for j0 in range(0, n2, block):
-            for k0 in range(0, n3, block):
-                I, J, K = np.meshgrid(np.arange(i0, min(i0 + block, n1)),
-                                      np.arange(j0, min(j0 + block, n2)),
-                                      np.arange(k0, min(k0 + block, n3)), indexing="ij")
-                frac = np.stack([I / n1, J / n2, K / n3], axis=-1).reshape(-1, 3)
-                x = frac @ lat
-                cand = np.array(tree.query_ball_point(x.mean(0), reach), dtype=np.int64)
-                voxel = np.ravel_multi_index((I.ravel(), J.ravel(), K.ravel()), (n1, n2, n3))
-                diff = x[:, None, :] - pts[cand][None, :, :]
-                yield ImageBlock(np.asarray(voxel, dtype=np.int64), x, diff,
-                                 np.linalg.norm(diff, axis=-1), owner[cand])
-
-
-# ----------------------------------------------------------------------
 # cached on VolumetricData (computed once per structure, spec §5, §13)
 # ----------------------------------------------------------------------
 
@@ -377,44 +331,4 @@ def bond_census_of(vd: VolumetricData, tol: float) -> BondCensus:
     if key not in vd.cache:
         vd.cache[key] = bond_census(vd.structure, tol)
     out: BondCensus = vd.cache[key]
-    return out
-
-
-def pair_regions(shape: Sequence[int], structure: Structure) -> tuple[I64, I64, I64]:
-    """Second-order Voronoi assignment: for every voxel, its two nearest atom images.
-
-    Returns (atom_a, atom_b, relative shift t (N, 3)) with the pair written
-    canonically as in :class:`BondCensus` (wrapped positions): the region of
-    pair (i, j, t) holds the voxels whose nearest two images are atom i and
-    atom j shifted by t. These regions tile the cell; ties are resolved as in
-    the geometry pass.
-    """
-    x = cart_coords(shape, structure.lattice).reshape(-1, 3)
-    reps = (1, 1, 1)
-    while True:
-        pts, owner, shift = image_points(structure, reps)
-        tree = cKDTree(pts)
-        d, idx = _nearest_images(tree, x, pts, structure.lattice, 2)
-        needed = reps_for(float(d[:, 1].max()), structure.lattice)
-        if all(a <= b for a, b in zip(needed, reps)):
-            break
-        reps = (max(needed[0], reps[0]), max(needed[1], reps[1]), max(needed[2], reps[2]))
-    a, b = owner[idx[:, 0]], owner[idx[:, 1]]
-    t = shift[idx[:, 1]] - shift[idx[:, 0]]
-    swap = (b < a) | ((b == a) & _lex_less(-t, t))
-    i = np.where(swap, b, a)
-    j = np.where(swap, a, b)
-    t = np.where(swap[:, None], -t, t)
-    return i, j, t
-
-
-def _lex_less(u: I64, v: I64) -> NDArray[np.bool_]:
-    """Row-wise lexicographic u < v."""
-    out = np.zeros(len(u), dtype=bool)
-    decided = np.zeros(len(u), dtype=bool)
-    for c in range(u.shape[1]):
-        lt = (u[:, c] < v[:, c]) & ~decided
-        gt = (u[:, c] > v[:, c]) & ~decided
-        out |= lt
-        decided |= lt | gt
     return out

@@ -13,14 +13,13 @@ For a base descriptor X with per-site values X^(i) (site aggregation, see
     X_between_element_var   sum_e w_e (Xbar_e - Xbar)^2
 
 with w_e the fraction of sites of element e, so that
-Var_i(X) = within + between exactly (one-way ANOVA). Applied to m1, f_bond,
-zeta and the site moment mu. Every site-restricted sum honours the
-``partition`` option.
+Var_i(X) = within + between exactly (one-way ANOVA). Applied to m1, f_bond
+and zeta. Every site-restricted sum honours the ``partition`` option.
 
 Sentinels: a within-element variance is NaN when no element has two or more
 sites (no within-element information; the per-element site counts are in
 the metadata); a between-element variance is 0.0 for a single-element
-structure; both flagged. mu statistics are 0.0 for a non-magnetic structure.
+structure; both flagged.
 """
 
 from __future__ import annotations
@@ -34,7 +33,6 @@ from ..core.partition import partition_of
 from ..io.base import VolumetricData
 from ..operators.sitestats import (SiteStatistics, SiteSums, site_f_bond, site_m1, site_statistics,
                                    site_sums, site_zeta)
-from .magnetic import is_magnetic, site_moment_magnitudes
 from .registry import Result, Sentinel, field_derivatives, is_uniform, metadata_hook, options, register
 
 F64 = NDArray[np.float64]
@@ -67,12 +65,6 @@ def _per_site_zeta(vd: VolumetricData) -> "F64 | Sentinel":
     return site_zeta(density_site_sums(vd))
 
 
-def _per_site_mu(vd: VolumetricData) -> "F64 | Sentinel":
-    if not is_magnetic(vd):
-        return Sentinel(0.0, "non_magnetic")
-    return site_moment_magnitudes(vd)
-
-
 def _stats(vd: VolumetricData, per_site: PerSite, base: str) -> "SiteStatistics | Sentinel":
     o = options(vd)
     key = ("site_stats", base, o.partition, o.shells.key(), o.derivative_backend, o.fd_order,
@@ -87,8 +79,8 @@ def _stats(vd: VolumetricData, per_site: PerSite, base: str) -> "SiteStatistics 
     return out
 
 
-def heterogeneity(base: str, per_site: PerSite, units: str, formula: str, requires: list[str],
-                  skip: tuple[str, ...] = ()) -> None:
+def heterogeneity(base: str, per_site: PerSite, units: str, formula: str,
+                  requires: list[str]) -> None:
     """Register the six heterogeneity statistics of the per-site descriptor ``base``."""
     sq = f"({units})^2" if units != "dimensionless" else "dimensionless"
     entries = {
@@ -101,9 +93,7 @@ def heterogeneity(base: str, per_site: PerSite, units: str, formula: str, requir
     }
     for suffix, (text, unit, attr) in entries.items():
         name = f"{base}_{suffix}"
-        if name in skip:
-            continue
-        cases: dict[str, float] = {"uniform_density": 0.0, "non_magnetic": 0.0}
+        cases: dict[str, float] = {"uniform_density": 0.0}
         if attr == "within":
             cases["one_site_per_element"] = float("nan")
         if attr == "between":
@@ -120,7 +110,7 @@ def heterogeneity(base: str, per_site: PerSite, units: str, formula: str, requir
                 return Sentinel(0.0, "single_element")
             return value
 
-        register(name=name, domain="heterogeneity", field="rho" if base != "mu" else "magnetization",
+        register(name=name, domain="heterogeneity", field="rho",
                  requires=requires + ["partition"], units=unit, range=(-np.inf, np.inf),
                  sentinel_cases=cases,
                  doc=f"{name} = {text} X^(i),  X^(i) = {formula}\n\n"
@@ -135,10 +125,6 @@ heterogeneity("f_bond", _per_site_f_bond, "dimensionless",
 heterogeneity("zeta", _per_site_zeta, "dimensionless",
               "1 - sum_k w_i(k) |grad rho_k . u_ik| / sum_k w_i(k) |grad rho_k|",
               ["gradient", "geometry"])
-# mu_site_std itself belongs to the magnetic domain (spec §8.3)
-heterogeneity("mu", _per_site_mu, "mu_B",
-              "mu_i = sum_k w_i(k) m_k dV (signed; |mu_i| for non-collinear runs)",
-              ["magnetization"], skip=("mu_site_std",))
 
 
 @metadata_hook

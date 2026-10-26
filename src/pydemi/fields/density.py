@@ -1,12 +1,9 @@
 """
 pydemi.fields.density
 =====================
-The density and magnetization fields, and the derivative cache every field
-shares.
+The density field, and the derivative cache every field shares.
 
-``rho``     read directly (electrons / Angstrom^3)
-``abs_m``   |m| for collinear, |m_vec| for non-collinear runs; the zero field
-            when the run is not spin-polarized
+``rho``     read directly from the CHGCAR (electrons / Angstrom^3)
 
 :func:`derivatives` returns a :class:`Derivatives` object for any field. It
 computes the gradient, Laplacian and Hessian eigenvalues at most once per
@@ -28,21 +25,6 @@ from ..io.base import FloatArray, Lattice, VolumetricData
 
 def rho(vd: VolumetricData) -> FloatArray:
     return vd.rho.data
-
-
-def abs_m(vd: VolumetricData) -> FloatArray:
-    """|m| on the grid; zeros for a non-spin-polarized run."""
-    key = ("field", "abs_m")
-    if key not in vd.cache:
-        if vd.magnetization_vector is not None:
-            mx, my, mz = (g.data for g in vd.magnetization_vector)
-            vd.cache[key] = np.sqrt(mx * mx + my * my + mz * mz)
-        elif vd.magnetization is not None:
-            vd.cache[key] = np.abs(vd.magnetization.data)
-        else:
-            vd.cache[key] = np.zeros_like(vd.rho.data)
-    out: FloatArray = vd.cache[key]
-    return out
 
 
 class Derivatives:

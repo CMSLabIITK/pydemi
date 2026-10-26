@@ -12,26 +12,20 @@ import numpy as np
 import pytest
 
 import pydemi
-from pydemi.io.base import Grid, Lattice, Structure, VolumetricData
+from pydemi.io.base import Lattice, Structure, VolumetricData
 from pydemi.validate.analytic import GaussianSuperposition
 from pydemi.validate.invariance import compare, rotate, rotation, supercell, translate
 
 LATTICE = Lattice(np.array([[3.9, 0.0, 0.0], [0.8, 4.1, 0.0], [0.6, 0.5, 4.3]]))
 FRAC = [[0.05, 0.10, 0.12], [0.52, 0.43, 0.58], [0.27, 0.71, 0.36]]
 SHAPE = (20, 21, 22)
-EXT = ("paw", "robust")
 
 
 @functools.lru_cache(maxsize=None)
 def base() -> VolumetricData:
     s = Structure(LATTICE, ["Fe", "Fe", "O"], FRAC)
     rho = GaussianSuperposition(s, [1.6, 1.9, 2.4], [8.0, 8.0, 6.0], tol=1e-18)
-    mag = GaussianSuperposition(s, [2.2, 2.0, 3.0], [2.0, -1.2, 0.1], tol=1e-18)
-    vd = rho.volumetric(SHAPE, magnetization=mag)
-    r = vd.rho.data
-    vd.elf = Grid(np.clip(0.5 + 0.4 * np.sin(r / r.max() * 6.0), 0.0, 1.0), s.lattice)
-    vd.potential = Grid(-3.0 * r / r.max() + 0.1 * np.cos(r), s.lattice)
-    return vd
+    return rho.volumetric(SHAPE)
 
 
 TRANSFORMS = {
@@ -44,10 +38,10 @@ TRANSFORMS = {
 @functools.lru_cache(maxsize=None)
 def features(name: str) -> dict:
     vd = base() if name == "base" else TRANSFORMS[name](base())
-    return pydemi.featurize(vd, extensions=EXT)
+    return pydemi.featurize(vd)
 
 
-NAMES = pydemi.descriptor_names(extensions=EXT)
+NAMES = pydemi.descriptor_names()
 
 
 @pytest.mark.parametrize("transform", sorted(TRANSFORMS))

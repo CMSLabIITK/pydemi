@@ -1,4 +1,4 @@
-"""Milestone 8: derived fields -- ELF_D, energy densities, potentials, NCI (spec §6, §8.1)."""
+"""Milestone 8: derived fields -- the Hartree potential, NCI (spec §6, §8.1)."""
 
 import math
 from pathlib import Path
@@ -8,13 +8,11 @@ import pytest
 from scipy.special import erf
 
 import pydemi
-from pydemi.constants import C_F, COULOMB_EV_ANGSTROM, DENSITY_TO_AU
-from pydemi.descriptors.bonding import kinetic, potential
+from pydemi.constants import COULOMB_EV_ANGSTROM
+from pydemi.descriptors.bonding import _rho_au, potential
 from pydemi.descriptors.registry import FeatureOptions
-from pydemi.fields.elf import elf_d
-from pydemi.fields.potential import electrostatic_potential, hartree_potential
-from pydemi.io.base import Grid, Lattice, Structure
-from pydemi.validate import elf_fidelity
+from pydemi.fields.potential import hartree_potential
+from pydemi.io.base import Lattice, Structure
 from pydemi.validate.analytic import GaussianSuperposition, SlaterSuperposition, cubic_cell, uniform
 
 REAL = Path("/data/sai/new_charge/6000_data_aug13/FeNi3_221/CHGCAR")
@@ -26,56 +24,13 @@ def _crystal(shape=(30, 30, 32)):
     return SlaterSuperposition(s, [1.4, 2.0], [8.0, 6.0], tol=1e-20).volumetric(shape)
 
 
-# ---------------------------------------------------------------- ELF_D
-
-def test_elf_d_is_in_unit_interval_on_analytic_data():
-    vd = _crystal().with_options(FeatureOptions())
-    e = elf_d(kinetic(vd))
-    assert e.min() >= 0.0 and e.max() <= 1.0
-
+# ---------------------------------------------------------------- real data
 
 @pytest.mark.skipif(not REAL.exists(), reason="dataset CHGCAR not available")
-def test_elf_d_is_in_unit_interval_on_real_data():
-    """Spec §6.2: ELF_D in [0, 1] everywhere on real (PAW, partly negative) data."""
-    vd = pydemi.read_vasp(REAL).with_options(FeatureOptions())
-    e = elf_d(kinetic(vd))
-    assert np.isfinite(e).all() and e.min() >= 0.0 and e.max() <= 1.0
-
-
-def test_uniform_electron_gas_limits():
-    """grad rho = lap rho = 0: ELF_D = 1/2, g = C_F rho^(5/3), H = -g < 0."""
-    rho = 0.1
-    vd = uniform(cubic_cell(4.0), (12, 12, 12), rho)
-    kt = kinetic(vd.with_options(FeatureOptions()))
-    np.testing.assert_allclose(elf_d(kt), 0.5, atol=1e-12)
-    g_exact = C_F * (rho * DENSITY_TO_AU) ** (5.0 / 3.0)
-    np.testing.assert_allclose(kt.g, g_exact, rtol=1e-9)
-    f = pydemi.featurize(vd, domains=["bonding"])
-    assert f["f_H_negative"] == 1.0
-    assert f["H_bond_mean"] == pytest.approx(-g_exact, rel=1e-9)
-    assert f["G_over_rho"] == pytest.approx(g_exact / (rho * DENSITY_TO_AU), rel=1e-9)
-    assert f["ELF_bond_avg"] == pytest.approx(0.5, abs=1e-12)
-
-
-def test_elf_source_selection(tmp_path):
-    vd = _crystal()
-    _, meta = pydemi.featurize(vd, domains=["bonding"], return_metadata=True)
-    assert meta["elf_source"] == "reconstruct"
-    vd.elf = Grid(np.full(vd.shape, 0.7), vd.lattice)
-    f, meta = pydemi.featurize(vd, domains=["bonding"], return_metadata=True)
-    assert meta["elf_source"] == "file" and f["ELF_bond_avg"] == pytest.approx(0.7)
-    f2 = pydemi.featurize(vd, domains=["bonding"], elf_source="reconstruct")
-    assert f2["ELF_bond_avg"] != pytest.approx(0.7)
-    vd.elf = None
-    with pytest.raises(ValueError, match="ELFCAR"):
-        pydemi.featurize(vd, domains=["bonding"], elf_source="file")
-
-
-def test_elf_fidelity():
-    a = np.linspace(0, 1, 1000).reshape(10, 10, 10)
-    m = elf_fidelity(a, a)
-    assert m["pearson_r"] == pytest.approx(1.0) and m["mae"] == 0.0 and m["rmse"] == 0.0
-    assert elf_fidelity(a, a + 0.1)["mae"] == pytest.approx(0.1)
+def test_nci_fields_are_finite_on_real_data():
+    """Real PAW pseudo-densities are partly negative: rho is clipped and s stays defined."""
+    rho, s = _rho_au(pydemi.read_chgcar(REAL).with_options(FeatureOptions()))
+    assert (rho >= 0).all() and not np.isnan(s).any() and np.isfinite(s).any()
 
 
 # ---------------------------------------------------------------- potentials
@@ -96,31 +51,9 @@ def test_hartree_potential_of_a_gaussian():
         assert V[c + step, c, c] - V[c, c, c] == pytest.approx(exact, rel=2e-3)
 
 
-def test_electrostatic_potential_of_a_neutral_cell_vanishes():
-    """Electron Gaussians with the ion width and charge cancel the ionic term exactly."""
-    s = Structure(Lattice(np.eye(3) * 6.0), ["H", "H"], [[0.2, 0.3, 0.4], [0.7, 0.6, 0.8]])
-    sigma = 0.5
-    rho, _, _ = GaussianSuperposition(s, [1 / (2 * sigma ** 2)] * 2, [1.0, 1.0],
-                                      tol=1e-30).on_grid((48, 48, 48))
-    V = electrostatic_potential(rho, s, np.array([1.0, 1.0]), sigma)
-    assert np.abs(V).max() < 1e-6 * np.abs(hartree_potential(rho, s.lattice)).max()
-
-
-def test_potential_sources():
-    vd = _crystal()
-    _, meta = pydemi.featurize(vd, domains=["bonding"], return_metadata=True)
-    assert meta["potential_source"] == "hartree"
-    esp = pydemi.featurize(vd, domains=["bonding"], potential_source="esp")
-    hart = pydemi.featurize(vd, domains=["bonding"])
-    assert esp["V_spread"] != pytest.approx(hart["V_spread"])
-    vd.potential = Grid(np.full(vd.shape, 5.0) + vd.rho.data, vd.lattice)
-    f, meta = pydemi.featurize(vd, domains=["bonding"], return_metadata=True)
-    assert meta["potential_source"] == "locpot"
-    v = potential(vd.with_options(FeatureOptions()))
-    assert abs(v.mean()) < 1e-12                        # referenced to the cell average
-    vd.potential = None
-    with pytest.raises(ValueError, match="LOCPOT"):
-        pydemi.featurize(vd, domains=["bonding"], potential_source="locpot")
+def test_potential_is_referenced_to_the_cell_average():
+    v = potential(_crystal().with_options(FeatureOptions()))
+    assert abs(v.mean()) < 1e-12
 
 
 # ---------------------------------------------------------------- NCI, midpoints

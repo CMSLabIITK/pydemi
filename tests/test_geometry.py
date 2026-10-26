@@ -5,8 +5,8 @@ import itertools
 import numpy as np
 import pytest
 
-from pydemi.core.geometry import (Shells, assign_atoms, geometry_of, image_blocks, nearest_atom,
-                                  shell_masks, shells_of)
+from pydemi.core.geometry import (Shells, assign_atoms, geometry_of, nearest_atom, shell_masks,
+                                  shells_of)
 from pydemi.core.grid import cart_coords
 from pydemi.data import covalent_radius
 from pydemi.io.base import Grid, Lattice, Structure, VolumetricData
@@ -92,21 +92,3 @@ def test_geometry_is_computed_once_per_structure():
     assert geometry_of(vd) is geometry_of(vd)
     assert shells_of(vd, Shells()) is shells_of(vd, Shells())
     assert geometry_of(vd.with_options("other")) is geometry_of(vd)      # shared cache
-
-
-def test_image_blocks_cover_every_image_within_the_cutoff():
-    s = Structure(SHEARED, ["Fe", "O", "Ni"], FRAC)
-    shape, cutoff = (7, 8, 9), 4.0
-    x = cart_coords(shape, s.lattice).reshape(-1, 3)
-    shifts = np.array(list(itertools.product(range(-6, 7), repeat=3)))
-    pts = ((s.frac_coords % 1.0)[None] + shifts[:, None]).reshape(-1, 3) @ s.lattice.matrix
-    owner = np.tile(np.arange(3), len(shifts))
-    d = np.linalg.norm(x[:, None] - pts[None], axis=-1)
-    f = np.where(d < cutoff, np.exp(-d), 0.0)
-    expect = np.stack([f[:, owner == a].sum(1) for a in range(3)], axis=1)
-    got = np.zeros_like(expect)
-    for b in image_blocks(shape, s, cutoff, block=4):
-        w = np.where(b.distance < cutoff, np.exp(-b.distance), 0.0)
-        for a in range(3):
-            got[b.voxel, a] += w[:, b.owner == a].sum(1)
-    np.testing.assert_allclose(got, expect, rtol=1e-12)

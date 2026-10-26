@@ -12,8 +12,7 @@ Conventions
 * ``Grid.data[i, j, k]`` is the value at fractional coordinate
   (i/n1, j/n2, k/n3). Grids are ALWAYS periodic: index arithmetic is modular
   everywhere.
-* Densities (``rho``, ``magnetization``) are in electrons / Angstrom^3, the
-  ELF is dimensionless in [0, 1], potentials are in eV.
+* The density ``rho`` is in electrons / Angstrom^3.
 """
 
 from __future__ import annotations
@@ -21,14 +20,12 @@ from __future__ import annotations
 import dataclasses
 from dataclasses import dataclass, field
 from functools import cached_property
-from typing import Any, Literal, Mapping, Optional, Sequence, Tuple
+from typing import Any, Sequence, Tuple
 
 import numpy as np
 from numpy.typing import NDArray
 
 FloatArray = NDArray[np.floating[Any]]
-DensitySource = Literal["pseudo", "all_electron"]
-SpinMode = Literal["none", "collinear", "noncollinear"]
 
 
 @dataclass(frozen=True, eq=False)
@@ -192,19 +189,11 @@ def as_structure(obj: Any) -> Structure:
 
 @dataclass(eq=False)
 class VolumetricData:
-    """One structure with its grid fields (spec §2).
+    """One structure with its charge density (spec §2).
 
-    ``rho`` is always present. ``magnetization`` is the collinear m = rho_up -
-    rho_down; a non-collinear run sets ``magnetization_vector`` = (m_x, m_y,
-    m_z) instead and leaves ``magnetization`` None. ``density_source`` records
-    whether ``rho`` is the PAW pseudo-density (``"pseudo"``, CHGCAR) or the
-    all-electron reconstruction (``"all_electron"``, AECCAR0 + AECCAR2), which
-    changes the interpretation of every core-region descriptor. For the
-    all-electron case ``core_density`` keeps AECCAR0.
-
-    ``zval`` (element -> valence electrons of the PAW dataset) and
-    ``paw_radii`` (element -> augmentation radius RCORE, Angstrom) come from
-    a POTCAR or OUTCAR when one was read.
+    ``rho`` is the total density of a VASP CHGCAR (the PAW pseudo-density),
+    in electrons / Angstrom^3. It is the only field: every descriptor is
+    computed from it and the structure in the CHGCAR header.
 
     ``options`` and ``cache`` are managed by :func:`pydemi.featurize`: the
     geometry pass, derivatives and derived fields are computed once and
@@ -213,51 +202,14 @@ class VolumetricData:
 
     structure: Structure
     rho: Grid
-    magnetization: Optional[Grid] = None
-    elf: Optional[Grid] = None
-    potential: Optional[Grid] = None
-    density_source: DensitySource = "pseudo"
-    magnetization_vector: Optional[Tuple[Grid, Grid, Grid]] = None
-    core_density: Optional[Grid] = None
-    zval: Optional[dict[str, float]] = None
-    paw_radii: Optional[dict[str, float]] = None
     sources: dict[str, str] = field(default_factory=dict)
     options: Any = None
     cache: dict[Any, Any] = field(default_factory=dict, repr=False)
 
     def __post_init__(self) -> None:
         self.structure = as_structure(self.structure)
-        if self.density_source not in ("pseudo", "all_electron"):
-            raise ValueError(f"density_source must be 'pseudo' or 'all_electron', "
-                             f"got {self.density_source!r}")
-        lat = self.structure.lattice
-        for name, g in self._grids():
-            if not g.lattice.allclose(lat):
-                raise ValueError(f"{name}: grid lattice differs from the structure's")
-            if g.shape != self.rho.shape:
-                raise ValueError(f"{name}: grid shape {g.shape} differs from rho's "
-                                 f"{self.rho.shape}; resample it first (pydemi.core.grid.resample)")
-        if self.magnetization is not None and self.magnetization_vector is not None:
-            raise ValueError("give magnetization (collinear) or magnetization_vector "
-                             "(non-collinear), not both")
-
-    def _grids(self) -> list[tuple[str, Grid]]:
-        out = [("rho", self.rho)]
-        for name in ("magnetization", "elf", "potential", "core_density"):
-            g = getattr(self, name)
-            if g is not None:
-                out.append((name, g))
-        if self.magnetization_vector is not None:
-            out += [(f"magnetization_{c}", g) for c, g in zip("xyz", self.magnetization_vector)]
-        return out
-
-    @property
-    def spin_mode(self) -> SpinMode:
-        if self.magnetization_vector is not None:
-            return "noncollinear"
-        if self.magnetization is not None:
-            return "collinear"
-        return "none"
+        if not self.rho.lattice.allclose(self.structure.lattice):
+            raise ValueError("rho: grid lattice differs from the structure's")
 
     @property
     def lattice(self) -> Lattice:
@@ -268,20 +220,12 @@ class VolumetricData:
         return self.rho.shape
 
     def with_options(self, options: Any) -> "VolumetricData":
-        """A view with different ``options``, sharing this object's grids and cache."""
+        """A view with different ``options``, sharing this object's grid and cache."""
         return dataclasses.replace(self, options=options)
 
     def astype(self, dtype: Any) -> "VolumetricData":
-        """Copy with every grid cast to ``dtype`` (float32 mode, spec §13); fresh cache."""
-        def cast(g: Optional[Grid]) -> Optional[Grid]:
-            return None if g is None else g.astype(dtype)
-        mv = None if self.magnetization_vector is None else (
-            self.magnetization_vector[0].astype(dtype), self.magnetization_vector[1].astype(dtype),
-            self.magnetization_vector[2].astype(dtype))
-        return dataclasses.replace(
-            self, rho=self.rho.astype(dtype), magnetization=cast(self.magnetization),
-            elf=cast(self.elf), potential=cast(self.potential), core_density=cast(self.core_density),
-            magnetization_vector=mv, cache={})
+        """Copy with the density cast to ``dtype`` (float32 mode, spec §13); fresh cache."""
+        return dataclasses.replace(self, rho=self.rho.astype(dtype), cache={})
 
 
 def species_labels(tokens: Sequence[str], counts: Sequence[int]) -> list[str]:
@@ -299,11 +243,3 @@ def expand_species(labels: Sequence[str], counts: Sequence[int]) -> list[str]:
         return [str(s) for s in labels]
     raise ValueError(f"{len(labels)} species labels for {len(counts)} groups / "
                      f"{int(sum(counts))} atoms")
-
-
-def check_mapping(m: Optional[Mapping[str, float]], elements: Sequence[str], what: str) -> None:
-    if m is None:
-        return
-    missing = [e for e in elements if e not in m]
-    if missing:
-        raise KeyError(f"{what}: no value for element(s) {missing}")

@@ -1,40 +1,53 @@
 # Changelog
 
-## 0.1.0 (2026-09-27)
+## 0.2.0 (unreleased)
 
-First release: the implementation described in the accompanying paper
-(`paper/main.tex`).
+Descriptors of a crystal's electron density from one input, the VASP CHGCAR,
+with a graphical interface, densities predicted from the structure, and
+property estimates.
 
-- **Data model and readers.** One `VolumetricData` object with cached derived
-  fields.
-  - VASP readers: CHGCAR / CHG (1, 2 or 4 blocks), AECCAR0 + AECCAR2, ELFCAR
-    and LOCPOT, with ZVAL and RCORE from the POTCAR or OUTCAR, or from
-    per-element tables.
-  - Gaussian cube and XSF readers.
-- **ML input path.**
-  - `vasp_grid_shape` reproduces VASP's CHGCAR grid from the lattice and
-    ENCUT alone.
-  - `write_predicted` / `read_predicted` exchange densities predicted by a
-    model through an `.npz` file, with charge renormalization. The density's
-    origin, model and scale factor are recorded in the metadata.
-- **Descriptors.** 220 by default: 36 bonding, 21 structural, 8 magnetic,
-  23 heterogeneity and 132 compositional (Magpie via matminer).
-  - Off-by-default extensions: `paw` (12 descriptors outside the augmentation
-    spheres) and `robust` (a bounded ellipticity).
-  - Every descriptor is registered with its formula, units, range, sentinel
-    cases, references and stability tag.
-- **Numerics.**
-  - FFT and finite-difference derivatives with the exact metric.
-  - A periodic geometry pass with a geometric tie-break.
-  - Four partitions: nearest atom, power diagram, Becke and Hirshfeld.
-  - Tabulated LDA free atoms (Z = 1–96) for the promolecule.
-  - The critical-point census on the Freudenthal triangulation, with an exact
-    `euler_consistency`.
-- **Interfaces.**
-  - Python: `featurize`, `featurize_batch`, `catalogue`, `descriptor_names`,
-    `hirshfeld_charges` and `sensitivity_sweep`.
-  - Command line: `pydemi featurize`, `batch`, `catalogue` and `sweep`.
-- **Validation.** 894 tests, including an invariance harness that checks
-  every registered descriptor under supercell expansion, translation and
-  rotation. `mypy --strict` passes on the whole package; CI runs the tests
-  on Python 3.10, 3.11 and 3.12.
+- **Descriptors: 56**, all computed by default from the CHGCAR alone:
+  19 bonding, 19 structural and 18 site-heterogeneity. Each is registered with
+  its formula, units, range and fallback values (`pydemi.catalogue()`).
+- **Not included, on purpose:** ELF and local energy-density descriptors (from
+  a CHGCAR, a PAW pseudo-density, they would rest on a density-only
+  kinetic-energy estimate, not the true quantities), the unbounded ellipticity
+  and the saddle-point counts (numerically unstable on VASP grids), and
+  anything that needs a file other than the CHGCAR. Partitions: nearest,
+  power, Becke.
+- **Graphical interface:** `pip install "pydemi[gui]"`, then `pydemi gui`.
+  It runs on the user's machine and opens in the browser; nothing is uploaded
+  anywhere.
+  - Laid out like desktop software: an input panel (open a CHGCAR, plain,
+    gz, bz2, xz or zip, or a structure for ChargE3Net; properties; settings)
+    and four views: the structure and density slices; the descriptor table
+    with search, export and the selected descriptor's plot; a plot for
+    each descriptor, built so that the plotted data reproduce its value; and
+    material properties estimated from the descriptors.
+  - Streamlit and plotly are an optional extra; the library itself still
+    needs only numpy, scipy and pandas.
+- **Densities predicted from the structure** (optional `ml` extra:
+  PyTorch, e3nn, ASE): `pydemi.ml.predict`, `pydemi predict`, and the
+  *Crystal structure (ML)* tab of the GUI.
+  - The ChargE3Net network (Koker et al. 2024, MIT) is included, adapted to
+    one structure at a time on any device; its predictions equal those of the
+    original code (tested to 1e-5 of the peak density). It ships with a
+    checkpoint fine-tuned by CMS Lab on its VASP dataset (8 MB).
+  - The grid is the one VASP would use (`pydemi.ml.vasp_grid_shape`; all
+    6,059 dataset grids reproduced), and the density is rescaled to the
+    valence electrons of the training POTCARs (`pydemi.ml.ZVAL`, 87 elements).
+  - The GUI predicts in the background, with progress, time left and cancel,
+    then offers the three tasks on the prediction and a predicted-CHGCAR download.
+- **Property estimates** (LightGBM; in the `gui` extra, or `props` for the
+  library alone): `pydemi.props` and the *Properties* view of the GUI estimate
+  22 properties from the descriptors and the composition with the models that
+  ship with pydemi (35 MB, trained on the CMS Lab dataset with Materials
+  Project targets), and show each estimate with its test-set error and score,
+  a parity plot and the inputs the model relies on most. Models with a test R² below 0.5 are marked ⚠ as rough
+  indications; descriptors outside the training range are flagged.
+- **Command line:** `pydemi featurize`, `batch`, `catalogue`, `sweep`, `gui` and
+  `predict`.
+- **Tests:** 342, including an end-to-end test of the GUI (Streamlit's
+  AppTest) for both inputs. CI runs on Linux, macOS and Windows, Python
+  3.10–3.13, with and without the GUI extra, and the ML extra on all three
+  systems; `mypy --strict` covers the library.

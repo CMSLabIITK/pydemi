@@ -1,25 +1,22 @@
 cff-version: 1.2.0
 message: "If you use pydemi, please cite it as below."
-title: "pydemi: interpretable, fixed-length descriptors from charge-density grids"
-version: 0.1.0
-date-released: 2026-09-27
+title: "pydemi: interpretable, fixed-length descriptors from a VASP CHGCAR"
+version: 0.2.0
 license: MIT
-doi: 10.5281/zenodo.22995681
+doi: 10.5281/zenodo.22995680
 identifiers:
-  - type: doi
-    value: 10.5281/zenodo.22995681
-    description: "pydemi 0.1.0"
   - type: doi
     value: 10.5281/zenodo.22995680
     description: "All versions of pydemi"
 repository-code: "https://github.com/CMSLabIITK/pydemi"
 abstract: >-
-  pydemi turns volumetric charge densities, from DFT calculations or predicted
-  by machine-learning models from the crystal structure, into named,
-  fixed-length vectors of physically interpretable descriptors in five domains
-  (bonding, structural, magnetic, site heterogeneity and composition), each
-  registered with its formula, units, range, degenerate-case values and
-  stability.
+  pydemi turns the charge density in a VASP CHGCAR into 56 named,
+  physically interpretable descriptors in three domains (bonding, structural
+  and site heterogeneity), each registered with its formula, units, range and
+  fallback values. A graphical interface (pydemi gui) shows the structure,
+  density slices, the descriptors and a plot for each. Without a DFT
+  calculation, the density can be predicted from the structure with
+  ChargE3Net (optional).
 keywords:
   - charge density
   - density-functional theory
@@ -29,5 +26,24 @@ keywords:
   - VASP
 authors:
   - family-names: Maurya
-    given-names: Shubham
+    given-names: Shubham Kumar
     affiliation: "CMS Lab, Indian Institute of Technology Kanpur"
+references:
+  - type: article
+    title: "Higher-order equivariant neural networks for charge density prediction in materials"
+    authors:
+      - family-names: Koker
+        given-names: Teddy
+      - family-names: Quigley
+        given-names: Keegan
+      - family-names: Taw
+        given-names: Eric
+      - family-names: Tibbetts
+        given-names: Kevin
+      - family-names: Li
+        given-names: Lin
+    journal: "npj Computational Materials"
+    volume: 10
+    start: 161
+    year: 2024
+    doi: 10.1038/s41524-024-01343-1

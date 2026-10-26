@@ -18,7 +18,9 @@ Schemes
 ``nearest``    i(k) = argmin_i |r_k - R_i|                        (default)
 ``power``      i(k) = argmin_i |r_k - R_i|^2 - R_i^2, R_i the covalent radius
 ``becke``      Becke fuzzy cells, pure geometry
-``hirshfeld``  w_i(r) = rho_free_i(r - R_i) / sum_j rho_free_j(r - R_j)
+
+All three need only the structure (and, for ``power``, the tabulated
+covalent radii).
 
 Becke in periodic solids
 ------------------------
@@ -28,21 +30,20 @@ approaches 1 only as (d/R)^8, so the weights converge slowly with the number
 of images in the product (FeNi3: max weight error 1.6e-2 with 60
 competitors, 1.0e-3 with 300). Weights are assigned to the BECKE_CELLS
 nearest images and every product runs over the BECKE_K nearest images;
-both are part of the definition and recorded in the metadata. Hirshfeld,
-whose free-atom densities decay exponentially, has no such problem.
+both are part of the definition and recorded in the metadata.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Iterator, Mapping
+from typing import Any, Iterator
 
 import numpy as np
 from numpy.typing import NDArray
 from scipy.spatial import cKDTree
 
 from ..constants import BECKE_CELLS, BECKE_K, MIN_PAIR_WEIGHT
-from ..data import atomic_number, covalent_radius, default_zval
+from ..data import covalent_radius
 from ..io.base import Structure, VolumetricData
 from .geometry import NearestAtom, assign_atoms, geometry_of, image_points, reps_for
 from .grid import cart_coords
@@ -118,8 +119,6 @@ def partition_of(vd: VolumetricData, scheme: str) -> Partition:
                                           n, "power")
         elif scheme == "becke":
             vd.cache[key] = BeckePartition(vd.shape, vd.structure)
-        elif scheme == "hirshfeld":
-            vd.cache[key] = HirshfeldPartition(vd.shape, vd.structure, hirshfeld_tables(vd))
         else:
             raise ValueError(f"unknown partition {scheme!r}")
     out: Partition = vd.cache[key]
@@ -193,69 +192,3 @@ class BeckePartition(Partition):
             direction = np.where(dist[:, None] > 1e-12, diff / safe[:, None], 0.0)
             yield PairChunk(np.asarray(s + m, dtype=np.int64), owner[idx][m, j], wk, dist,
                             direction)
-
-
-# ----------------------------------------------------------------------
-# Hirshfeld
-# ----------------------------------------------------------------------
-
-class HirshfeldPartition(Partition):
-    """w_i(r) = rho_free_i(r - R_i) / sum_j rho_free_j(r - R_j), over all periodic images.
-
-    Uses the same free-atom tables and image sums as the promolecule; a voxel
-    where every free-atom density vanishes goes wholly to its nearest image.
-    """
-
-    scheme = "hirshfeld"
-
-    def __init__(self, shape: tuple[int, int, int], structure: Structure,
-                 tables: Mapping[str, Any]) -> None:
-        super().__init__(structure.n_atoms)
-        self.shape, self.structure, self.tables = shape, structure, tables
-
-    def pairs(self) -> Iterator[PairChunk]:
-        from ..fields.deformation import atom_density_blocks
-        for b in atom_density_blocks(self.shape, self.structure, self.tables):
-            dens = b.density.copy()
-            total = dens.sum(axis=1)
-            empty = total <= 0
-            if empty.any():
-                rows = np.flatnonzero(empty)
-                dens[rows, np.argmin(b.distance[empty], axis=1)] = 1.0
-                total[empty] = 1.0
-            w = dens / total[:, None]
-            m, c = np.nonzero(w > MIN_PAIR_WEIGHT)
-            wk = _renormalized(w[m, c], m, len(b.voxel))
-            dist = b.distance[m, c]
-            safe = np.where(dist > 1e-12, dist, 1.0)
-            direction = np.where(dist[:, None] > 1e-12, b.diff[m, c] / safe[:, None], 0.0)
-            yield PairChunk(b.voxel[m], b.owner[c], wk, dist, direction)
-
-
-def hirshfeld_tables(vd: VolumetricData) -> Mapping[str, Any]:
-    """Free-atom tables matching the density: all electrons (all-electron density) or ZVAL."""
-    from ..fields.deformation import reference_tables
-    part = "total" if vd.density_source == "all_electron" else "valence"
-    return reference_tables(vd.structure, "tabulated", part, vd.zval)
-
-
-def reference_electrons(vd: VolumetricData) -> F64:
-    """Z_i of the Hirshfeld charge: the atomic number for an all-electron density, ZVAL for a
-    pseudo-density (documented correction: q_i = Z_i - N_i needs the electrons the density holds)."""
-    if vd.density_source == "all_electron":
-        return np.array([float(atomic_number(s)) for s in vd.structure.species])
-    z = vd.zval or {}
-    return np.array([float(z[s]) if s in z else default_zval(s) for s in vd.structure.species])
-
-
-def hirshfeld_charges(vd: VolumetricData) -> F64:
-    """Hirshfeld atomic charges q_i = Z_i - int w_i rho dV (for comparison with Bader charges).
-
-    Z_i is ZVAL for a PAW pseudo-density (CHGCAR) and the atomic number for
-    AECCAR0 + AECCAR2. With a CHGCAR the free-atom weights keep their
-    all-electron shape inside the augmentation spheres, so the partition of
-    the pseudized density there is approximate.
-    """
-    part = partition_of(vd, "hirshfeld")
-    N = part.site_sum(vd.rho.data) * vd.rho.dV
-    return np.asarray(reference_electrons(vd) - N, dtype=np.float64)

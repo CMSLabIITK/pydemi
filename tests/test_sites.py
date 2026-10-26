@@ -16,11 +16,10 @@ LAT = Lattice(np.array([[4.2, 0.0, 0.0], [0.6, 4.4, 0.0], [0.3, 0.4, 4.6]]))
 FRAC = [[0.0, 0.0, 0.0], [0.5, 0.5, 0.1], [0.25, 0.6, 0.55], [0.75, 0.2, 0.7]]
 
 
-def _vd(species=("Fe", "Fe", "O", "O"), shape=(28, 28, 30), magnetic=False):
+def _vd(species=("Fe", "Fe", "O", "O"), shape=(28, 28, 30)):
     s = Structure(LAT, list(species), FRAC)
     rho = GaussianSuperposition(s, [1.5, 1.7, 2.3, 2.1], [8.0, 8.0, 6.0, 6.0], tol=1e-18)
-    mag = GaussianSuperposition(s, [2.0, 2.0, 3.0, 3.0], [2.0, -1.0, 0.1, 0.0], tol=1e-18)
-    return rho.volumetric(shape, magnetization=mag if magnetic else None)
+    return rho.volumetric(shape)
 
 
 def test_anova_identity_holds_exactly():
@@ -50,12 +49,11 @@ def test_nearest_partition_tiles_space():
 
 
 def test_heterogeneity_names_and_values():
-    feats = pydemi.featurize(_vd(magnetic=True), domains=["heterogeneity"])
-    for base in ("m1", "f_bond", "zeta", "mu"):
-        for suffix in ("site_range", "site_max", "site_min", "within_element_var",
-                       "between_element_var"):
-            assert f"{base}_{suffix}" in feats
-    assert "mu_site_std" not in feats                      # magnetic domain (spec §8.3)
+    feats = pydemi.featurize(_vd(), domains=["heterogeneity"])
+    names = [f"{base}_{suffix}" for base in ("m1", "f_bond", "zeta")
+             for suffix in ("site_std", "site_range", "site_max", "site_min",
+                            "within_element_var", "between_element_var")]
+    assert list(feats) == names
     assert feats["m1_site_max"] >= feats["m1_site_min"]
     assert feats["m1_site_range"] == pytest.approx(feats["m1_site_max"] - feats["m1_site_min"])
     assert np.isclose(feats["m1_site_std"] ** 2,
@@ -71,10 +69,6 @@ def test_heterogeneity_sentinels():
     f, meta = pydemi.featurize(_vd(species=("Fe",) * 4), domains=["heterogeneity"],
                                return_metadata=True)
     assert f["m1_between_element_var"] == 0.0 and meta["m1_between_element_var__flag"] == 1
-    # non-magnetic: every mu statistic is 0.0, flagged, never NaN
-    assert meta["magnetic"] is False
-    for k in ("mu_site_range", "mu_site_max", "mu_within_element_var", "mu_between_element_var"):
-        assert f[k] == 0.0 and meta[f"{k}__flag"] == 1
 
 
 def test_power_partition_is_a_different_tiling():

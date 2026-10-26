@@ -87,16 +87,16 @@ def test_featurize_names_and_metadata():
     feats, meta = pydemi.featurize(vd, return_metadata=True)
     assert list(feats)[:len(TIER1)] == TIER1
     assert pydemi.descriptor_names(["bonding"])[:len(TIER1)] == TIER1
-    for key in ("n_atoms", "volume", "grid_shape", "density_source", "wall_time_s",
+    for key in ("n_atoms", "volume", "grid_shape", "wall_time_s",
                 "pydemi_version", "error"):
         assert key in meta
-    assert meta["grid_shape"] == "48x48x48" and meta["density_source"] == "pseudo"
+    assert meta["grid_shape"] == "48x48x48"
 
 
 def test_catalogue_is_generated_from_the_registry():
     cat = pydemi.catalogue()
     for col in ("name", "domain", "field", "requires", "units", "range_min", "range_max",
-                "intensive", "sentinel_cases", "adopted", "formula", "references"):
+                "intensive", "sentinel_cases", "formula", "references"):
         assert col in cat.columns
     assert set(TIER1) <= set(cat["name"])
     assert cat["intensive"].all()

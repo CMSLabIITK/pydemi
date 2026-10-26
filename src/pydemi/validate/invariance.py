@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import dataclasses
 import math
-from typing import Callable, Mapping, Optional, Sequence
+from typing import Callable, Mapping, Sequence
 
 import numpy as np
 from numpy.typing import NDArray
@@ -30,17 +30,8 @@ from ..io.base import FloatArray, Grid, Lattice, Structure, VolumetricData
 
 def _map_grids(vd: VolumetricData, fn: Callable[[FloatArray], FloatArray],
                lattice: Lattice, structure: Structure) -> VolumetricData:
-    def g(grid: Optional[Grid]) -> Optional[Grid]:
-        return None if grid is None else Grid(fn(grid.data), lattice)
-    mv = None
-    if vd.magnetization_vector is not None:
-        a, b, c = (Grid(fn(x.data), lattice) for x in vd.magnetization_vector)
-        mv = (a, b, c)
-    rho = g(vd.rho)
-    assert rho is not None
-    return dataclasses.replace(vd, structure=structure, rho=rho, magnetization=g(vd.magnetization),
-                               elf=g(vd.elf), potential=g(vd.potential),
-                               core_density=g(vd.core_density), magnetization_vector=mv, cache={})
+    return dataclasses.replace(vd, structure=structure, rho=Grid(fn(vd.rho.data), lattice),
+                               cache={})
 
 
 def supercell(vd: VolumetricData, reps: Sequence[int] = (2, 2, 2)) -> VolumetricData:

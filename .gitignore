@@ -1,8 +1,19 @@
 .pytest_cache/
+.mypy_cache/
 __pycache__/
 *.py[cod]
 .venv/
 .env
-pydemi — Consolidated Descriptor Reference.pdf
-results/prompt_spec/chunks/
-results/prompt_spec/*.before_robust.csv
+build/
+dist/
+*.egg-info/
+
+# local reference material, not part of the package
+old_project/
+
+# property-prediction study: derived data and results (regenerate with property_prediction/scripts)
+property_prediction/data/
+property_prediction/results/
+
+# the manuscript (not published here)
+paper/

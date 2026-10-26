@@ -26,7 +26,7 @@ from __future__ import annotations
 
 import itertools
 import math
-from typing import Mapping, Optional, Sequence, Union
+from typing import Mapping, Sequence, Union
 
 import numpy as np
 from numpy.typing import NDArray
@@ -112,15 +112,10 @@ class _RadialSuperposition:
         rho, grad, hess = self.evaluate(cart_coords(s, self.structure.lattice).reshape(-1, 3))
         return rho.reshape(s), grad.reshape(s + (3,)), hess.reshape(s + (3, 3))
 
-    def volumetric(self, shape: Sequence[int], magnetization: Optional["_RadialSuperposition"] = None
-                   ) -> VolumetricData:
-        """VolumetricData with this density (and, optionally, a collinear magnetization)."""
+    def volumetric(self, shape: Sequence[int]) -> VolumetricData:
+        """VolumetricData with this density."""
         rho, _, _ = self.on_grid(shape)
-        lat = self.structure.lattice
-        mag = None
-        if magnetization is not None:
-            mag = Grid(magnetization.on_grid(shape)[0], lat)
-        return VolumetricData(self.structure, Grid(rho, lat), magnetization=mag)
+        return VolumetricData(self.structure, Grid(rho, self.structure.lattice))
 
 
 class SlaterSuperposition(_RadialSuperposition):

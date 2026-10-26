@@ -32,7 +32,8 @@ def test_census_of_a_periodic_function_with_known_critical_points(n):
 def test_census_descriptors_are_per_volume():
     vd = VolumetricData(cubic_cell(4.0), Grid(_periodic(24), Lattice(np.eye(3) * 4.0)))
     f, meta = pydemi.featurize(vd, domains=["structural"], return_metadata=True)
-    assert f["n_max"] == pytest.approx(1 / 64.0) and f["n_saddle1"] == pytest.approx(3 / 64.0)
+    assert f["n_max"] == pytest.approx(1 / 64.0) and f["n_min"] == pytest.approx(1 / 64.0)
+    assert "n_saddle1" not in f                     # saddles enter only euler_consistency
     assert meta["euler_consistency"] == 0
 
 

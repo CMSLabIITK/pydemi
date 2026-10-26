@@ -19,8 +19,6 @@ from __future__ import annotations
 
 from typing import Any, Iterable, Optional, Sequence
 
-import numpy as np
-
 from ..core.geometry import Shells
 from ..core.grid import fourier_resample
 from ..io.base import Grid, VolumetricData
@@ -28,21 +26,8 @@ from ..io.base import Grid, VolumetricData
 
 def _resampled(vd: VolumetricData, shape: Sequence[int]) -> VolumetricData:
     import dataclasses
-    lat = vd.lattice
-
-    def g(grid: Optional[Grid]) -> Optional[Grid]:
-        return None if grid is None else Grid(fourier_resample(grid.data, shape), lat)
-    mv = None
-    if vd.magnetization_vector is not None:
-        a, b, c = (Grid(fourier_resample(x.data, shape), lat) for x in vd.magnetization_vector)
-        mv = (a, b, c)
-    rho = g(vd.rho)
-    assert rho is not None
-    return dataclasses.replace(vd, rho=rho, magnetization=g(vd.magnetization),
-                               elf=None if vd.elf is None else Grid(
-                                   np.clip(fourier_resample(vd.elf.data, shape), 0.0, 1.0), lat),
-                               potential=g(vd.potential), core_density=g(vd.core_density),
-                               magnetization_vector=mv, cache={})
+    return dataclasses.replace(vd, rho=Grid(fourier_resample(vd.rho.data, shape), vd.lattice),
+                               cache={})
 
 
 def grid_convergence(vd: VolumetricData, scales: Sequence[float] = (0.9, 0.8),

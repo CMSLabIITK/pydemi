@@ -56,7 +56,7 @@ def fourier_resample(data: FloatArray, shape: Sequence[int]) -> FloatArray:
 
 
 def linear_resample(data: FloatArray, shape: Sequence[int]) -> FloatArray:
-    """Periodic trilinear resampling; stays within the data range (use for the ELF)."""
+    """Periodic trilinear resampling; stays within the data range."""
     src = np.array(data.shape)
     dst = np.array([int(n) for n in shape])
     if np.all(src % dst == 0):
