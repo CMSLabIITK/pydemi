@@ -3,11 +3,15 @@ message: "If you use pydemi, please cite it as below."
 title: "pydemi: interpretable, fixed-length descriptors from a VASP CHGCAR"
 version: 0.2.0
 license: MIT
+date-released: 2026-10-26
 doi: 10.5281/zenodo.22995680
 identifiers:
   - type: doi
     value: 10.5281/zenodo.22995680
     description: "All versions of pydemi"
+  - type: doi
+    value: 10.5281/zenodo.23664506
+    description: "pydemi 0.2.0"
 repository-code: "https://github.com/CMSLabIITK/pydemi"
 abstract: >-
   pydemi turns the charge density in a VASP CHGCAR into 56 named,
