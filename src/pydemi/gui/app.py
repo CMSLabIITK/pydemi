@@ -1,7 +1,7 @@
 """pydemi GUI, laid out like desktop software: an input panel on the left (open a CHGCAR,
 or a structure whose density ChargE3Net predicts, its summary and the settings) and
 the views on the right (structure, descriptors, plots, properties predicted from the
-descriptors).
+descriptors, and a comparison of a CHGCAR with the density predicted for its structure).
 
 Started by ``pydemi gui`` (see ``pydemi.gui.launch``), which runs this file with
 Streamlit on the user's own machine.
@@ -23,7 +23,7 @@ import streamlit as st
 
 import pydemi
 from pydemi import ml, props
-from pydemi.gui import app_views, core, plots, predict, viewer
+from pydemi.gui import app_views, compare, core, plots, predict, viewer
 from pydemi.gui import properties as P
 from pydemi.gui.formulas import formula as typeset
 from pydemi.io.base import Structure, VolumetricData
@@ -247,9 +247,10 @@ def _progress(key: Any) -> None:
               key="cancel_prediction")
 
 
-def _start(key: Any, s: Structure, device: str) -> None:
+def _start(key: Any, s: Structure, device: str,
+           shape: Optional[tuple[int, int, int]] = None) -> None:
     try:
-        _jobs().submit(key, s, device)
+        _jobs().submit(key, s, device, shape)
     except RuntimeError as exc:
         st.session_state.predict_error = str(exc)
 
@@ -583,6 +584,180 @@ def _view_properties(label: str, feats: dict, meta: dict) -> None:
 
 
 # ----------------------------------------------------------------------
+# compare: the CHGCAR against the density predicted for its structure
+# ----------------------------------------------------------------------
+
+@st.cache_data(max_entries=8, show_spinner=False)
+def _cell(key: str, _src: Source) -> tuple[Structure, tuple[int, int, int]]:
+    """The structure and grid of a CHGCAR."""
+    with _slots():
+        vd = _src.load()
+        return vd.structure, tuple(int(n) for n in vd.rho.data.shape)  # type: ignore[return-value]
+
+
+@st.cache_data(max_entries=8, show_spinner=False)
+def _density_error(key: str, ml_key: str, _src: Source, _pred: Source) -> float:
+    with _slots():
+        return compare.density_error(_src.load(), _pred.load())
+
+
+def _property_bundle() -> Optional[props.Bundle]:
+    path = props.model_path()
+    if props.missing() or path is None or not path.exists():
+        return None
+    with st.spinner("Loading the property models..."):
+        return _bundle(str(path))
+
+
+def _styled(df: Any, column: str, bad: Any, number: Optional[str] = None) -> Any:
+    """Colour one column: red where ``bad``, green elsewhere (None rows stay plain); with
+    ``number``, format that column so (missing values show as a dash)."""
+    def colour(col: Any) -> list[str]:
+        if col.name != column:
+            return [""] * len(col)
+        return ["" if b is None else ("color: #c62828; font-weight: 600" if b else "color: #2e7d4f")
+                for b in bad]
+    style = df.style.apply(colour)
+    return style.format({column: number}, na_rep="–") if number else style
+
+
+def _view_compare(dft: Optional[Source], partition: str) -> None:
+    if dft is None:
+        _empty("No CHGCAR open",
+               "Open a DFT CHGCAR in the CHGCAR tab of the left panel. Compare predicts the "
+               "density of the same structure with ChargE3Net, on the same grid, and sets the "
+               "descriptors and the predicted properties of the two side by side.")
+        return
+    gone = ml.missing()
+    if gone:
+        _empty("Compare needs the ML extra",
+               f"{', '.join(gone)} missing: install it with {ml.INSTALL_HINT}, then restart.")
+        return
+    try:
+        info, _ = _preview(dft.key, dft)
+        s, shape = _cell(dft.key, dft)
+    except (ValueError, MemoryError) as exc:
+        st.error(f"Could not read {dft.name}: {exc}")
+        return
+    info = {**info, "n_voxels": math.prod(shape)}
+    bad = ml.unsupported(s)
+    if bad:
+        _empty("Cannot predict this structure",
+               f"The density model was not trained on {', '.join(bad)}.")
+        return
+
+    devices = _devices()
+    device = devices[0]
+    key = f"cmp:{dft.key}:{device}"
+    job = _jobs().get(key)
+    if job is None or job.state in ("error", "cancelled"):
+        if len(devices) > 1:
+            device = st.segmented_control("Device", devices, default=_kept("cmp_device", devices[0]),
+                                          required=True, format_func=DEVICE_NAMES.get,
+                                          key="cmp_device", on_change=_keep, args=("cmp_device",))
+            key = f"cmp:{dft.key}:{device}"
+            job = _jobs().get(key)
+    if job is not None and job.state == "running":
+        _progress(key)
+        return
+    if job is None or job.state in ("error", "cancelled"):
+        if job is not None and job.state == "error":
+            st.error(f"Prediction failed: {job.error}")
+        if err := st.session_state.pop("predict_error", None):
+            st.warning(err)
+        pairs = math.prod(shape) * ml.pairs_per_point(s) / 1e6
+        _empty("Predict the density of this structure",
+               f"ChargE3Net predicts the density of {info['formula']} on the grid of the CHGCAR "
+               f"({' × '.join(map(str, shape))}, {math.prod(shape):,} points, about {pairs:.1f} "
+               "million atom–point pairs: seconds to minutes on a GPU, longer on a CPU). The "
+               "descriptors and properties of both densities are then compared here.")
+        st.button("Predict and compare", type="primary", icon=":material/play_arrow:",
+                  on_click=_start, args=(key, s, device, shape), key="start_compare")
+        return
+
+    vd = job.result
+    assert vd is not None
+    pred = Source(key, dft.name, f"{dft.label}_predicted", lambda: vd, sources=dict(vd.sources))
+    feats_d, meta_d, _ = _compute(dft, partition, info)
+    feats_m, _, _ = _compute(pred, partition, info)
+    desc = compare.descriptors(feats_d, feats_m)
+    ds = compare.descriptor_summary(desc)
+    nmape = _density_error(dft.key, key, dft, pred)
+
+    bundle = _property_bundle()
+    prop = pdft = pml = None
+    if bundle is not None:
+        counts = P.counts(meta_d)
+        pdft = props.predict(feats_d, bundle, counts=counts)
+        pml = props.predict(feats_m, bundle, counts=counts)
+        prop = compare.properties(pdft, pml, bundle, bundle.match(feats_d))
+
+    m = st.columns(4)
+    m[0].metric("Density error (NMAPE)", f"{nmape:.2f} %",
+                help="Mean absolute difference of the predicted and the DFT density on the CHGCAR's "
+                     f"grid, relative to the DFT density. On the 605 held-out test structures: {ML_ERROR}.")
+    m[1].metric("Descriptors within 1 %", f"{ds['close']} / {ds['n']}",
+                help="Relative difference |DFT − ML| / max(|DFT|, |ML|) of at most 1 %, or ≈ 0 in both.")
+    m[2].metric("Median difference", f"{ds['median']:.2f} %", help="Over the compared descriptors.")
+    if prop is not None:
+        m[3].metric("Properties that agree", f"{int(prop['agree'].sum())} / {len(prop)}",
+                    help="The two predictions differ by less than the model's typical error (test MAE), "
+                         "or give the same class.")
+    electrons = ml.n_valence(s)
+    if abs(info["electrons"] - electrons) > 0.01 * electrons:
+        st.warning(f"The CHGCAR holds {info['electrons']:.2f} electrons, the model's valence count "
+                   f"for this structure is {electrons:g}: the PAW datasets differ from the training "
+                   "data, so part of the difference is the electron count.", icon=":material/warning:")
+
+    t1, t2 = st.columns([6, 1.3], vertical_alignment="bottom")
+    part = t1.segmented_control("Compare", ("Properties", "Descriptors") if prop is not None
+                                else ("Descriptors",), required=True, key="cmp_part",
+                                default=_kept("cmp_part", "Properties") if prop is not None
+                                else "Descriptors", on_change=_keep, args=("cmp_part",),
+                                label_visibility="collapsed")
+    with t2.popover("Export", icon=":material/download:", width="stretch"):
+        st.download_button("CSV", compare.export(desc, prop, feats_d, feats_m, pdft, pml).to_csv(index=False),
+                           file_name=f"{dft.label}_dft_vs_ml.csv", mime="text/csv", width="stretch",
+                           help="Every descriptor and property from both densities.")
+        st.download_button("Predicted CHGCAR",
+                           lambda: core.chgcar_bytes(vd, f"{dft.label}: predicted by {ml.MODEL_NAME}, "
+                                                         "not DFT (pydemi)"),
+                           file_name=f"{dft.label}_predicted.CHGCAR", mime="text/plain",
+                           width="stretch", on_click="ignore", key="download_compare_chgcar")
+
+    if part == "Properties" and prop is not None:
+        shown = prop.drop(columns=["name", "agree", "weak"])
+        bad_rows = [None if d == "–" else not a for d, a in zip(prop["ML − DFT"], prop["agree"])]
+        st.dataframe(_styled(shown, "ML − DFT", bad_rows), hide_index=True, width="stretch",
+                     height=38 + 35 * len(shown), key="cmp_props",
+                     column_config={"property": st.column_config.TextColumn(width=200, pinned=True),
+                                    "inputs": st.column_config.TextColumn(
+                                        width=60, help="D: pydemi descriptors, C: composition")})
+        st.caption(f"⚠ weak model (test R² below {P.WEAK_R2}): a rough indication only. "
+                   "Each property predicted twice by the same model: from the descriptors of the "
+                   "DFT CHGCAR and of the predicted one (the composition is the same). Green: the two "
+                   "differ by less than the model's typical error; red: by more, or the class "
+                   "changes. Models that read the composition only (C) agree by construction.")
+    else:
+        only_far = st.toggle(f"Only descriptors that differ by more than {100 * compare.FAR:.0f} % "
+                             f"({ds['far']})", key="cmp_far", value=_kept("cmp_far", False),
+                             on_change=_keep, args=("cmp_far",))
+        view = desc[desc["difference %"] > 100 * compare.FAR] if only_far else desc
+        view = view.assign(DFT=view["DFT"].map(_fmt), ML=view["ML"].map(_fmt)).reset_index(drop=True)
+        far = [None if not math.isfinite(d) else d > 100 * compare.FAR for d in view["difference %"]]
+        st.dataframe(_styled(view, "difference %", far, "{:.2f}"), hide_index=True, width="stretch",
+                     height=560, key=f"cmp_desc_{only_far}",
+                     column_config={
+                         "descriptor": st.column_config.TextColumn(width=210, pinned=True),
+                         "transfer": st.column_config.TextColumn(
+                             help="How well the descriptor transfers to predicted densities in general: "
+                                  "Spearman ρs between DFT and ML values over the 605 held-out "
+                                  "structures (excellent ≥ 0.99, good ≥ 0.95).")})
+        st.caption("Difference: |DFT − ML| / max(|DFT|, |ML|). Values below 0.1 % of a descriptor's "
+                   "typical size in both densities are numerical noise (≈ 0 in both).")
+
+
+# ----------------------------------------------------------------------
 # page
 # ----------------------------------------------------------------------
 
@@ -693,3 +868,6 @@ for tab, kind in ((views[1], "descriptors"), (views[2], "plots"), (views[3], "pr
             _view_plots(feats, pdata)
         else:
             _view_properties(source.label, feats, meta)
+with views[4]:
+    if views[4].open:
+        _view_compare(_upload_source(upload) if upload is not None else None, partition)

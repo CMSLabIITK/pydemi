@@ -42,7 +42,8 @@ _URL = re.compile(r"(https?://\S+)")
 def app_views() -> tuple[str, ...]:
     """Labels of the view tabs of the app (for tests and scripts that drive it)."""
     return (":material/view_in_ar: Structure", ":material/table_chart: Descriptors",
-            ":material/insights: Plots", ":material/science: Properties")
+            ":material/insights: Plots", ":material/science: Properties",
+            ":material/compare_arrows: Compare")
 
 
 def missing() -> list[str]:

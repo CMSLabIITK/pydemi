@@ -1,6 +1,16 @@
 # Changelog
 
-## 0.2.0 (unreleased)
+## 0.2.1 (2026-10-28)
+
+- **Compare view** in the graphical interface: the open CHGCAR against the density
+  ChargE3Net predicts for the same structure, on the CHGCAR's own grid. It shows the
+  density error, the 56 descriptors from both (relative difference, values that are
+  numerical noise in both, and each descriptor's transfer to predicted densities over the
+  605 held-out structures of the density model), and the 22 properties predicted from
+  each, marked where they differ by more than the model's typical error. CSV export.
+- Background predictions accept a grid (`pydemi.gui.predict.Jobs.submit(..., shape=)`).
+
+## 0.2.0 (2026-10-26)
 
 Descriptors of a crystal's electron density from one input, the VASP CHGCAR,
 with a graphical interface, densities predicted from the structure, and

@@ -70,3 +70,16 @@ def test_only_a_few_finished_jobs_are_kept(fake):
     assert jobs.get(7) is not None and jobs.get(0) is None
     jobs.forget(7)
     assert jobs.get(7) is None
+
+
+def test_a_job_can_use_a_given_grid(monkeypatch):
+    seen = {}
+
+    def run(structure, device=None, progress=None, should_stop=None, shape=None):
+        seen["shape"] = shape
+        return VolumetricData(structure, Grid(np.ones(shape), structure.lattice), sources={})
+
+    monkeypatch.setattr(ml, "predict", run)
+    job = predict.Jobs().submit("a", S, shape=(4, 5, 6))
+    job.wait(5)
+    assert job.total == 120 and seen["shape"] == (4, 5, 6) and job.result.rho.data.shape == (4, 5, 6)

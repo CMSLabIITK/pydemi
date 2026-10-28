@@ -1,9 +1,9 @@
 cff-version: 1.2.0
 message: "If you use pydemi, please cite it as below."
 title: "pydemi: interpretable, fixed-length descriptors from a VASP CHGCAR"
-version: 0.2.0
+version: 0.2.1
 license: MIT
-date-released: 2026-10-26
+date-released: 2026-10-28
 doi: 10.5281/zenodo.22995680
 identifiers:
   - type: doi

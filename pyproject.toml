@@ -60,7 +60,7 @@ norecursedirs = []
 python_version = "3.10"
 files = ["src/pydemi"]
 strict = true
-exclude = ["src/pydemi/gui/(app|plots|viewer|properties)\\.py$", "src/pydemi/ml/model\\.py$"]   # UI code (tested by tests/gui); the vendored network
+exclude = ["src/pydemi/gui/(app|plots|viewer|properties|compare)\\.py$", "src/pydemi/ml/model\\.py$"]   # UI code (tested by tests/gui); the vendored network
 
 [[tool.mypy.overrides]]
 module = ["torch", "torch.*", "e3nn", "e3nn.*", "ase", "ase.*", "lightgbm", "lightgbm.*"]   # the ml and props extras: untyped, optional

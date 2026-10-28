@@ -219,3 +219,54 @@ def test_structure_tab_predicts_then_offers_the_views(monkeypatch):
     assert len(at.dataframe[0].value) == 56          # the descriptors view, now on the prediction
     details = dict(zip(at.dataframe[1].value["key"], at.dataframe[1].value["value"]))
     assert details["density_origin"] == "predicted" and details["density_grid_rule"].startswith("vasp")
+
+
+# ----------------------------------------------------------------------
+# compare view: the CHGCAR against the density predicted for its structure
+# ----------------------------------------------------------------------
+
+COMPARE = 4
+
+
+def test_compare_without_a_chgcar():
+    at = AppTest.from_file(str(APP), default_timeout=60)
+    at.session_state["input_tab"] = ML_TAB
+    _ok(at.run())
+    at.file_uploader(key="structure_upload").set_value(("BeCo.cif", CIF, "text/plain"))
+    at = _show(_ok(at.run()), COMPARE)
+    assert "No CHGCAR open" in _html(at)
+
+
+def test_compare_without_the_ml_extra(loaded, monkeypatch):
+    from pydemi import ml
+    monkeypatch.setattr(ml, "missing", lambda: ["torch"])
+    assert "Compare needs the ML extra" in _html(_show(loaded, COMPARE))
+
+
+def test_compare_predicts_on_the_chgcar_grid_and_sets_both_side_by_side(loaded, property_bundle,
+                                                                         monkeypatch):
+    pytest.importorskip("torch")
+    pytest.importorskip("e3nn")
+    from pydemi import props
+    monkeypatch.setenv(props.ENV, str(property_bundle[0]))
+    at = _show(loaded, COMPARE)
+    assert "Predict the density of this structure" in _html(at) and "20 × 20 × 22" in _html(at)
+    at.button(key="start_compare").click()
+    at = _show(at, COMPARE)
+    for _ in range(240):
+        if at.metric:
+            break
+        time.sleep(0.5)
+        at = _show(at, COMPARE)
+    labels = [m.label for m in at.metric]
+    assert labels == ["Density error (NMAPE)", "Descriptors within 1 %", "Median difference",
+                      "Properties that agree"]
+    assert at.warning and "electrons" in at.warning[0].value     # Gaussian test density: 17 e
+    props_table = at.dataframe[0].value
+    assert list(props_table.columns[:4]) == ["property", "group", "from DFT CHGCAR", "from ML CHGCAR"]
+    assert len(props_table) == 4
+    at.segmented_control(key="cmp_part").set_value("Descriptors")
+    at = _show(at, COMPARE)
+    desc = at.dataframe[0].value
+    assert len(desc) == 56 and {"DFT", "ML", "difference %", "transfer"} <= set(desc.columns)
+    assert {d.label for d in at.get("download_button")} >= {"CSV", "Predicted CHGCAR"}

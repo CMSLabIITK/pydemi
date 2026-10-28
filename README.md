@@ -61,6 +61,12 @@ The window is laid out like desktop software:
     the model relies on most. Models with a test R² below 0.5 are marked ⚠ and give rough
     indications only. If the material is in the training dataset, its DFT values are
     shown alongside.
+  - *Compare* (needs the `ml` extra): for the open CHGCAR, ChargE3Net predicts the
+    density of the same structure on the same grid, and the two are set side by side: the
+    density error (NMAPE), every descriptor from both with its relative difference and how
+    well it transfers to predicted densities in general, and every property predicted from
+    each, marked where the two differ by more than the model's typical error. Export as CSV,
+    with the predicted CHGCAR.
 
 Choices are kept when you switch views; the descriptors are computed once per file and
 partition.

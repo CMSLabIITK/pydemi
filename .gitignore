@@ -17,3 +17,6 @@ property_prediction/results/
 
 # the manuscript (not published here)
 paper/
+
+# local analysis reports (unpublished data)
+reports/

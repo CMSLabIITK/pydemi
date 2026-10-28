@@ -22,6 +22,7 @@ from pydemi.io.base import Structure, VolumetricData
 class Job:
     structure: Structure
     device: Optional[str] = None
+    shape: Optional[tuple[int, int, int]] = None      # None: the grid VASP would use
     done: int = 0
     total: int = 0
     started: float = field(default_factory=time.time)
@@ -61,8 +62,12 @@ class Job:
 
     def _work(self) -> None:
         try:
-            self.result = ml.predict(self.structure, device=self.device, progress=self._progress,
-                                     should_stop=self._stop.is_set)
+            if self.shape:
+                self.result = ml.predict(self.structure, shape=self.shape, device=self.device,
+                                         progress=self._progress, should_stop=self._stop.is_set)
+            else:
+                self.result = ml.predict(self.structure, device=self.device, progress=self._progress,
+                                         should_stop=self._stop.is_set)
         except ml.Cancelled:
             pass
         except Exception as exc:  # shown to the user; the traceback goes to the terminal
@@ -98,8 +103,10 @@ class Jobs:
     def running(self) -> Optional[Any]:
         return next((k for k, j in self._jobs.items() if j.state == "running"), None)
 
-    def submit(self, key: Any, structure: Structure, device: Optional[str] = None) -> Job:
-        """Start a prediction for ``key``, or return the one already running or done."""
+    def submit(self, key: Any, structure: Structure, device: Optional[str] = None,
+               shape: Optional[tuple[int, int, int]] = None) -> Job:
+        """Start a prediction for ``key``, or return the one already running or done. The
+        grid is ``shape``, or the one VASP would use."""
         with self._lock:
             job = self._jobs.get(key)
             if job is not None and job.state in ("running", "done"):
@@ -110,8 +117,8 @@ class Jobs:
             finished = [k for k, j in self._jobs.items() if j.state != "running"]
             for k in finished[:max(0, len(finished) - self.KEEP + 1)]:
                 del self._jobs[k]
-            n1, n2, n3 = ml.vasp_grid_shape(structure.lattice)
-            job = self._jobs[key] = Job(structure, device, total=n1 * n2 * n3).start()
+            n1, n2, n3 = shape or ml.vasp_grid_shape(structure.lattice)
+            job = self._jobs[key] = Job(structure, device, shape, total=n1 * n2 * n3).start()
             return job
 
     def forget(self, key: Any) -> None:
