@@ -5,9 +5,11 @@ import math
 import numpy as np
 import pytest
 
-import pydemi
-from pydemi.gui import compare
-from pydemi.io.base import Grid, Lattice, Structure, VolumetricData
+pytest.importorskip("plotly")    # pydemi.gui needs the gui extra
+
+import pydemi  # noqa: E402
+from pydemi.gui import compare  # noqa: E402
+from pydemi.io.base import Grid, Lattice, Structure, VolumetricData  # noqa: E402
 
 NAMES = list(pydemi.descriptor_names())
 
