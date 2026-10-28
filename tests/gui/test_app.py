@@ -229,6 +229,8 @@ COMPARE = 4
 
 
 def test_compare_without_a_chgcar():
+    for m in ("torch", "e3nn", "ase"):                  # the structure tab needs the ml extra
+        pytest.importorskip(m)
     at = AppTest.from_file(str(APP), default_timeout=60)
     at.session_state["input_tab"] = ML_TAB
     _ok(at.run())
