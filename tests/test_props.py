@@ -150,30 +150,13 @@ def test_gui_table_and_texts(property_bundle):
     assert "rough indication" in P.note(low, pred) and P.export(pred, b)["weak_model"].dtype == bool
 
 
-def _counts(formula: str) -> dict[str, float]:
-    """Element counts of a formula such as 'Rb(ThSe3)2'."""
-    import re
-    stack: list[dict[str, float]] = [{}]
-    for el, n, close, m in re.findall(r"([A-Z][a-z]?)(\d*\.?\d*)|(\))(\d*)|\(", formula):
-        if el:
-            stack[-1][el] = stack[-1].get(el, 0.0) + float(n or 1)
-        elif close:
-            inner = stack.pop()
-            for e, k in inner.items():
-                stack[-1][e] = stack[-1].get(e, 0.0) + k * float(m or 1)
-        else:
-            stack.append({})
-    return stack[0]
-
-
 def test_shipped_bundle_reproduces_its_test_predictions():
     """The bundle in the package (trimmed models) gives back the test-set predictions made by
-    the full models when it was built, from the stored descriptors and the formula."""
+    the full models when it was built, from the stored descriptors alone."""
     if props.load_error():
         pytest.skip(props.load_error())
-    assert _counts("Rb(ThSe3)2") == {"Rb": 1, "Th": 2, "Se": 6}
     b = props.load(props.BUNDLED)
-    assert len(b.targets) == 22 and b.dataset is not None and b.composition is not None
+    assert len(b.targets) == 17 and b.dataset is not None and not b.needs_composition
     ds = b.dataset
     test = [i for i, s in enumerate(ds["split"]) if s == "test"]
     # each target's test predictions cover the test materials that have a value for it
@@ -181,7 +164,7 @@ def test_shipped_bundle_reproduces_its_test_predictions():
     assert all(len(rows[n]) == len(t.test_p) for n, t in b.targets.items())
     for k in test[::30]:
         feats = dict(zip(b.features, ds["X"][k]))
-        p = props.predict(feats, b, counts=_counts(ds["formula"][k]))
+        p = props.predict(feats, b)
         for name, t in b.targets.items():
             if k in rows[name]:
                 assert p[name] == pytest.approx(t.test_p[rows[name].index(k)], rel=1e-9, abs=1e-12), \

@@ -3,8 +3,9 @@
 \usepackage{lmodern}
 \usepackage[margin=2.2cm]{geometry}
 \usepackage{amsmath,amssymb}
-\usepackage{booktabs,tabularx,array}
+\usepackage{booktabs,tabularx,array,longtable}
 \usepackage{enumitem}
+\usepackage{needspace}
 \usepackage[dvipsnames]{xcolor}
 \usepackage{tikz}
 \usepackage[hidelinks]{hyperref}
@@ -12,18 +13,27 @@
 
 \titleformat{\section}{\large\bfseries\color{MidnightBlue}}{\thesection}{0.6em}{}
 \titleformat{\subsection}{\normalsize\bfseries}{\thesubsection}{0.6em}{}
-\titlespacing*{\section}{0pt}{1.4ex}{0.8ex}
-\titlespacing*{\subsection}{0pt}{1.2ex}{0.5ex}
+\titlespacing*{\section}{0pt}{2.0ex}{0.9ex}
+\titlespacing*{\subsection}{0pt}{1.8ex}{0.6ex}
 \setlength{\parindent}{0pt}
 \setlength{\parskip}{0.55ex}
+\setlength{\emergencystretch}{3em}
 
 % descriptor name, set in typewriter with underscores kept
 \newcommand{\dn}[1]{\texttt{\detokenize{#1}}}
-% one descriptor: name, units, definition, meaning
-\newcommand{\entry}[4]{\item[\dn{#1}]%
-  \if\relax\detokenize{#2}\relax\else{\small\color{gray}[#2]}\fi\quad #3\\[0.3ex]%
-  {\color{black!80}#4}}
-\newenvironment{descs}{\begin{description}[style=unboxed,leftmargin=1.2em,itemsep=0.9ex,font=\normalfont\bfseries,labelsep=0.6em]}{\end{description}}
+% one descriptor entry: \desc{label}{name(s)}{units and range}
+\newcommand{\desc}[3]{\par\needspace{7\baselineskip}\vspace{1.3ex}%
+  \phantomsection\label{d:#1}%
+  \noindent\parbox[t]{0.68\linewidth}{\raggedright\color{MidnightBlue}\large\bfseries\dn{#2}}%
+  \hfill\parbox[t]{0.30\linewidth}{\raggedleft\small\color{black!60}#3}\par
+  \vspace{-0.5ex}{\color{MidnightBlue!35}\hrule height 0.5pt}\vspace{0.5ex}}
+% run-in labels inside an entry
+\newcommand{\lab}[1]{{\small\sffamily\bfseries\color{MidnightBlue}#1}\enspace}
+\newcommand{\Def}{\par\lab{Definition}}
+\newcommand{\Frm}{\par\lab{Formula}}
+\newcommand{\Phy}{\par\lab{Physics}}
+\newcommand{\Lim}{\par\lab{Limits}}
+\newcommand{\Cav}{\par\lab{Caveat}}
 
 \newcommand{\rhot}{\tilde\rho}
 \newcommand{\sumk}{\sum_{k}}
@@ -32,8 +42,8 @@
 
 \begin{center}
 {\LARGE\bfseries Charge-density descriptors from a CHGCAR}\\[0.8ex]
-{\large What the 56 pydemi descriptors measure, and how they are computed}\\[1.2ex]
-Shubham Kumar Maurya, CMS Lab, IIT Kanpur \quad\textbullet\quad 13 October 2026
+{\large Definitions, formulas and physical meaning of the 56 pydemi descriptors}\\[1.2ex]
+Shubham Kumar Maurya, CMS Lab, IIT Kanpur \quad\textbullet\quad 30 October 2026
 \end{center}
 
 \vspace{0.5ex}
@@ -45,22 +55,53 @@ arranged around each atom and in the bonds. \emph{Structural} descriptors (19) l
 of the whole cell: how well it connects, its peaks and valleys, its directionality and its
 information content. \emph{Heterogeneity} descriptors (18) ask how different the atoms of one
 structure are from each other. Every value is intensive (unchanged when the cell is replaced by a
-supercell) and unchanged by translating or rotating the crystal.}}
+supercell) and unchanged by translating or rotating the crystal; the few exceptions to the letter
+of this rule are stated in the entries concerned.}}
+
+\medskip
+\textbf{How to read an entry.} Each descriptor has a heading with its name as returned by
+\texttt{pydemi.featurize}, its units and its range. Below it:
+\lab{Definition} what the number is, in words;
+\lab{Formula} how it is computed;
+\lab{Physics} what it tells about the material, with limiting cases;
+\lab{Caveat} where present, what can mislead.
+A table of all 56 descriptors with page references is at the end (p.~\pageref{sec:index}).
+
+\tableofcontents
 
 %=====================================================================
-\section{Notation and the common machinery}
+\section{What a CHGCAR contains, and the common machinery}
 
+\subsection{The density in a CHGCAR}
+VASP uses the projector-augmented-wave (PAW) method~\cite{blochl}. The density written to the
+CHGCAR is the \emph{valence pseudo-density}: it contains only the electrons the POTCAR treats as
+valence (so semicore $s$, $p$ or $d$ states count when the POTCAR includes them, e.g.\ the
+\texttt{\_pv} and \texttt{\_sv} variants), and inside the augmentation sphere of each atom the true,
+nodal valence density is replaced by a smooth one. Three consequences run through this document:
+\begin{itemize}[leftmargin=1.4em,itemsep=0.2ex,topsep=0.3ex]
+\item The deep core electrons are absent. Quantities that in an all-electron density are dominated
+  by the core (the nuclear cusp, the atomic shell structure of the Laplacian) here describe the
+  valence electrons only.
+\item Inside the augmentation spheres the density is smooth and can even be slightly negative.
+  It need not peak at the nucleus: the pseudo-density of many $s$/$p$ elements peaks on a shell or
+  in the bonds.
+\item The numbers depend somewhat on the POTCAR chosen, because it fixes the number of valence
+  electrons. Densities of one dataset should come from one consistent set of POTCARs.
+\end{itemize}
+
+\subsection{Notation}
 \begin{minipage}[t]{0.56\linewidth}
 \vspace{0pt}
 \textbf{Grid.} The cell (volume $V$) is divided into $N_v$ voxels $k$ of volume $\Delta V = V/N_v$. $\rho_k$ is the
 density at voxel $k$ in e/\AA$^3$ (the CHGCAR value divided by $V$). The total charge is
 $Q_{\rm tot}=\sum_k \rho_k\,\Delta V$, and $\langle\rho\rangle = Q_{\rm tot}/V$ is the mean density.
+A sum $\sum_k$ runs over all voxels; it approximates an integral, $\sum_k f_k\Delta V\approx\int f\,dV$.
 
 \textbf{Nearest nucleus.} For each voxel, $i(k)$ is the nearest atom (periodic images included),
 $r_k$ its distance and $\hat u_k$ the unit vector from that nucleus to the voxel.
 
 \textbf{Shells.} Each voxel falls in one of three shells around its nearest nucleus (defaults
-$c_1 = 0.8$\,\AA, $c_2 = 1.5$\,\AA; optionally multiples of the covalent radius):
+$c_1 = 0.8$\,\AA, $c_2 = 1.5$\,\AA; optionally multiples of each atom's covalent radius):
 \[
 \begin{array}{ll}
 \text{core:} & r_k \le c_1\\
@@ -68,10 +109,6 @@ $c_1 = 0.8$\,\AA, $c_2 = 1.5$\,\AA; optionally multiples of the covalent radius)
 \text{interstitial:} & r_k > c_2
 \end{array}
 \]
-
-\textbf{Derivatives.} $\nabla\rho$, $\nabla^2\rho$ and the Hessian eigenvalues
-$\lambda_1\le\lambda_2\le\lambda_3$ are computed spectrally (FFT) on the periodic grid.
-Quantities defined in atomic units (NCI, information measures) are converted to bohr first.
 \end{minipage}\hfill
 \begin{minipage}[t]{0.40\linewidth}
 \vspace{0pt}
@@ -97,201 +134,760 @@ Quantities defined in atomic units (NCI, information measures) are converted to 
 {\small Each voxel $k$ is measured from its nearest nucleus.}
 \end{minipage}
 
-\textbf{Degenerate cases.} A descriptor that is undefined for a special input (e.g.\ a perfectly
-uniform density, or an empty shell) returns a documented constant, and a flag is set in the
-metadata; it never returns a bare NaN.
+\medskip
+The shell radii are absolute lengths, not atom-specific. Typical bond lengths are 1.6--3.0\,\AA,
+so the midpoints of most bonds lie 0.8--1.5\,\AA\ from both atoms, i.e.\ in the bond shell. For
+very large atoms (K, Rb, Cs, Ba, \ldots) part of an atom's own valence shell lies beyond 1.5\,\AA;
+the covalent-radius option scales the shells per atom when this matters.
 
-\textbf{Numerical stability.} Descriptors whose value changed by more than about 10\% on the
-dataset when the derivatives were taken by finite differences instead of FFT, or when the grid
-was coarsened to 80\%, were dropped (see the end).
+\textbf{Derivatives.} The gradient $\nabla\rho$, the Laplacian $\nabla^2\rho$ and the Hessian
+$H_{ab}=\partial_a\partial_b\rho$ with eigenvalues $\lambda_1\le\lambda_2\le\lambda_3$ are computed
+spectrally (FFT) on the periodic, possibly non-orthogonal grid, with the full metric of the cell.
+For a plane-wave density this is exact up to round-off. Quantities that are defined in atomic units
+(the NCI thresholds and the information measures) are converted to bohr and e/bohr$^3$ first
+($1$\,e/bohr$^3$ $=6.748$\,e/\AA$^3$).
+
+\textbf{Degenerate cases.} A descriptor that is undefined for a special input (a perfectly uniform
+density, an empty shell, a structure without bonds) returns a documented constant, and a flag is
+set in the metadata. The only NaN is the within-element variance of a structure in which no element
+has two sites (Sec.~\ref{sec:het}).
+
+\textbf{Numerical stability.} Candidate descriptors whose value changed by more than about 10\% on
+the dataset when the derivatives were taken by finite differences instead of FFT, or when the grid
+was coarsened to 80\%, were dropped (Sec.~\ref{sec:dropped}).
 
 %=====================================================================
 \section{Bonding descriptors (19)}
 
 \subsection{Where the charge sits: radial moments and shell fractions}
-The simplest picture of a solid is a set of atoms. These descriptors ask how far, on average, the
-charge lies from its nearest nucleus, and how it is shared between the core, the bond shell and the
-space in between.
-\begin{descs}
-\entry{m1}{\AA}{$\displaystyle m_1=\frac{\sumk\rho_k r_k}{\sumk\rho_k}$}{Mean distance of the charge from its nearest nucleus. Small for compact, core-dominated atoms; large for diffuse valence charge.}
-\entry{m2}{\AA$^2$}{$\displaystyle m_2=\frac{\sumk\rho_k r_k^2}{\sumk\rho_k}$}{Second radial moment; weights the outer charge more strongly.}
-\entry{sigma_r2}{\AA$^2$}{$\sigma_r^2 = m_2 - m_1^2$}{Radial spread of the charge about its mean distance.}
-\entry{f_core, f_bond, f_int}{}{$\displaystyle f_{\rm shell}=\frac{\sum_{k\in\text{shell}}\rho_k}{\sumk\rho_k}$,\quad $f_{\rm core}+f_{\rm bond}+f_{\rm int}=1$}{Fraction of the charge in the core, bond and interstitial shells. A large $f_{\rm int}$ points to delocalized (metallic) charge between the atoms.}
-\end{descs}
+The simplest picture of a solid is a set of atoms. These six descriptors ask how far the charge
+lies from its nearest nucleus, and how it is shared between the core, the bond shell and the space
+in between. They are moments of the \emph{radial distribution} of the charge,
+$P(r)=\frac{1}{Q_{\rm tot}}\sum_k\rho_k\,\Delta V\,\delta(r-r_k)$, the probability that an electron
+is at distance $r$ from the nucleus it is closest to.
+
+\desc{m1}{m1}{\AA\quad$\ge 0$}
+\Def The mean distance between an electron and its nearest nucleus, averaged over all electrons in
+the cell: every voxel is weighted by the charge it holds.
+\Frm
+\[
+m_1=\frac{\sumk\rho_k\,r_k}{\sumk\rho_k}=\int_0^\infty r\,P(r)\,dr .
+\]
+\Phy $m_1$ is a charge-weighted radius of the atoms in the crystal. For a single exponential
+(Slater 1s-type) density $\rho\propto e^{-2\zeta r}$ it equals $3/(2\zeta)$, so it grows as the
+valence charge becomes more diffuse (smaller orbital exponent $\zeta$). In a solid the distance to
+the nearest nucleus cannot exceed the size of that atom's Voronoi cell, so $m_1$ also carries the
+packing: a density spread evenly over a sphere of radius $R$ would give $m_1=3R/4$. Small values
+mean compact, tightly bound valence charge (first-row elements, compact $d$ and $f$ shells, short
+bonds); large values mean diffuse valence charge and a large volume per atom (alkali and
+alkaline-earth metals, open structures). Large $m_1$ usually goes with soft, polarizable atoms.
+\Cav Only valence electrons are counted, so $m_1$ is a valence radius, not an all-electron one.
+Adding semicore states to the valence (another POTCAR) lowers it.
+
+\desc{m2}{m2}{\AA$^2$\quad$\ge 0$}
+\Def The mean \emph{squared} distance between an electron and its nearest nucleus.
+\Frm
+\[
+m_2=\frac{\sumk\rho_k\,r_k^2}{\sumk\rho_k}=\int_0^\infty r^2\,P(r)\,dr .
+\]
+\Phy Because $r^2$ grows faster than $r$, $m_2$ weights the outer charge more strongly than $m_1$. It is the
+radial ``moment of inertia'' of the charge about the nuclei. For the Slater density
+$m_2=3/\zeta^2$. The same moment $\langle r^2\rangle$ sets the Langevin diamagnetic susceptibility
+of closed-shell atoms and ions, $\chi_{\rm dia}=-\mu_0 n e^2\langle r^2\rangle/(6m_e)$, per $n$
+atoms per volume~\cite{ashcroft}. So $m_2$ measures how much charge sits in the outer,
+easily deformed region of the atoms.
+
+\desc{sigma_r2}{sigma_r2}{\AA$^2$\quad$\ge 0$}
+\Def The variance of the electron--nucleus distance: how broad the radial distribution of the
+charge is about its mean.
+\Frm
+\[
+\sigma_r^2 = m_2 - m_1^2 = \frac{\sumk\rho_k\,(r_k-m_1)^2}{\sumk\rho_k}.
+\]
+\Phy $\sigma_r^2$ separates the \emph{width} of the radial distribution from its \emph{position}
+($m_1$). For a single exponential $\sigma_r^2=3/(4\zeta^2)$, so $\sigma_r^2/m_1^2=1/3$ whatever
+$\zeta$ is. A ratio $\sigma_r^2/m_1^2$ well above $1/3$ therefore points to a distribution that is
+broader than a single shell: charge both close to the nuclei (compact $d$, $f$ or semicore states)
+and far from them (diffuse $s$/$p$ valence, interstitial charge). Narrow distributions belong to
+crystals whose valence charge occupies one well-defined shell.
+
+\desc{f_core}{f_core}{dimensionless\quad$[0,1]$}
+\Def The fraction of the electrons in the cell that lie within $c_1=0.8$\,\AA\ of a nucleus.
+\Frm
+\[
+f_{\rm core}=\frac{\sum_{k:\,r_k\le c_1}\rho_k}{\sumk\rho_k}.
+\]
+\Phy The charge held tightly by the nuclei. It is high for elements whose valence (as the POTCAR
+defines it) is compact: small electronegative atoms (O, F, N), the $3d$ and $4f$ shells of
+transition metals and rare earths, and semicore $p$ states. It is low for diffuse $s$/$p$ valence
+charge. Since $c_1$ is fixed, $f_{\rm core}$ is not the chemist's core: it is the share of the
+\emph{valence} charge that stays within 0.8\,\AA.
+\Cav Depends on the POTCAR choice: semicore electrons treated as valence raise it.
+
+\desc{f_bond}{f_bond}{dimensionless\quad$[0,1]$}
+\Def The fraction of the electrons in the shell $0.8<r\le1.5$\,\AA\ around the nearest nucleus.
+\Frm
+\[
+f_{\rm bond}=\frac{\sum_{k:\,c_1<r_k\le c_2}\rho_k}{\sumk\rho_k}.
+\]
+\Phy The shell holds the midpoints of most bonds (bond lengths 1.6--3.0\,\AA) and the outer part of
+typical valence shells, so $f_{\rm bond}$ is the share of the charge in the bonding region. It is
+large for covalent and moderately packed crystals, where the valence charge is drawn into the bonds.
+It is small when the charge is either kept on the atoms (large $f_{\rm core}$) or spread into the
+interstitial (large $f_{\rm int}$).
+
+\desc{f_int}{f_int}{dimensionless\quad$[0,1]$}
+\Def The fraction of the electrons farther than $c_2=1.5$\,\AA\ from every nucleus.
+\Frm
+\[
+f_{\rm int}=\frac{\sum_{k:\,r_k>c_2}\rho_k}{\sumk\rho_k},\qquad f_{\rm core}+f_{\rm bond}+f_{\rm int}=1 .
+\]
+\Phy The charge in the space between the atoms: the nearly free valence electrons of metals made of
+large atoms, the diffuse valence shell of large anions, lone pairs pointing into voids. A large
+$f_{\rm int}$ points to delocalized, metallic charge; in close-packed crystals with short bonds few
+points are farther than 1.5\,\AA\ from any nucleus and $f_{\rm int}$ is small.
+\Cav For very large atoms (K, Rb, Cs, Ba) part of the atom's own valence shell lies beyond 1.5\,\AA,
+so $f_{\rm int}$ then also measures the atom size. The covalent-radius option removes this.
 
 \subsection{Is the charge spherical? Gradient anisotropy}
-Around an isolated, spherical atom the density gradient points straight at the nucleus. Bonds, lone
-pairs and other distortions tilt it sideways. $\zeta$ measures the share of the gradient that is
-\emph{not} radial.
-\begin{descs}
-\entry{zeta}{range $[0,1]$}{$\displaystyle \zeta = 1-\frac{\sumk|\nabla\rho_k\cdot\hat u_k|}{\sumk|\nabla\rho_k|}$}{0 for spherical, non-overlapping atoms; grows as the charge is pulled off the radial direction (directional bonding).}
-\end{descs}
+Around an isolated, spherical atom the density gradient points straight at the nucleus. Overlap
+with neighbours, bonds, lone pairs and aspherical $d$ occupations all tilt it sideways.
+
+\desc{zeta}{zeta}{dimensionless\quad$[0,1]$}
+\Def The share of the density gradient that does \emph{not} point along the line to the nearest
+nucleus, averaged over the cell with weight $|\nabla\rho|$.
+\Frm With $\theta_k$ the angle between $\nabla\rho_k$ and $\hat u_k$,
+\[
+\zeta = 1-\frac{\sumk|\nabla\rho_k\cdot\hat u_k|}{\sumk|\nabla\rho_k|}
+      = 1-\frac{\sumk|\nabla\rho_k|\,|\cos\theta_k|}{\sumk|\nabla\rho_k|}.
+\]
+\Phy $\zeta=0$ for spherical atoms that do not overlap: the gradient is radial everywhere. If the
+gradient directions were random with respect to the nucleus, $\langle|\cos\theta|\rangle=1/2$ and
+$\zeta=1/2$. Two effects make $\zeta$ positive: (i) \emph{overlap}: between two atoms the gradient is
+the sum of two radial fields pointing at different nuclei, so it is not radial with respect to
+either; (ii) \emph{deformation}: bonds, lone pairs and non-spherical orbital occupations. $\zeta$
+is thus one number for how far the crystal's density departs from a superposition of isolated
+spherical atoms, the information a deformation density $\rho-\sum\rho_{\rm atom}$ conveys, but
+without reference atoms. Because of the weight $|\nabla\rho|$ it is dominated by the steep outer
+parts of the atoms rather than by the flat interstitial. For most crystals it is a few per cent.
+\Lim Uniform density ($\nabla\rho=0$): 0, flagged.
 
 \subsection{Where charge is concentrated: the Laplacian}
-Where $\nabla^2\rho<0$ the density is locally concentrated (higher than its surroundings), as in
-atomic shells, covalent bonds and lone pairs; where $\nabla^2\rho>0$ it is depleted.
-\begin{descs}
-\entry{lnf}{}{$\displaystyle \mathrm{lnf}=\frac{1}{N_v}\sumk \mathbf 1[\nabla^2\rho_k<0]$}{Volume fraction of the cell where charge is concentrated.}
-\entry{lnf_charge_weighted}{}{$\displaystyle \frac{\sum_{\nabla^2\rho_k<0}\rho_k}{\sumk\rho_k}$}{Fraction of the \emph{charge} in concentration regions. Less sensitive to the grid than \dn{lnf}, because low-density voxels carry little weight.}
-\entry{lap_concentration}{}{$\displaystyle \frac{\sum_{\nabla^2\rho_k<0}|\nabla^2\rho_k|}{\sumk|\nabla^2\rho_k|}$}{On a periodic grid $\int\nabla^2\rho\,dV=0$ exactly, so this is always $1/2$. It carries no information and is kept only for completeness.}
-\entry{lap_concentration_valence}{}{same ratio, restricted to $r_k>c_1$}{The informative version: the balance of concentration and depletion in the valence region, outside the cores.}
-\end{descs}
+The Laplacian compares the density at a point with its surroundings: averaged over a small sphere
+of radius $h$, $\langle\rho\rangle_{\rm sphere}-\rho(\mathbf r)=\tfrac{h^2}{6}\nabla^2\rho+O(h^4)$.
+Where $\nabla^2\rho<0$ the density is higher than around it, \emph{locally concentrated}, as in
+atomic shells, covalent bonds and lone pairs. Where $\nabla^2\rho>0$ it is depleted. In the theory
+of atoms in molecules the sign also tells which energy dominates: by the local virial theorem
+$\tfrac14\nabla^2\rho=2G+V$ (atomic units, $G>0$ kinetic and $V<0$ potential energy density), so a
+negative Laplacian marks regions where the potential energy dominates (shared, covalent
+interactions) and a positive one regions where the kinetic energy dominates (closed-shell, ionic or
+van der Waals interactions)~\cite{bader,baderessen}. For a pseudo-density this reading is qualitative.
+
+\desc{lnf}{lnf}{dimensionless\quad$[0,1]$}
+\Def The fraction of the cell \emph{volume} in which the charge is locally concentrated.
+\Frm
+\[
+\mathrm{lnf}=\frac{1}{N_v}\sumk \mathbf 1\!\left[\nabla^2\rho_k<0\right].
+\]
+\Phy How much of the space is occupied by concentrated charge (bonds, lone pairs, valence shells)
+rather than depleted charge. A uniform electron gas has no curvature at all (flagged value 0).
+\Cav Every voxel counts equally, including nearly empty ones, where the sign of a tiny Laplacian is
+decided by round-off. This makes $\mathrm{lnf}$ noisier than the charge-weighted version below.
+
+\desc{lnf_charge_weighted}{lnf_charge_weighted}{dimensionless\quad$[0,1]$}
+\Def The fraction of the \emph{electrons} that sit where the charge is locally concentrated.
+\Frm
+\[
+\mathrm{lnf}_\rho=\frac{\sum_{k:\,\nabla^2\rho_k<0}\rho_k}{\sumk\rho_k}.
+\]
+\Phy The share of the charge in concentration regions (pseudo-cores, bonds, lone pairs) as opposed
+to the depleted regions around them. Low-density voxels carry little weight, so it is far less
+sensitive to the grid than $\mathrm{lnf}$, and it is not interchangeable with it: a crystal can have
+a small concentrated volume holding most of its charge.
+
+\desc{lap_concentration}{lap_concentration}{dimensionless\quad always $1/2$}
+\Def The share of the total absolute Laplacian that comes from concentration regions.
+\Frm
+\[
+\frac{\sum_{k:\,\nabla^2\rho_k<0}|\nabla^2\rho_k|}{\sumk|\nabla^2\rho_k|}=\frac12 .
+\]
+\Phy None: on a periodic cell the Laplacian integrates to zero, $\int\nabla^2\rho\,dV=0$ (the
+divergence theorem with no boundary; in Fourier space the $\mathbf G=0$ component of
+$\nabla^2\rho$ is $-|\mathbf G|^2\rho(\mathbf G)=0$). The positive and negative parts therefore have
+equal weight and the ratio is $1/2$ for every crystal. It is kept so that the catalogue matches the
+specification, and it is the one descriptor excluded from the 55 informative ones.
+
+\desc{lap_concentration_valence}{lap_concentration_valence}{dimensionless\quad$[0,1]$}
+\Def The same ratio, restricted to the valence region outside the cores ($r_k>c_1$).
+\Frm
+\[
+L_{\rm val}=\frac{\sum_{k:\,r_k>c_1,\ \nabla^2\rho_k<0}|\nabla^2\rho_k|}{\sum_{k:\,r_k>c_1}|\nabla^2\rho_k|}
+=\frac12-\frac{\int_{\rm out}\nabla^2\rho\,dV}{2\int_{\rm out}|\nabla^2\rho|\,dV}.
+\]
+\Phy Outside the cores the identity above no longer forces $1/2$, and by the divergence theorem
+\[
+\int_{r>c_1}\nabla^2\rho\,dV=-\oint_{\text{core surfaces}}\frac{\partial\rho}{\partial n}\,dS ,
+\]
+with $\partial\rho/\partial n$ the derivative along the outward normal of the core spheres.
+$L_{\rm val}$ thus measures the balance of concentration and depletion in the valence region, and it
+is tied to how the density behaves at the core surface. If the density still \emph{falls} outward
+at 0.8\,\AA\ (a decaying valence tail), the outer region is a net depletion region and
+$L_{\rm val}<1/2$; this is the common case. If it still \emph{rises} outward (valence charge that
+peaks beyond 0.8\,\AA, charge piled up in bonds or lone pairs away from the atoms),
+$L_{\rm val}$ approaches or exceeds $1/2$.
+\Lim Uniform density, or no voxel beyond $c_1$: $1/2$, flagged.
 
 \subsection{Shape of the bonds: ellipticity}
-At a bond, the two Hessian eigenvalues across the bond are negative. If they are equal the bond is
-cylindrical (a $\sigma$ bond); if they differ the charge is flattened, as in $\pi$ character.
-The usual ellipticity $\varepsilon = \lambda_1/\lambda_2 - 1$ diverges as $\lambda_2\to 0$, so
-pydemi uses its bounded form. Let $B=\{k \in \text{bond shell}: \lambda_2<0\}$.
-\begin{descs}
-\entry{ellip_bond_bounded_avg}{range $[0,1)$}{mean over $B$ of $\displaystyle 1-\frac{\lambda_2}{\lambda_1} = \frac{\varepsilon}{1+\varepsilon}$}{0 for a cylindrical bond; approaches 1 for strongly flattened charge. Each voxel's value is at most 1, so a few voxels with $\lambda_2\approx 0$ cannot dominate the mean.}
-\end{descs}
+At a point on a bond the density is a maximum across the bond and a minimum along it: two Hessian
+eigenvalues are negative ($\lambda_1\le\lambda_2<0$, curvatures across the bond) and one positive
+($\lambda_3$, along it). If the two negative curvatures are equal the charge has a circular cross
+section, as in a $\sigma$ bond; if they differ the cross section is elliptical, as in bonds with
+$\pi$ character, where charge is spread in one plane~\cite{baderellip}.
+
+\desc{ellip_bond_bounded_avg}{ellip_bond_bounded_avg}{dimensionless\quad$[0,1)$}
+\Def The mean flattening of the charge cross section, over the bond-shell voxels where at least two
+curvatures are negative.
+\Frm With $B=\{k\in\text{bond shell}:\ \lambda_{2,k}<0\}$ and the usual ellipticity
+$\varepsilon=\lambda_1/\lambda_2-1\ge0$,
+\[
+\bar b=\frac{1}{|B|}\sum_{k\in B}\left(1-\frac{\lambda_{2,k}}{\lambda_{1,k}}\right)
+      =\frac{1}{|B|}\sum_{k\in B}\frac{\varepsilon_k}{1+\varepsilon_k}.
+\]
+\Phy Each voxel contributes 0 when the charge around it is cylindrical ($\lambda_1=\lambda_2$) and
+approaches 1 when it is flattened into a sheet ($\lambda_2\to0^-$). Unlike Bader's ellipticity,
+which is evaluated only at bond critical points, $\bar b$ averages over the whole bonding region,
+so it describes the typical cross-sectional shape of the charge ridges between the atoms: low for
+$\sigma$-type, cylindrical bonding, higher where the bonding charge is planar ($\pi$ character,
+layered bonding).
+\Lim No such voxel: 0, flagged.
+\Cav The bounded form is used because $\varepsilon$ itself diverges as $\lambda_2\to0$: the mean of
+$\varepsilon$ changed by a median 22\% between FFT and finite-difference derivatives, while $\bar b$
+changed by 0.2\%.
 
 \subsection{Weak interactions (NCI)}
-Non-covalent interactions show up where the density is low and nearly flat, which a small reduced
-gradient $s$ picks out. The sign of $\lambda_2$ separates attractive ($\lambda_2<0$) from repulsive
-contacts. The NCI region is $\{k: s_k<0.5,\ \rho_k<0.05$ a.u.$\}$, where
-$s=|\nabla\rho|\,/\,\big(2(3\pi^2)^{1/3}\rho^{4/3}\big)$.
-\begin{descs}
-\entry{f_NCI}{}{volume fraction of the NCI region}{How much of the cell holds weak-interaction density.}
-\entry{NCI_attractive}{}{fraction of NCI voxels with $\lambda_2<0$}{Share of the weak interactions that are attractive.}
-\entry{sign_lambda2_rho_mean}{e/bohr$^3$}{mean over the NCI region of $\mathrm{sign}(\lambda_2)\,\rho$}{Signed strength of the weak interactions: negative means mostly attractive.}
-\end{descs}
+The non-covalent-interaction (NCI) analysis of Johnson \emph{et al.}~\cite{nci} looks for regions of
+low density where the density also varies slowly. The measure of slow variation is the reduced
+density gradient, the dimensionless inhomogeneity that also enters GGA functionals:
+\[
+s=\frac{|\nabla\rho|}{2(3\pi^2)^{1/3}\rho^{4/3}}=\frac{|\nabla\rho|}{2k_F\,\rho},\qquad k_F=(3\pi^2\rho)^{1/3}.
+\]
+$s$ is the relative change of the density over a local Fermi wavelength: $0$ in a uniform electron
+gas, small where the density is nearly flat, and large in exponentially decaying tails. Between two
+closed-shell fragments the density passes through a shallow trough, where $s$ drops towards 0 at low
+$\rho$; that is the NCI signature. pydemi's NCI region is
+\[
+\mathrm{NCI}=\{k:\ s_k<0.5,\ \ \rho_k<0.05\ \text{e/bohr}^3\ (=0.337\ \text{e/\AA}^3)\}.
+\]
+The sign of the middle Hessian eigenvalue separates the kinds of contact: $\lambda_2<0$ means the
+density is accumulated across the contact (an attractive, bonding-like interaction such as a
+hydrogen bond), $\lambda_2>0$ that it is depleted, as at the centre of a ring or cage (a
+non-bonded, sterically crowded contact).
 
-\subsection{Electrostatics (Hartree potential)}
-The Hartree potential energy of an electron is obtained from $\rho$ by one FFT,
-$V(\mathbf G) = 4\pi k_e\,\rho(\mathbf G)/|\mathbf G|^2$, with $k_e=14.40$\,eV\,\AA. The cell average
-is set to zero.
-\begin{descs}
-\entry{V_spread}{eV}{$\mathrm{std}_i\, V(\mathbf R_i)$ over the atomic sites}{How different the electrostatic environments of the atoms are; a rough signature of charge transfer.}
-\entry{V_int_min}{eV}{$\min_{k\in\text{int}} V_k$}{Lowest potential in the interstitial region.}
-\end{descs}
+\desc{f_NCI}{f_NCI}{dimensionless\quad$[0,1]$}
+\Def The fraction of the cell volume that belongs to the NCI region (low and slowly varying
+density).
+\Frm
+\[
+f_{\rm NCI}=\frac{1}{N_v}\sumk\mathbf 1\!\left[s_k<0.5\ \text{and}\ \rho_k<0.05\ \text{a.u.}\right].
+\]
+\Phy In molecules this volume marks the weak interactions. In crystals the same criterion is met
+above all by the low, nearly flat interstitial density of metals, which looks locally like a
+uniform electron gas ($s\approx0$). In the wide empty gaps of molecular and layered crystals the
+density decays exponentially, $s$ is large there, and only the thin troughs between molecules
+qualify. On the CMS Lab dataset $f_{\rm NCI}$ is indeed much larger for metals than for insulators.
+Read it as ``volume of low, free-electron-like density'' and together with $f_{\rm int}$ and the
+percolation levels.
+\Lim Uniform density: 0, flagged.
+
+\desc{NCI_attractive}{NCI_attractive}{dimensionless\quad$[0,1]$}
+\Def The fraction of the NCI region in which $\lambda_2<0$.
+\Frm
+\[
+\frac{\#\{k\in\mathrm{NCI}:\ \lambda_{2,k}<0\}}{\#\{k\in\mathrm{NCI}\}}.
+\]
+\Phy The share of the weak-interaction volume in which the density is accumulated across the
+contact (attractive, bonding-like) rather than depleted (ring and cage centres, steric contacts).
+\Lim No NCI voxel: 0, flagged.
+
+\desc{sign_lambda2_rho_mean}{sign_lambda2_rho_mean}{e/bohr$^3$\quad$(-0.05,0.05)$}
+\Def The mean of the density, signed by $\lambda_2$, over the NCI region.
+\Frm
+\[
+\overline{\mathrm{sign}(\lambda_2)\rho}=\frac{1}{\#\mathrm{NCI}}\sum_{k\in\mathrm{NCI}}\mathrm{sign}(\lambda_{2,k})\,\rho_k
+\qquad(\rho\ \text{in e/bohr}^3).
+\]
+\Phy It combines the \emph{type} of the weak contacts (the sign) with their \emph{strength}: the
+density at a weak contact grows with the strength of the interaction, lowest for dispersion
+contacts and higher for hydrogen bonds. Negative values mean the low-density region is dominated by
+attractive contacts, positive values by depleted, non-bonded ones.
+\Lim No NCI voxel: 0, flagged.
+
+\subsection{Electrostatics: the Hartree potential}
+The electrons create an electrostatic potential. Its potential energy for an electron, the Hartree
+potential, follows from $\rho$ by one FFT (Poisson's equation in Fourier space),
+\[
+V(\mathbf G)=\frac{4\pi k_e\,\rho(\mathbf G)}{|\mathbf G|^2}\ \ (\mathbf G\ne0),\qquad V(\mathbf G=0)=0,\qquad k_e=\frac{e^2}{4\pi\varepsilon_0}=14.40\ \text{eV\,\AA}.
+\]
+This is the repulsion an electron feels from the valence electrons only; the nuclei and cores are
+not included. It is large where the electrons are dense and small in the voids. The cell average is
+set to zero, so only differences matter.
+
+\desc{V_spread}{V_spread}{eV\quad$\ge 0$}
+\Def The standard deviation, over the atoms of the cell, of the Hartree potential at the nuclei.
+\Frm With $V(\mathbf R_i)$ obtained by exact Fourier interpolation at nucleus $i$ of the $N_a$ atoms,
+\[
+V_{\rm spread}=\Big[\frac{1}{N_a}\sum_i\big(V(\mathbf R_i)-\bar V\big)^2\Big]^{1/2},\qquad\bar V=\frac1{N_a}\sum_iV(\mathbf R_i).
+\]
+\Phy How different the electrostatic environments of the atoms are. It is exactly 0 when all atoms
+are symmetry-equivalent (most elemental crystals). It grows when the sites differ in how much
+electron charge surrounds them, which happens above all after charge transfer: an anion sits in a
+dense electron cloud and feels a strong repulsion, a cation that has given up its valence electrons
+much less. It is a rough, density-only signature of ionicity and of inequivalent sites.
+
+\desc{V_int_min}{V_int_min}{eV\quad usually $<0$}
+\Def The lowest Hartree potential in the interstitial region ($r_k>c_2$), relative to the cell
+average.
+\Frm
+\[
+V_{\rm int,min}=\min_{k:\,r_k>c_2}V_k,\qquad\textstyle\sum_kV_k=0 .
+\]
+\Phy The interstitial point where an electron feels the least repulsion from the other electrons,
+i.e.\ the most electron-empty part of the space between the atoms, compared with the average.
+Large negative values belong to open structures: van der Waals gaps of layered crystals, the space
+between chains and molecules, large cages. Values near zero mean a homogeneous density without deep
+voids, as in close-packed metals.
+\Lim No interstitial voxel: 0, flagged.
 
 \subsection{Density in the bonds}
-Neighbours: $j$ is a first-shell neighbour of $i$ if $|\mathbf R_{ij}|\le 1.1\,d_i$, where $d_i$ is
-the distance from $i$ to its nearest neighbour. $\rho$ at each bond midpoint is obtained by exact
-Fourier interpolation.
-\begin{descs}
-\entry{rho_mid_mean}{e/\AA$^3$}{mean of $\rho$ at the nearest-neighbour bond midpoints}{How much charge sits in the bonds: high for covalent bonds, low for ionic contacts.}
-\entry{rho_mid_std}{e/\AA$^3$}{standard deviation of the same values}{How uneven the bonds are.}
-\end{descs}
+The neighbours of atom $i$ are its first coordination shell: $j$ is a neighbour if
+$|\mathbf R_{ij}|\le1.1\,d_i$, with $d_i$ the distance from $i$ to its nearest neighbour (the 10\%
+allows for slightly distorted environments). The density at each bond midpoint
+$\tfrac12(\mathbf R_i+\mathbf R_j)$ is obtained by exact Fourier interpolation.
+
+\desc{rho_mid_mean}{rho_mid_mean}{e/\AA$^3$}
+\Def The mean electron density at the midpoints of all nearest-neighbour bonds.
+\Frm
+\[
+\bar\rho_{\rm mid}=\frac{1}{N_b}\sum_{(i,j)}\rho\!\left(\tfrac12(\mathbf R_i+\mathbf R_j)\right).
+\]
+\Phy The midpoint density is a simple stand-in for the density at the bond critical point, which in
+the theory of atoms in molecules increases with bond order and bond strength~\cite{bader}: high for
+shared, covalent bonds, low for ionic and metallic contacts. (For a homonuclear bond the two points
+coincide by symmetry; for a polar bond the critical point shifts towards the electropositive atom.)
+Only first-shell bonds are seen: in a molecular crystal these are the strong intramolecular bonds,
+so $\bar\rho_{\rm mid}$ is high there even though the crystal is held together by weak forces.
+\Lim No bonds found: 0, flagged. With a PAW pseudo-density it can occasionally be negative.
+
+\desc{rho_mid_std}{rho_mid_std}{e/\AA$^3$\quad$\ge 0$}
+\Def The standard deviation of the same midpoint densities.
+\Frm
+\[
+\sigma_{\rm mid}=\Big[\frac{1}{N_b}\sum_{(i,j)}\big(\rho_{{\rm mid},ij}-\bar\rho_{\rm mid}\big)^2\Big]^{1/2}.
+\]
+\Phy How uneven the bonds are. It is 0 when all first-shell bonds are equivalent (e.g.\ diamond,
+fcc metals) and large when the crystal mixes strong and weak bonds: different pairs of species,
+distorted polyhedra, coexisting covalent and ionic bonding.
 
 %=====================================================================
 \section{Structural descriptors (19)}
 
 \subsection{Connectivity: percolation}
-Lower a threshold $c$ from the density maximum. At first the region $\{\rho>c\}$ consists of
-isolated islands around the atoms. At some level the islands join into a path that runs through the
-whole crystal along a lattice direction $\mathbf a_\alpha$ (it winds around the periodic cell).
-\begin{descs}
-\entry{rho_perc_a, rho_perc_b, rho_perc_c}{e/\AA$^3$}{$\rho_{\mathrm{perc},\alpha}=\max\{c:\ \{\rho>c\}\ \text{spans along}\ \mathbf a_\alpha\}$}{Density at the bottleneck of the best connecting path. High in metals, close to zero in ionic and molecular solids.}
-\entry{perc_anisotropy}{}{$(\max_\alpha-\min_\alpha)\,\rho_{\mathrm{perc},\alpha}\,/\,\mathrm{mean}_\alpha\,\rho_{\mathrm{perc},\alpha}$}{Whether the charge connects equally well in all three directions (0), or better along some (layered or chain-like structures).}
-\end{descs}
+Draw the region where the density exceeds a level $c$, $\{\rho>c\}$, and lower $c$ from the density
+maximum. At first the region consists of isolated islands around the atoms. At some level the
+islands join into a path that runs through the whole crystal along a lattice direction
+$\mathbf a_\alpha$: it connects a cell to its periodic image (a cluster that merely touches two
+opposite faces of the cell does not count; it must wind around the periodic cell).
+
+\desc{rho_perc}{rho_perc_a, rho_perc_b, rho_perc_c}{e/\AA$^3$}
+\Def The highest density level at which the charge still forms a continuous path through the
+crystal along the lattice vector $\mathbf a$, $\mathbf b$ or $\mathbf c$.
+\Frm
+\[
+\rho_{{\rm perc},\alpha}=\max\big\{c:\ \{\rho>c\}\ \text{spans the crystal along}\ \mathbf a_\alpha\big\}
+=\max_{\text{paths along }\mathbf a_\alpha}\ \min_{\mathbf r\in\text{path}}\rho(\mathbf r).
+\]
+Found by bisection over the voxel values; connectivity through shared faces, periodic boundaries
+handled by tracking how many times a cluster winds around the cell.
+\Phy The second form says it all: of all paths an electron could take through the crystal along
+$\mathbf a_\alpha$, take the one whose lowest point (bottleneck) is highest, and report that lowest
+density. The bottleneck is a saddle point of the density, a bond-type critical point (two negative
+curvatures, one positive). In a metal the valence charge forms a continuous sea and the bottleneck
+is high; in ionic and molecular solids every path has to cross a region of very low density, and
+$\rho_{\rm perc}$ is close to zero. In a layered crystal the path across the layers must cross the
+van der Waals gap, so $\rho_{\rm perc}$ in that direction drops to the gap density while the
+in-plane values stay high. This makes the three values, and their spread below, sensitive to the
+bonded dimensionality of the structure.
+\Cav The labels $a$, $b$, $c$ refer to the cell vectors as written in the CHGCAR. A different
+choice of the same lattice (another setting, a permutation of the vectors) relabels or changes the
+three values; their minimum, maximum and the anisotropy below are more robust.
+
+\desc{perc_anisotropy}{perc_anisotropy}{dimensionless\quad$[0,3]$}
+\Def The spread of the three percolation levels relative to their mean.
+\Frm
+\[
+A_{\rm perc}=\frac{\max_\alpha\rho_{{\rm perc},\alpha}-\min_\alpha\rho_{{\rm perc},\alpha}}{\tfrac13\sum_\alpha\rho_{{\rm perc},\alpha}} .
+\]
+\Phy Whether the charge connects equally well in all directions. Ideal cases: isotropic 3-D
+bonding gives 0; a layered crystal with two equal in-plane levels and an empty gap direction gives
+$1/(2/3)=1.5$; a chain crystal connected along one direction only gives 3. Real layered and chain
+compounds fall between these values and 0, well separated from 3-D bonded crystals.
+\Lim All three levels zero: 0, flagged.
 
 \subsection{Peaks and valleys: the critical-point census}
-Counts are divided by the cell volume, so they are per \AA$^3$.
-\begin{descs}
-\entry{n_max, n_min}{1/\AA$^3$}{voxels higher (lower) than all 26 neighbours, divided by $V$}{Local maxima (typically at or near the nuclei) and minima (centres of the voids).}
-\entry{n_NNM}{1/\AA$^3$}{maxima farther than $0.8$\,\AA\ from every nucleus, divided by $V$}{Non-nuclear maxima: charge pooled away from the atoms, e.g.\ in electrides or some metals.}
-\entry{Q_NNM}{}{(charge in the steepest-ascent basins of those maxima)$/Q_{\rm tot}$}{How much charge the non-nuclear maxima hold.}
-\end{descs}
+The critical points of $\rho$ (where $\nabla\rho=0$) are classified by the signs of the Hessian
+eigenvalues: maxima (three negative), bond points (two negative), ring points (one negative) and
+minima or cage points (none negative)~\cite{bader}. On a periodic cell their numbers obey the Morse
+relation $n_{\max}-n_{\rm bond}+n_{\rm ring}-n_{\min}=0$, because the Euler characteristic of the
+3-torus is zero~\cite{pendas}. pydemi counts the maxima and minima directly on the grid: a voxel is a
+maximum (minimum) if it is higher (lower) than all 26 neighbours; ties are broken by voxel index.
+The saddle counts are not descriptors (they changed by 17--20\% on a coarser grid) but their
+Euler-sum check is reported in the metadata. Counts are divided by the cell volume.
+
+\desc{n_max}{n_max}{1/\AA$^3$\quad$\ge 0$}
+\Def The number of local maxima of the density per unit volume.
+\Frm
+\[
+n_{\max}=\frac{\#\{k:\ \rho_k>\rho_{k'}\ \text{for all 26 neighbours}\ k'\}}{V}.
+\]
+\Phy In an all-electron density every nucleus is a maximum, so $n_{\max}$ would equal the number
+density of atoms. In the pseudo-density the maxima can sit on a shell around the nucleus, in the
+bonds or in lone pairs, so $n_{\max}$ is the atom density plus the number of such additional peaks.
+Values well above the atom density point to non-spherical, structured valence charge.
+
+\desc{n_min}{n_min}{1/\AA$^3$\quad$\ge 0$}
+\Def The number of local minima of the density per unit volume.
+\Frm
+\[
+n_{\min}=\frac{\#\{k:\ \rho_k<\rho_{k'}\ \text{for all 26 neighbours}\ k'\}}{V}.
+\]
+\Phy The minima are the cage points: the centres of the empty spaces between the atoms, such as the
+interstitial holes of close-packed structures, cages of frameworks and the void centres in molecular
+crystals. $n_{\min}$ is therefore the number density of distinct voids.
+
+\desc{n_NNM}{n_NNM}{1/\AA$^3$\quad$\ge 0$}
+\Def The number of non-nuclear maxima per unit volume: local maxima farther than 0.8\,\AA\ from
+every nucleus.
+\Frm
+\[
+n_{\rm NNM}=\frac{\#\{k\ \text{a maximum}:\ r_k>0.8\ \text{\AA}\}}{V}.
+\]
+\Phy A maximum away from the nuclei means that charge pools in the space between atoms. The
+textbook case is an electride, where electrons occupy cavities and act as anions (e.g.\
+[Ca$_{24}$Al$_{28}$O$_{64}$]$^{4+}\cdot$4e$^-$ and Ca$_2$N)~\cite{c12a7,ca2n}. In a valence
+pseudo-density the descriptor also counts peaks in covalent bonds and lone pairs: the valence charge
+of Si, for instance, is well known to peak on the bonds. On the CMS Lab dataset non-nuclear maxima
+occur mainly in compounds of the heavier $p$-block elements (Si, Ge, Sn, Sb, Te, Bi, \ldots), so
+$n_{\rm NNM}$ is mostly a marker of directional covalent bonding and lone pairs, and only in rare
+cases of electrides.
+
+\desc{Q_NNM}{Q_NNM}{dimensionless\quad$[0,1]$}
+\Def The fraction of the electrons that belong to the non-nuclear maxima.
+\Frm Every voxel is followed uphill, from neighbour to steepest-ascent neighbour (slope $=$ density
+difference / distance), until a maximum is reached; the voxels that end at the same maximum form its
+basin, the grid analogue of a Bader basin~\cite{henkelman}. Then
+\[
+Q_{\rm NNM}=\frac{\sum_{k\in\text{basins of the non-nuclear maxima}}\rho_k}{\sumk\rho_k}.
+\]
+\Phy How much charge the non-nuclear maxima hold. In an electride it is the share of the electrons
+that act as anions; for bond and lone-pair maxima it is the charge assigned to the bonds rather than
+to the atoms. It is zero for most crystals.
 
 \subsection{The density floor}
-\begin{descs}
-\entry{rho_min}{e/\AA$^3$}{$\min_k\rho_k$}{Lowest density in the cell. In a CHGCAR (a PAW pseudo-density) this is often slightly negative and near a nucleus, not in the voids.}
-\entry{rho_min_ratio}{}{$\rho_{\min}/\langle\rho\rangle$}{The same, relative to the mean density.}
-\entry{rho_int_mean}{e/\AA$^3$}{mean of $\rho$ over the interstitial shell}{How much charge fills the space between the atoms.}
-\end{descs}
+\desc{rho_min}{rho_min}{e/\AA$^3$}
+\Def The lowest density anywhere in the cell.
+\Frm
+\[
+\rho_{\min}=\min_k\rho_k .
+\]
+\Phy In an all-electron density this would be the deepest void, the emptiest point of the crystal.
+In a CHGCAR it is usually slightly \emph{negative} and lies near a nucleus, inside an augmentation
+sphere, where the PAW pseudization can undershoot. Then it reflects the POTCAR and the atoms present
+more than the bonding. A positive $\rho_{\min}$ is the density at the most open point of the
+interstitial.
+
+\desc{rho_min_ratio}{rho_min_ratio}{dimensionless}
+\Def The lowest density relative to the mean density of the cell.
+\Frm
+\[
+\frac{\rho_{\min}}{\langle\rho\rangle},\qquad \langle\rho\rangle=\frac{Q_{\rm tot}}{V}.
+\]
+\Phy The same information on a scale that does not depend on how many electrons the cell has: 1 for
+a uniform density, close to 0 when there are deep, empty voids, negative when the PAW undershoot
+dominates.
+\Lim Zero mean density: 0, flagged.
+
+\desc{rho_int_mean}{rho_int_mean}{e/\AA$^3$}
+\Def The mean density over the interstitial region, the voxels farther than 1.5\,\AA\ from every
+nucleus.
+\Frm
+\[
+\bar\rho_{\rm int}=\frac{1}{N_{\rm int}}\sum_{k:\,r_k>c_2}\rho_k .
+\]
+\Phy How densely the space between the atoms is filled. Where $f_{\rm int}$ gives the
+\emph{fraction of the charge} in the interstitial, $\bar\rho_{\rm int}$ gives the \emph{density
+level} there. A high level means a well-filled, free-electron-like interstitial (metals); a low one,
+nearly empty voids (ionic, molecular and layered crystals). It can be compared with the density of a
+uniform electron gas, $\rho=3/(4\pi r_s^3)$.
+\Lim No interstitial voxel: 0, flagged.
 
 \subsection{Directionality: the charge-anisotropy tensor}
-Averaging the gradient's directions over the whole cell gives a $3\times3$ tensor with trace 1:
+Averaging the outer product of the gradient with itself over the cell gives a symmetric
+$3\times3$ tensor with trace 1, the analogue of the structure tensor of image analysis:
 \[
 T_{ab}=\frac{\sumk \partial_a\rho_k\,\partial_b\rho_k}{\sumk |\nabla\rho_k|^2},\qquad
 \text{eigenvalues } t_1\le t_2\le t_3,\quad t_1+t_2+t_3=1 .
 \]
-\begin{descs}
-\entry{T_eigenvalues_t1, _t2, _t3}{}{the sorted eigenvalues of $T$}{All $1/3$ when the gradients point equally in all directions (e.g.\ any cubic crystal). Unequal values show that the density varies more along some directions, as in layered or chain structures.}
-\entry{charge_FA}{range $[0,1]$}{$\displaystyle \mathrm{FA}=\sqrt{\tfrac32}\,\frac{\lVert T-\tfrac13 I\rVert_F}{\lVert T\rVert_F}$}{Fractional anisotropy: one number for how far $T$ is from isotropic. 0 when isotropic; 1 when every gradient is parallel.}
-\end{descs}
+$T$ is weighted by $|\nabla\rho|^2$, so it is dominated by the steep parts of the density near the
+atoms. Being a second-rank tensor property of the crystal, it must be invariant under the crystal's
+point group (Neumann's principle). Hence: cubic crystals have $t_1=t_2=t_3=1/3$ exactly;
+tetragonal, hexagonal and trigonal crystals have two equal eigenvalues; only orthorhombic,
+monoclinic and triclinic crystals can have three different ones.
+
+\desc{T_eigenvalues}{T_eigenvalues_t1, T_eigenvalues_t2, T_eigenvalues_t3}{dimensionless\quad$[0,1]$}
+\Def The three eigenvalues of $T$, sorted in increasing order. Each is the share of the squared
+density gradient that points along one principal direction.
+\Frm $T\mathbf e_j=t_j\mathbf e_j$, $t_1\le t_2\le t_3$, $\sum_jt_j=1$.
+\Phy If the density varies equally in all directions, all three are $1/3$. A \emph{layered} density,
+which varies most strongly across the layers, puts most of the gradient along the stacking axis: one
+large eigenvalue ($t_3$) and two small ones. A \emph{chain-like} density, uniform along the chains and
+varying across them, gives one small eigenvalue ($t_1$, the chain axis) and two large ones. The three
+values together tell which of these shapes the charge has.
+\Lim Uniform density: all $1/3$, flagged.
+
+\desc{charge_FA}{charge_FA}{dimensionless\quad$[0,1]$}
+\Def The fractional anisotropy of $T$: one number for how far the gradient distribution is from
+isotropic, as used for diffusion tensors~\cite{basser}.
+\Frm
+\[
+\mathrm{FA}=\sqrt{\tfrac32}\,\frac{\lVert T-\tfrac13 I\rVert_F}{\lVert T\rVert_F}
+=\sqrt{\tfrac32}\,\frac{\sqrt{\sum_j(t_j-\frac13)^2}}{\sqrt{\sum_jt_j^2}} .
+\]
+\Phy 0 when $T$ is isotropic (any cubic crystal), 1 when every gradient is parallel (a density that
+varies along one direction only). For most three-dimensional crystals it is close to zero; it is
+larger for strongly layered or chain-like densities and for low-symmetry cells.
+\Lim Uniform density: 0, flagged.
 
 \subsection{Information content}
-These treat the normalized density $\rhot = \rho/N_e$ (with $N_e=\int\rho\,dV$) as a probability
-distribution over the cell. Each is normalized by the cell volume, which makes it intensive.
-\begin{descs}
-\entry{shannon_entropy}{range $\le 0$}{$\displaystyle S=-\!\int\rhot\ln\rhot\,dV-\ln V$}{How spread out the charge is: 0 for a uniform density, more negative as the charge concentrates on the atoms.}
-\entry{disequilibrium}{range $\ge 1$}{$\displaystyle D = V\!\int\rhot^{\,2}\,dV$}{How far the charge is from uniform: 1 for a uniform density, larger when it is concentrated.}
-\entry{LMC_complexity}{}{$C = D\,e^{S}$}{L\'opez-Ruiz--Mancini--Calbet complexity. It balances order against disorder and equals 1 for a uniform density.}
-\entry{fisher_information}{1/bohr$^2$}{$\displaystyle I=\int\frac{|\nabla\rhot|^2}{\rhot}\,dV$}{Sharpness of the density: large when it changes steeply (compact cores, strong localization).}
-\end{descs}
+These treat the normalized density, the shape function $\rhot = \rho/N_e$ with
+$N_e=\int\rho\,dV$~\cite{parr}, as a probability distribution over the cell: $\rhot(\mathbf r)\,dV$ is
+the probability of finding a given electron in $dV$. Negative pseudo-density values are set to 0,
+and atomic units are used. The entropy and the disequilibrium are normalized by the cell volume,
+which makes them intensive and makes a uniform density the reference point.
 
-%=====================================================================
-\section{Heterogeneity descriptors (18)}
-The descriptors above describe the whole cell. These ask \emph{how different the atoms are}. Each
-voxel is assigned to an atom (default: its nearest nucleus, i.e.\ Voronoi cells; smooth partitions give fractional weights). Then three per-atom
-quantities are computed, each the per-atom version of a bonding descriptor ($w_i(k)=1$ if voxel $k$
-belongs to atom $i$):
+Shannon entropy, disequilibrium and complexity depend only on the \emph{distribution of density
+values} over the cell (a histogram of $\rho$), not on where the values are: they treat each voxel on
+its own. The Fisher information is the one measure that sees the spatial variation, through the
+gradient.
+
+\desc{shannon_entropy}{shannon_entropy}{dimensionless (nats)\quad$\le 0$}
+\Def The Shannon entropy~\cite{shannon} of the shape function, measured from that of a uniform density.
+\Frm
 \[
-m_1^{(i)}=\frac{\sum_k w_i(k)\rho_k r_{ik}}{\sum_k w_i(k)\rho_k},\qquad
-f_{\rm bond}^{(i)}=\frac{\sum_{c_1<r_{ik}\le c_2} w_i(k)\rho_k}{\sum_k w_i(k)\rho_k},\qquad
-\zeta^{(i)}=1-\frac{\sum_k w_i(k)|\nabla\rho_k\cdot\hat u_{ik}|}{\sum_k w_i(k)|\nabla\rho_k|}.
+S=-\!\int\rhot\ln\rhot\,dV-\ln V=-\int\rhot\,\ln\frac{\rhot}{1/V}\,dV .
 \]
-For each $X\in\{m_1, f_{\rm bond}, \zeta\}$, six statistics over the atoms are reported (18 in
-total). Let $x_e$ be the fraction of sites of element $e$, $\bar X_e$ the mean over the sites of
-element $e$, and $\bar X$ the mean over all sites.
+\Phy The second form is minus the Kullback--Leibler divergence of $\rhot$ from the uniform
+distribution $1/V$: the information gained by knowing where the charge actually is, rather than
+assuming it is spread evenly. $S=0$ for a uniform density (free-electron limit) and becomes more
+negative the more the charge concentrates in small regions: on compact atoms, in localized states,
+in crystals with large empty voids. $e^{S}$ is the fraction of the cell volume that the charge
+effectively occupies.
 
-\begin{center}
-\renewcommand{\arraystretch}{1.25}
-\begin{tabularx}{\linewidth}{@{}l l X@{}}
-\toprule
-descriptor & definition & meaning\\
-\midrule
-\dn{X_site_std} & $\mathrm{std}_i X^{(i)}$ & overall spread between atoms\\
-\dn{X_site_range} & $\max_i X^{(i)}-\min_i X^{(i)}$ & the most extreme difference\\
-\dn{X_site_max}, \dn{X_site_min} & $\max_i X^{(i)}$, $\min_i X^{(i)}$ & the extreme atoms\\
-\dn{X_within_element_var} & $\sum_e x_e\,\mathrm{Var}_{i\in e}X^{(i)}$ & atoms of the \emph{same} element in different environments\\
-\dn{X_between_element_var} & $\sum_e x_e\,(\bar X_e-\bar X)^2$ & differences \emph{between} elements\\
-\bottomrule
-\end{tabularx}
-\end{center}
-The last two split the variance exactly, $\mathrm{Var}_i X = \text{within} + \text{between}$ (as in
-one-way ANOVA). The within-element variance is undefined (NaN, flagged) when no element has two or
-more sites. The between-element variance is 0 (flagged) for a single-element crystal. Units are
-those of $X$ (\AA\ for $m_1$, squared for the variances; $f_{\rm bond}$ and $\zeta$ are
-dimensionless).
+\desc{disequilibrium}{disequilibrium}{dimensionless\quad$\ge 1$}
+\Def The volume-normalized integral of the squared shape function, a measure of how far the density
+is from uniform.
+\Frm
+\[
+D = V\!\int\rhot^{\,2}\,dV=\frac{\langle\rho^2\rangle}{\langle\rho\rangle^2}=1+\frac{\mathrm{Var}(\rho)}{\langle\rho\rangle^2},
+\]
+with $\langle\cdot\rangle$ the average over the cell volume.
+\Phy $D-1$ is the squared coefficient of variation of the density over the cell. $D=1$ for a
+uniform density and grows as the charge piles up in some places and empties others. $1/D$ is the
+fraction of the cell an equivalent ``flat-topped'' density would fill (the second-order Rényi
+counterpart of $e^{S}$). Concentrated densities (compact atoms, empty voids) have large $D$.
+
+\desc{LMC_complexity}{LMC_complexity}{dimensionless\quad$\ge 1$}
+\Def The L\'opez-Ruiz--Mancini--Calbet statistical complexity~\cite{lmc} in its form for
+continuous distributions~\cite{catalan}: disequilibrium times the exponential of the entropy.
+\Frm
+\[
+C = D\,e^{S}=\exp\!\big(H_1-H_2\big),\qquad H_1=-\!\int\rhot\ln\rhot\,dV,\quad H_2=-\ln\!\int\rhot^{\,2}\,dV .
+\]
+\Phy $H_1$ (Shannon) and $H_2$ (Rényi of order 2) are two ways of counting the effective volume
+occupied by the charge; since $H_1\ge H_2$, $C\ge1$, with equality exactly when the density is
+constant wherever it is nonzero. The ratio of the two effective volumes does not change when the
+density is shifted or uniformly stretched or compressed, so $C$ measures the \emph{shape} of the
+density distribution independent of its overall scale: how strongly peaked it is compared with a
+flat plateau. It balances order (large $D$) against disorder (large $e^{S}$).
+
+\desc{fisher_information}{fisher_information}{1/bohr$^2$\quad$\ge 0$}
+\Def The Fisher information~\cite{fisher} of the shape function: an integral of the squared relative
+gradient of the density.
+\Frm
+\[
+I=\int\frac{|\nabla\rhot|^2}{\rhot}\,dV=4\!\int\big|\nabla\sqrt{\rhot}\big|^2dV
+\qquad(\text{voxels with }\rho>10^{-8}\ \text{e/bohr}^3).
+\]
+\Phy $I$ measures how sharp the density is: large when it changes steeply over short distances
+(compact atoms, strong localization), small when it varies gently. It has a direct energetic meaning:
+the von Weizsäcker kinetic energy~\cite{weizsacker} $T_W=\tfrac18\int|\nabla\rho|^2/\rho\,dV$
+(hartree) equals $N_eI/8$, so $I/8$ is the Weizsäcker kinetic energy per electron. $T_W$ is the exact
+kinetic energy of a single-orbital density and a lower bound on the true (Kohn--Sham) kinetic
+energy. Unlike the three measures above, $I$ depends on how the density values are arranged in
+space.
 
 %=====================================================================
-\section*{Summary}
-\begin{center}
-\renewcommand{\arraystretch}{1.05}
-\small
-\begin{tabularx}{\linewidth}{@{}l c X@{}}
-\toprule
-group & $n$ & what it captures\\
-\midrule
-moments and shells & 6 & where the charge sits relative to the nuclei\\
-gradient anisotropy & 1 & how non-spherical the atoms are\\
-Laplacian & 4 & where charge is concentrated or depleted\\
-ellipticity & 1 & cylindrical vs.\ flattened bonds\\
-NCI & 3 & weak, non-covalent interactions\\
-Hartree potential & 2 & electrostatic environment of the atoms\\
-bond midpoints & 2 & charge in the bonds\\
-\midrule
-percolation & 4 & how well the charge connects through the crystal\\
-critical points & 4 & peaks, valleys and non-nuclear maxima\\
-density floor & 3 & charge in the voids\\
-anisotropy tensor & 4 & directionality of the whole density\\
-information measures & 4 & spread, concentration and sharpness\\
-\midrule
-heterogeneity & 18 & differences between atoms, within and between elements\\
-\midrule
-\textbf{total} & \textbf{56} & \\
-\bottomrule
-\end{tabularx}
-\end{center}
-\textbf{Defaults:} $c_1=0.8$\,\AA, $c_2=1.5$\,\AA; FFT derivatives; nearest-atom partition; \texttt{featurize} returns all 56.
+\section{Heterogeneity descriptors (18)}\label{sec:het}
+The descriptors above describe the whole cell. These ask \emph{how different the atoms are}. Each
+voxel is assigned to an atom; by default to its nearest nucleus, which gives Voronoi cells
+(smooth Becke partitions~\cite{becke} give fractional weights). With $w_i(k)=1$ if voxel $k$
+belongs to atom $i$ and $r_{ik}$, $\hat u_{ik}$ measured from atom $i$, three per-atom quantities are
+computed. Each is the per-atom version of a bonding descriptor:
+\begin{align*}
+m_1^{(i)}&=\frac{\sum_k w_i(k)\rho_k r_{ik}}{\sum_k w_i(k)\rho_k}
+&&\text{the radius of atom $i$'s charge cloud (cf.\ \dn{m1});}\\
+f_{\rm bond}^{(i)}&=\frac{\sum_{k:\,c_1<r_{ik}\le c_2} w_i(k)\rho_k}{\sum_k w_i(k)\rho_k}
+&&\text{the share of atom $i$'s charge in its bond shell (cf.\ \dn{f_bond});}\\
+\zeta^{(i)}&=1-\frac{\sum_k w_i(k)|\nabla\rho_k\cdot\hat u_{ik}|}{\sum_k w_i(k)|\nabla\rho_k|}
+&&\text{the asphericity of atom $i$ (cf.\ \dn{zeta}).}
+\end{align*}
+Physically, $m_1^{(i)}$ follows the size and charge state of an atom (a cation that has given away
+electrons has a compact cloud, an anion a diffuse one), $f_{\rm bond}^{(i)}$ how much of its charge
+it puts into bonds, and $\zeta^{(i)}$ how directional its bonding is. Symmetry-equivalent atoms have
+identical values, so every spread below comes from atoms that are \emph{not} equivalent.
 
-\textbf{Not included, and why.}
+For each $X\in\{m_1, f_{\rm bond}, \zeta\}$ six statistics over the $N_a$ atoms are reported. Let
+$x_e$ be the fraction of the sites occupied by element $e$, $\bar X_e$ the mean over the sites of
+element $e$ and $\bar X$ the mean over all sites. All variances and standard deviations are
+population ones (divided by the number of sites).
+
+\desc{X_site_std}{m1_site_std, f_bond_site_std, zeta_site_std}{units of $X$\quad$\ge0$}
+\Def The standard deviation of the per-atom values over all atoms of the cell.
+\Frm $\mathrm{std}_iX^{(i)}=\big[\tfrac1{N_a}\sum_i(X^{(i)}-\bar X)^2\big]^{1/2}$.
+\Phy The overall difference between the atoms. For $m_1$: how different the atoms are in size and
+charge state (large in strongly ionic compounds of a small cation with a large anion); for
+$f_{\rm bond}$: whether some atoms are bonded much more strongly than others; for $\zeta$: whether
+some atoms are spherical and others directionally bonded. Zero for crystals with a single
+inequivalent site.
+
+\desc{X_site_range}{m1_site_range, f_bond_site_range, zeta_site_range}{units of $X$\quad$\ge0$}
+\Def The difference between the largest and the smallest per-atom value.
+\Frm $\max_iX^{(i)}-\min_iX^{(i)}$.
+\Phy The most extreme contrast between two atoms of the crystal. Unlike the standard deviation it
+does not depend on how many atoms of each kind there are, so a single unusual site (a dopant-like
+atom, a terminal atom, a site in an unusual coordination) shows up fully.
+
+\desc{X_site_max}{m1_site_max, f_bond_site_max, zeta_site_max}{units of $X$}
+\Def The largest per-atom value.
+\Frm $\max_iX^{(i)}$.
+\Phy The extreme atom on the high side: the largest, most diffuse atom ($m_1$), the atom with the
+most charge in its bonds ($f_{\rm bond}$), the most directionally bonded atom ($\zeta$). Properties
+governed by the weakest or softest link of a structure can depend on this atom more than on the
+average.
+
+\desc{X_site_min}{m1_site_min, f_bond_site_min, zeta_site_min}{units of $X$}
+\Def The smallest per-atom value.
+\Frm $\min_iX^{(i)}$.
+\Phy The extreme atom on the low side: the most compact atom, typically the most strongly charged
+cation ($m_1$); the atom with the least charge in its bond shell ($f_{\rm bond}$); the most
+spherical atom ($\zeta$).
+
+\desc{X_within_element_var}{m1_within_element_var, f_bond_within_element_var, zeta_within_element_var}{(units of $X$)$^2$\quad$\ge0$ or NaN}
+\Def The part of the site-to-site variance that comes from atoms of the \emph{same} element being
+different.
+\Frm $\sum_e x_e\,\mathrm{Var}_{i\in e}X^{(i)}$.
+\Phy Nonzero only when one element occupies inequivalent sites: different coordinations (tetrahedral
+and octahedral cations in a spinel), different oxidation states (mixed valence), bridging and
+terminal atoms, different layers of a stacking. It is the charge-density signature of
+crystallographically distinct sites of one element.
+\Lim NaN (flagged) when no element has two or more sites in the cell, because there is nothing to
+compare. Note that this depends on the cell: the primitive cell of rock-salt NaCl gives NaN, its
+conventional cell (four equivalent sites of each element) gives 0. Both mean ``no inequivalent
+sites of one element''.
+
+\desc{X_between_element_var}{m1_between_element_var, f_bond_between_element_var, zeta_between_element_var}{(units of $X$)$^2$\quad$\ge0$}
+\Def The part of the site-to-site variance that comes from different elements behaving differently.
+\Frm $\sum_e x_e\,(\bar X_e-\bar X)^2$.
+\Phy The site-fraction-weighted variance of the element means. For $m_1$ it measures the size
+contrast between the species, which grows with charge transfer (compact cations, diffuse anions);
+for $f_{\rm bond}$ and $\zeta$, how differently the species bond. It plays the role that differences
+of tabulated atomic properties (radii, electronegativities) play in composition-based descriptors,
+but it is measured in the actual crystal.
+\Lim 0 (flagged) for a single-element crystal.
+
+\medskip
+The last two split the variance exactly, as in a one-way analysis of variance:
+\[
+\mathrm{Var}_iX^{(i)}=\underbrace{\sum_e x_e\,\mathrm{Var}_{i\in e}X^{(i)}}_{\text{within}}
++\underbrace{\sum_e x_e\,(\bar X_e-\bar X)^2}_{\text{between}} .
+\]
+So the square of \dn{X_site_std} is divided into a part due to inequivalent sites of one element and
+a part due to the chemistry of the different elements.
+
+%=====================================================================
+\clearpage
+\section{All 56 descriptors at a glance}\label{sec:index}
+{\small
+\renewcommand{\arraystretch}{1.12}
+\begin{longtable}{@{}>{\raggedright}p{0.37\linewidth} l >{\raggedright\arraybackslash}p{0.39\linewidth} r@{}}
+\toprule
+descriptor & units & what it captures & page\\
+\midrule
+\endhead
+\multicolumn{4}{@{}l}{\textbf{Bonding (19)}}\\
+\dn{m1} & \AA & mean electron--nucleus distance & \pageref{d:m1}\\
+\dn{m2} & \AA$^2$ & mean squared distance; outer charge & \pageref{d:m2}\\
+\dn{sigma_r2} & \AA$^2$ & width of the radial distribution & \pageref{d:sigma_r2}\\
+\dn{f_core} & -- & charge within 0.8\,\AA\ of a nucleus & \pageref{d:f_core}\\
+\dn{f_bond} & -- & charge in the bond shell & \pageref{d:f_bond}\\
+\dn{f_int} & -- & charge between the atoms & \pageref{d:f_int}\\
+\dn{zeta} & -- & non-radial share of the gradient & \pageref{d:zeta}\\
+\dn{lnf} & -- & volume of charge concentration & \pageref{d:lnf}\\
+\dn{lnf_charge_weighted} & -- & charge in concentration regions & \pageref{d:lnf_charge_weighted}\\
+\dn{lap_concentration} & -- & always 1/2 (not informative) & \pageref{d:lap_concentration}\\
+\dn{lap_concentration_valence} & -- & concentration vs.\ depletion in the valence region & \pageref{d:lap_concentration_valence}\\
+\dn{ellip_bond_bounded_avg} & -- & flattening of the bonding charge & \pageref{d:ellip_bond_bounded_avg}\\
+\dn{f_NCI} & -- & volume of low, flat density & \pageref{d:f_NCI}\\
+\dn{NCI_attractive} & -- & attractive share of weak contacts & \pageref{d:NCI_attractive}\\
+\dn{sign_lambda2_rho_mean} & e/bohr$^3$ & signed strength of weak contacts & \pageref{d:sign_lambda2_rho_mean}\\
+\dn{V_spread} & eV & spread of the potential at the nuclei & \pageref{d:V_spread}\\
+\dn{V_int_min} & eV & depth of the emptiest void & \pageref{d:V_int_min}\\
+\dn{rho_mid_mean} & e/\AA$^3$ & charge in the bonds & \pageref{d:rho_mid_mean}\\
+\dn{rho_mid_std} & e/\AA$^3$ & unevenness of the bonds & \pageref{d:rho_mid_std}\\
+\midrule
+\multicolumn{4}{@{}l}{\textbf{Structural (19)}}\\
+\dn{rho_perc_a}, \dn{_b}, \dn{_c} & e/\AA$^3$ & bottleneck density of the best path & \pageref{d:rho_perc}\\
+\dn{perc_anisotropy} & -- & directionality of the connectivity & \pageref{d:perc_anisotropy}\\
+\dn{n_max} & 1/\AA$^3$ & density of maxima & \pageref{d:n_max}\\
+\dn{n_min} & 1/\AA$^3$ & density of voids (minima) & \pageref{d:n_min}\\
+\dn{n_NNM} & 1/\AA$^3$ & maxima away from the nuclei & \pageref{d:n_NNM}\\
+\dn{Q_NNM} & -- & charge in those maxima's basins & \pageref{d:Q_NNM}\\
+\dn{rho_min} & e/\AA$^3$ & lowest density & \pageref{d:rho_min}\\
+\dn{rho_min_ratio} & -- & lowest density / mean density & \pageref{d:rho_min_ratio}\\
+\dn{rho_int_mean} & e/\AA$^3$ & density level between the atoms & \pageref{d:rho_int_mean}\\
+\dn{T_eigenvalues_t1}, \dn{_t2}, \dn{_t3} & -- & principal shares of the squared gradient & \pageref{d:T_eigenvalues}\\
+\dn{charge_FA} & -- & anisotropy of the gradient, one number & \pageref{d:charge_FA}\\
+\dn{shannon_entropy} & -- & spread of the charge vs.\ uniform & \pageref{d:shannon_entropy}\\
+\dn{disequilibrium} & -- & $1+$ squared coefficient of variation & \pageref{d:disequilibrium}\\
+\dn{LMC_complexity} & -- & shape of the density distribution & \pageref{d:LMC_complexity}\\
+\dn{fisher_information} & 1/bohr$^2$ & sharpness; Weizsäcker kinetic energy & \pageref{d:fisher_information}\\
+\midrule
+\multicolumn{4}{@{}l}{\textbf{Heterogeneity (18): six statistics of $m_1^{(i)}$, $f_{\rm bond}^{(i)}$, $\zeta^{(i)}$}}\\
+\dn{*_site_std} & $X$ & overall spread between atoms & \pageref{d:X_site_std}\\
+\dn{*_site_range} & $X$ & most extreme difference & \pageref{d:X_site_range}\\
+\dn{*_site_max} & $X$ & extreme atom, high side & \pageref{d:X_site_max}\\
+\dn{*_site_min} & $X$ & extreme atom, low side & \pageref{d:X_site_min}\\
+\dn{*_within_element_var} & $X^2$ & inequivalent sites of one element & \pageref{d:X_within_element_var}\\
+\dn{*_between_element_var} & $X^2$ & differences between elements & \pageref{d:X_between_element_var}\\
+\bottomrule
+\end{longtable}
+}
+\textbf{Defaults:} $c_1=0.8$\,\AA, $c_2=1.5$\,\AA; FFT derivatives; nearest-atom partition;
+\texttt{featurize} returns all 56. The 55 informative descriptors are all but
+\dn{lap_concentration}.
+
+\subsection*{Not included, and why}\label{sec:dropped}
 \begin{itemize}[leftmargin=1.4em,itemsep=0.3ex,topsep=0.3ex]
-\item \emph{ELF and local energy densities} ($g$, $v$, $H$): a CHGCAR has no orbitals, so both
+\item \emph{ELF and local energy densities} ($G$, $V$, $H$): a CHGCAR has no orbitals, so both
   would have to be estimated from the PAW pseudo-density with a density-only approximation of the
   kinetic energy. The results are not the true quantities.
 \item \emph{Mean and spread of the unbounded ellipticity $\varepsilon$}: they diverge as
@@ -300,5 +896,28 @@ heterogeneity & 18 & differences between atoms, within and between elements\\
 \item \emph{Saddle-point counts}: they changed by a median 17--20\% when the grid was coarsened
   to 80\%.
 \end{itemize}
+
+%=====================================================================
+\begin{thebibliography}{99}\small
+\setlength{\itemsep}{0.2ex}
+\bibitem{blochl} P.~E. Blöchl, Projector augmented-wave method, Phys.\ Rev.\ B \textbf{50}, 17953 (1994).
+\bibitem{ashcroft} N.~W. Ashcroft and N.~D. Mermin, \emph{Solid State Physics} (Saunders, 1976), Ch.~31.
+\bibitem{bader} R.~F.~W. Bader, \emph{Atoms in Molecules: A Quantum Theory} (Oxford University Press, 1990).
+\bibitem{baderessen} R.~F.~W. Bader and H. Essén, The characterization of atomic interactions, J.\ Chem.\ Phys.\ \textbf{80}, 1943 (1984).
+\bibitem{baderellip} R.~F.~W. Bader, T.~S. Slee, D. Cremer and E. Kraka, Description of conjugation and hyperconjugation in terms of electron distributions, J.\ Am.\ Chem.\ Soc.\ \textbf{105}, 5061 (1983).
+\bibitem{nci} E.~R. Johnson, S. Keinan, P. Mori-Sánchez, J. Contreras-García, A.~J. Cohen and W. Yang, Revealing noncovalent interactions, J.\ Am.\ Chem.\ Soc.\ \textbf{132}, 6498 (2010).
+\bibitem{pendas} A. Martín Pendás, A. Costales and V. Luaña, Ions in crystals: the topology of the electron density in ionic materials. I. Fundamentals, Phys.\ Rev.\ B \textbf{55}, 4275 (1997).
+\bibitem{c12a7} S. Matsuishi \emph{et al.}, High-density electron anions in a nanoporous single crystal: [Ca$_{24}$Al$_{28}$O$_{64}$]$^{4+}$(4e$^-$), Science \textbf{301}, 626 (2003).
+\bibitem{ca2n} K. Lee, S.~W. Kim, Y. Toda, S. Matsuishi and H. Hosono, Dicalcium nitride as a two-dimensional electride with an anionic electron layer, Nature \textbf{494}, 336 (2013).
+\bibitem{henkelman} G. Henkelman, A. Arnaldsson and H. Jónsson, A fast and robust algorithm for Bader decomposition of charge density, Comput.\ Mater.\ Sci.\ \textbf{36}, 354 (2006).
+\bibitem{basser} P.~J. Basser and C. Pierpaoli, Microstructural and physiological features of tissues elucidated by quantitative-diffusion-tensor MRI, J.\ Magn.\ Reson.\ B \textbf{111}, 209 (1996).
+\bibitem{parr} R.~G. Parr and L.~J. Bartolotti, Some remarks on the density functional theory of few-electron systems, J.\ Phys.\ Chem.\ \textbf{87}, 2810 (1983).
+\bibitem{shannon} C.~E. Shannon, A mathematical theory of communication, Bell Syst.\ Tech.\ J.\ \textbf{27}, 379 (1948).
+\bibitem{lmc} R. López-Ruiz, H.~L. Mancini and X. Calbet, A statistical measure of complexity, Phys.\ Lett.\ A \textbf{209}, 321 (1995).
+\bibitem{catalan} R.~G. Catalán, J. Garay and R. López-Ruiz, Features of the extension of a statistical measure of complexity to continuous systems, Phys.\ Rev.\ E \textbf{66}, 011102 (2002).
+\bibitem{fisher} R.~A. Fisher, Theory of statistical estimation, Proc.\ Camb.\ Phil.\ Soc.\ \textbf{22}, 700 (1925).
+\bibitem{weizsacker} C.~F. von Weizsäcker, Zur Theorie der Kernmassen, Z.\ Phys.\ \textbf{96}, 431 (1935).
+\bibitem{becke} A.~D. Becke, A multicenter numerical integration scheme for polyatomic molecules, J.\ Chem.\ Phys.\ \textbf{88}, 2547 (1988).
+\end{thebibliography}
 
 \end{document}

@@ -9,6 +9,7 @@ Streamlit on the user's own machine.
 
 from __future__ import annotations
 
+import base64
 import hashlib
 import html
 import json
@@ -29,6 +30,7 @@ from pydemi.gui.formulas import formula as typeset
 from pydemi.io.base import Structure, VolumetricData
 
 PDF = Path(__file__).with_name("descriptors.pdf")
+LOGO = Path(__file__).with_name("logo.png")  # the valence density of Si around a Si-Si bond
 MAX_JOBS = int(os.environ.get("PYDEMI_MAX_JOBS", "2"))
 N_DESCRIPTORS = len(pydemi.descriptor_names())
 PARTITION_HELP = {
@@ -52,8 +54,10 @@ CSS = """
   padding-left: 2rem; padding-right: 2rem; max-width: none; }
 [data-testid="stSidebarHeader"] { height: 2.4rem; margin-bottom: 0; }
 [data-testid="stSidebarUserContent"] { padding-top: 0; }
-.pd-brand { display: flex; align-items: baseline; gap: .5rem; margin: -.4rem 0 .2rem; }
-.pd-brand b { font-size: 1.25rem; letter-spacing: -.01em; }
+.pd-brand { display: flex; align-items: center; gap: .5rem; margin: -.4rem 0 .2rem; }
+.pd-brand img { height: 2.1rem; width: 2.1rem; }
+.pd-brand b { font-size: 1.35rem; letter-spacing: -.01em; }
+.pd-brand b i { font-style: normal; color: #e8603c; }
 .pd-brand span, .pd-muted { color: rgba(128, 128, 128, .95); font-size: .78rem; }
 .pd-head { font-size: .7rem; font-weight: 600; letter-spacing: .07em; text-transform: uppercase;
   color: rgba(128, 128, 128, .95); margin: .9rem 0 .25rem; }
@@ -726,18 +730,21 @@ def _view_compare(dft: Optional[Source], partition: str) -> None:
                            width="stretch", on_click="ignore", key="download_compare_chgcar")
 
     if part == "Properties" and prop is not None:
-        shown = prop.drop(columns=["name", "agree", "weak"])
+        comp = bundle is not None and bundle.needs_composition
+        shown = prop.drop(columns=["name", "agree", "weak"] + ([] if comp else ["inputs"]))
         bad_rows = [None if d == "–" else not a for d, a in zip(prop["ML − DFT"], prop["agree"])]
         st.dataframe(_styled(shown, "ML − DFT", bad_rows), hide_index=True, width="stretch",
                      height=38 + 35 * len(shown), key="cmp_props",
                      column_config={"property": st.column_config.TextColumn(width=200, pinned=True),
                                     "inputs": st.column_config.TextColumn(
                                         width=60, help="D: pydemi descriptors, C: composition")})
-        st.caption(f"⚠ weak model (test R² below {P.WEAK_R2}): a rough indication only. "
-                   "Each property predicted twice by the same model: from the descriptors of the "
-                   "DFT CHGCAR and of the predicted one (the composition is the same). Green: the two "
-                   "differ by less than the model's typical error; red: by more, or the class "
-                   "changes. Models that read the composition only (C) agree by construction.")
+        st.caption((f"⚠ weak model (test R² below {P.WEAK_R2}): a rough indication only. "
+                    if prop["weak"].any() else "")
+                   + "Each property predicted twice by the same model: from the descriptors of the "
+                   "DFT CHGCAR and of the predicted one"
+                   + (" (the composition is the same)" if comp else "") + ". Green: the two "
+                   "differ by less than the model's typical error; red: by more, or the class changes."
+                   + (" Models that read the composition only (C) agree by construction." if comp else ""))
     else:
         only_far = st.toggle(f"Only descriptors that differ by more than {100 * compare.FAR:.0f} % "
                              f"({ds['far']})", key="cmp_far", value=_kept("cmp_far", False),
@@ -761,13 +768,15 @@ def _view_compare(dft: Optional[Source], partition: str) -> None:
 # page
 # ----------------------------------------------------------------------
 
-st.set_page_config(page_title="pydemi", page_icon=":material/blur_on:", layout="wide",
-                   initial_sidebar_state="expanded")
+st.set_page_config(page_title="pydemi", page_icon=str(LOGO) if LOGO.exists() else ":material/blur_on:",
+                   layout="wide", initial_sidebar_state="expanded")
 st.html(CSS)
 st.session_state.setdefault("done", set())
 
 with st.sidebar:
-    st.html(f'<div class="pd-brand"><b>pydemi</b><span>{pydemi.__version__}</span></div>')
+    logo = (f'<img src="data:image/png;base64,{base64.b64encode(LOGO.read_bytes()).decode()}" alt="">'
+            if LOGO.exists() else "")
+    st.html(f'<div class="pd-brand">{logo}<b>py<i>demi</i></b><span>{pydemi.__version__}</span></div>')
     _head("Input")
     # tabs, not a toggle: Streamlit draws every tab, so an uploaded file survives switching;
     # with on_change the active tab is known and picks the input

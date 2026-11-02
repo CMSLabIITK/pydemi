@@ -10,9 +10,10 @@ of matminer (Ward et al., npj Comput. Mater. 2, 16028, 2016). The bundle then ca
 element table, and ``composition_features`` computes them from the site counts, the way
 matminer does, so matminer is not needed here.
 
-pydemi ships one bundle, ``properties_v1.json.xz``: LightGBM models of 22 properties trained
-on the CMS Lab dataset with targets from the Materials Project (written by
-``property_prediction/scripts/build_bundle.py``). ``PYDEMI_PROPERTY_MODEL`` points at another.
+pydemi ships one bundle, ``properties_v2.json.xz``: LightGBM models of 17 properties trained
+on the descriptors alone, on the CMS Lab dataset with targets from the Materials Project
+(written by ``property_prediction/scripts/build_bundle.py``). ``PYDEMI_PROPERTY_MODEL`` points
+at another.
 """
 
 from __future__ import annotations
@@ -32,7 +33,7 @@ from typing import Any, Mapping, Optional, Union
 REQUIRES = ("lightgbm",)
 INSTALL_HINT = 'pip install "pydemi[props]"'
 ENV = "PYDEMI_PROPERTY_MODEL"
-BUNDLED = Path(__file__).with_name("properties_v1.json.xz")
+BUNDLED = Path(__file__).with_name("properties_v2.json.xz")
 
 if sys.platform == "darwin":
     # PyTorch's macOS wheels bring their own OpenMP runtime and LightGBM uses Homebrew's libomp;

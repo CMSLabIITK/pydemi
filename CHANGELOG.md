@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.2.2 (2026-11-02)
+
+- **Property models v2** (`properties_v2.json.xz`, replaces v1): the 17 properties of the
+  pydemi paper, each predicted from the descriptors alone (tuned LightGBM). v1 chose
+  between the composition, the descriptors and both for each property and had 22
+  properties; the Poisson ratio, the anisotropy index, the energy above the hull and the
+  three dielectric constants are dropped (descriptor-only test R² below 0.70).
+  `props.predict` no longer needs `counts=` for the shipped models; bundles that read the
+  composition still work.
+- pydemi logo (the valence density of Si around a Si–Si bond) in the README and in
+  the graphical interface (sidebar and browser tab).
+- Descriptor reference (`docs/descriptors.pdf`, also in the GUI): every descriptor with its
+  definition, formula, physical meaning, limits and caveats.
+
 ## 0.2.1 (2026-10-28)
 
 - **Compare view** in the graphical interface: the open CHGCAR against the density

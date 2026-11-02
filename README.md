@@ -1,3 +1,10 @@
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/CMSLabIITK/pydemi/main/docs/assets/pydemi_logo_dark.png">
+    <img alt="pydemi" src="https://raw.githubusercontent.com/CMSLabIITK/pydemi/main/docs/assets/pydemi_logo.png" width="360">
+  </picture>
+</p>
+
 # pydemi
 
 Interpretable, fixed-length descriptors of a crystal's electron density, computed from a
@@ -55,12 +62,11 @@ The window is laid out like desktop software:
   - *Plots*: one figure per descriptor, showing the quantity it summarises with its value
     marked, stepping through each domain. The plotted data reproduce the descriptor
     values (this is tested).
-  - *Properties*: 22 material properties (elastic, thermal, energetic, electronic and
-    dielectric) estimated from the descriptors and the composition, each with its typical
-    error and test score; select a row for the parity plot on the test set and the inputs
-    the model relies on most. Models with a test R² below 0.5 are marked ⚠ and give rough
-    indications only. If the material is in the training dataset, its DFT values are
-    shown alongside.
+  - *Properties*: 17 material properties (elastic, thermal, energetic, electronic and
+    optical) estimated from the descriptors alone, each with its typical error and test
+    score; select a row for the parity plot on the test set and the descriptors the model
+    relies on most. If the material is in the training dataset, its DFT values are shown
+    alongside.
   - *Compare* (needs the `ml` extra): for the open CHGCAR, ChargE3Net predicts the
     density of the same structure on the same grid, and the two are set side by side: the
     density error (NMAPE), every descriptor from both with its relative difference and how
@@ -110,18 +116,19 @@ If you use predicted densities, please cite ChargE3Net as well as pydemi.
 
 ## Property estimates
 
-pydemi ships LightGBM models of 22 properties, trained on the CMS Lab dataset (6,059
-structures; train 4,847, validation 606, test 606) with the composition features of
-Magpie (Ward et al., npj Comput. Mater. 2, 16028 (2016)) and targets from the Materials
-Project (Jain et al., APL Mater. 1, 011002 (2013); CC BY 4.0). For each property the
-inputs (descriptors, composition, or both) were chosen on the validation set. On the test
-set, for example, the bulk modulus has R² 0.96, the shear modulus 0.93, the Debye
-temperature 0.94 and the band gap 0.93; the anisotropy index and the total and ionic
-dielectric constants are weak (R² 0.29–0.47). The estimates are not DFT values.
+pydemi ships LightGBM models of 17 properties that read the descriptors alone, trained on
+the CMS Lab dataset (6,059 structures; train 4,847, validation 606, test 606) with targets
+from the Materials Project (Jain et al., APL Mater. 1, 011002 (2013); CC BY 4.0): the bulk,
+shear and Young's moduli, C11, C12 and C44, the Debye temperature, the two sound velocities,
+the Clarke and Cahill minimum thermal conductivities, the formation and cohesive energies,
+the PBE band gap, whether a material is a metal and whether its gap is direct, and the
+refractive index. Most have a test R² between 0.85 and 0.95 (bulk modulus 0.95, band gap
+0.85); the refractive index (0.76) and the direct-gap classification (ROC-AUC 0.79) are the
+weakest. These are the models of the pydemi paper. The estimates are not DFT values.
 
 ```python
 from pydemi import props
-p = props.predict(feats, counts=vd.structure.site_counts())   # property -> value (or probability)
+p = props.predict(feats)   # property -> value (or probability)
 ```
 
 The models and the scripts that train them are in `property_prediction/`.
@@ -186,7 +193,8 @@ that the predictions equal those of the original ChargE3Net code.
 
 ## Citing
 
-See `CITATION.cff`. pydemi 0.2.0: doi:10.5281/zenodo.23664506; all versions:
+See `CITATION.cff`. pydemi 0.2.1: doi:10.5281/zenodo.23736932; 0.2.0:
+doi:10.5281/zenodo.23664506; all versions:
 doi:10.5281/zenodo.22995680.
 
 ## License
@@ -194,3 +202,8 @@ doi:10.5281/zenodo.22995680.
 MIT. Author: Shubham Maurya, CMS Lab, IIT Kanpur. The ChargE3Net network in
 `pydemi/ml/model.py` is from https://github.com/AIforGreatGood/charge3net (MIT,
 `pydemi/ml/LICENSE-charge3net`).
+
+## Logo
+
+The logo is the valence density of diamond Si (from a VASP CHGCAR) on the (1̄10) plane,
+around a Si–Si bond: the bright regions are the bond charge, the dark holes the atom cores.

@@ -1,10 +1,12 @@
-"""The v1 property-model bundle for pydemi.props / the GUI, from the study (scripts/train.py).
+"""The v2 property-model bundle for pydemi.props / the GUI, from the study (scripts/train.py).
 
-Per target, the LightGBM model of the feature set (comp / desc / both) with the lowest
-validation loss (mean over the 5 seeds; the test split plays no part in the choice), refit
-with seed 0. Its test metrics are those of that one model; the 5-seed mean and spread are
-stored next to them. Left out: energy_above_hull (test R² < 0.1 for every set) and the two
-benchmark-table columns (duplicates of cohesive-like energy and Debye temperature).
+The 17 properties of the pydemi paper, each predicted from the descriptors alone: the
+seed-0 LightGBM model of the "desc" feature set. Its test metrics are those of that one
+model; the 5-seed mean and spread (the numbers the paper reports) are stored next to them.
+Left out, as in the paper: the Poisson ratio, the anisotropy index, the energy above the
+hull and the three dielectric constants (descriptor-only test R² below 0.70), and the two
+benchmark-table columns. The v1 bundle (pydemi 0.2.0-0.2.1) chose among composition,
+descriptors and both per target and had 22 properties.
 
 The model text keeps only what prediction reads: the per-node training statistics
 (split_gain, internal_value/weight/count, leaf_weight/count) and the tree_sizes header are
@@ -12,8 +14,8 @@ dropped, which roughly halves the size; the script checks that the trimmed model
 identical predictions. The bundle is xz-compressed and copied into the package, where
 pydemi.props and the GUI read it.
 
-    python scripts/build_bundle.py    # writes results/study_v1/properties_v1.json.xz
-                                      # and src/pydemi/properties_v1.json.xz
+    python scripts/build_bundle.py    # writes results/study_v1/properties_v2.json.xz
+                                      # and src/pydemi/properties_v2.json.xz
 """
 
 from __future__ import annotations
@@ -33,13 +35,17 @@ import pandas as pd
 import pydemi
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from train import SETS, load  # noqa: E402
+from train import load  # noqa: E402
 from train_preview import SHOW  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
-DATA = ROOT / "data"
 STUDY = ROOT / "results" / "study_v1"
-SKIP = ("energy_above_hull",)
+KEEP = ("bulk_modulus", "shear_modulus", "youngs_modulus", "C11", "C12", "C44", "debye_temperature",
+        "sound_velocity_transverse", "sound_velocity_longitudinal", "thermal_conductivity_clarke",
+        "thermal_conductivity_cahill", "formation_energy", "cohesive_energy", "band_gap", "is_metal",
+        "is_gap_direct", "refractive_index")
+SET = "desc"
+GROUP = {"refractive_index": "Optical"}   # the paper's grouping; no dielectric constants in v2
 INPUTS = {"comp": "composition", "desc": "descriptors", "both": "descriptors + composition"}
 PACKAGE = ROOT.parent / "src" / "pydemi"
 # per-node training statistics and the tree-size index: not read by predict
@@ -66,7 +72,7 @@ def main() -> None:
     X = d[desc].astype(float)
     lo, hi = X[train].quantile(0.01), X[train].quantile(0.99)
     bundle: dict = {
-        "name": "v1 (tuned LightGBM, descriptors and composition)",
+        "name": "v2 (tuned LightGBM, descriptors only)",
         "created": date.today().isoformat(),
         "pydemi": pydemi.__version__, "lightgbm": lgb.__version__,
         "data": "CMS Lab 6,059-structure dataset; targets from properties.csv and Materials Project "
@@ -75,22 +81,20 @@ def main() -> None:
                  f"test {int((d.split == 'test').sum())}",
         "features": desc,
         "feature_range": {f: [float(lo[f]), float(hi[f])] for f in desc},
-        "composition": json.loads((DATA / "magpie_table.json").read_text()),
         "targets": {},
         "dataset": {"material_id": d.material_id.tolist(), "formula": d.formula.tolist(),
                     "split": d.split.tolist(),
                     "X": [[None if np.isnan(v) else float(v) for v in row] for row in X.to_numpy()],
                     "y": {name: [None if np.isnan(v) else float(v) for v in d[name].to_numpy(dtype=float)]
-                          for name in SHOW if name not in SKIP}},
+                          for name in KEEP}},
     }
     rows = []
-    for name, (label, symbol, group, how, floor) in SHOW.items():
-        if name in SKIP:
-            continue
-        jobs = {fs: json.loads((STUDY / "jobs" / f"{name}__{fs}.json").read_text()) for fs in SETS}
-        val = {fs: float(np.mean([r["val_loss"] for r in j["models"]["lgbm"]["seeds"]])) for fs, j in jobs.items()}
-        fs = min(val, key=val.get)
-        j = jobs[fs]
+    for name in KEEP:
+        label, symbol, group, how, floor = SHOW[name]
+        group = GROUP.get(name, group)
+        fs = SET
+        j = json.loads((STUDY / "jobs" / f"{name}__{fs}.json").read_text())
+        val = {fs: float(np.mean([r["val_loss"] for r in j["models"]["lgbm"]["seeds"]]))}
         task = j["task"]
         seeds = j["models"]["lgbm"]["seeds"]
         s0 = seeds[0]
@@ -113,9 +117,9 @@ def main() -> None:
             "booster": booster,
         }
         key = "roc_auc" if task == "classification" else "r2"
-        rows.append({"target": name, "set": fs, key: s0[key], "trees": s0["best_iteration"],
-                     **{f"val_{k}": v for k, v in val.items()}})
-    out = STUDY / "properties_v1.json.xz"
+        rows.append({"target": name, key: s0[key], f"{key}_mean5": bundle["targets"][name]["metrics_seeds"][key][0],
+                     "trees": s0["best_iteration"]})
+    out = STUDY / "properties_v2.json.xz"
     with lzma.open(out, "wt", preset=6) as fh:
         json.dump(bundle, fh)
     shutil.copyfile(out, PACKAGE / out.name)

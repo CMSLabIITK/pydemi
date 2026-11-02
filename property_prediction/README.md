@@ -50,7 +50,8 @@ results/   models, metrics and figures (not in git)
    and copies it into the package (`src/pydemi/properties_v1.json.xz`, 35 MB): per target the
    feature set with the lowest validation loss, seed-0 LightGBM, with the per-node training
    statistics dropped from the model text (identical predictions, checked by the script).
-   22 targets (energy_above_hull left out: R² < 0.1). pydemi and the GUI use it by default.
+   22 targets (energy_above_hull left out: R² < 0.1). Shipped with pydemi 0.2.0-0.2.1;
+   replaced by the v2 bundle (step 12).
 8. **Penn-model features for the dielectric targets** (2026-10-23, not adopted):
    `scripts/penn_features.py` writes `data/penn_features.csv` (valence plasma energy from the
    electron count and volume, the v1 band-gap model's prediction, out-of-fold on train, and
@@ -60,6 +61,26 @@ results/   models, metrics and figures (not in git)
    test-R² change lies inside its bootstrap 95 % interval over the 123 test materials, so the
    v1 models are kept.
 7. **Preview models** (superseded by 6): `scripts/train_preview.py` (descriptors only, untuned).
+9. **Top-10 descriptors** (2026-10-29): `scripts/train_top10.py` ranks the descriptors of each
+   target by mean |SHAP| of the five descriptor LightGBM models on the training split and
+   retrains on the top 10 with the protocol of `train.py` -> `results/study_v1_top10/`.
+   `scripts/train_topk.py` does the same for other K, per property or one common set.
+10. **Weak targets** (2026-10-29): `scripts/weak_targets.py` (data, bootstrap intervals,
+    learning curves, constant baselines), `scripts/weak_gap_oracle.py` (PBE gap as an extra
+    input, an upper bound) and `scripts/weak_clean.py` (dielectric targets without gap < 0.1 eV)
+    -> `results/weak_targets/`.
+11. **Correlated descriptors** (2026-10-30): `redundancy/` groups descriptors with
+    |Spearman rho| >= 0.90 on the training split and retrains without the redundant ones;
+    see `redundancy/README.md`.
+12. **GUI bundle v2** (2026-11-02, pydemi 0.2.2): `scripts/build_bundle.py` now writes
+    `results/study_v1/properties_v2.json.xz` and copies it into the package (33 MB): the 17
+    properties of the paper, each the seed-0 LightGBM model on the descriptors alone ("desc"),
+    with the 5-seed test scores stored next to its own. pydemi and the GUI use it by default.
+13. **Held out from both models** (2026-11-02): `scripts/train_mlheldout.py` makes the 605 test
+    structures of the density model the test set, retrains the 17 descriptor models without
+    them (same protocol, 5 seeds) and applies them to the descriptors of the DFT and of the
+    ChargE3Net-predicted densities -> `results/study_v1_mlheldout/` (summary.csv,
+    predictions.csv).
 
 Cleaning rules (see build_tables.py):
 - K, G, E as published in properties.csv; Poisson ratio >= 0.5 removed.
