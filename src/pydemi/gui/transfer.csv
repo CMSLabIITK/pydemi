@@ -1,7 +1,6 @@
 # DFT vs ChargE3Net descriptors of the 605 held-out test structures of the density model
 # (pydemi.ml checkpoint, full DFT grids): Spearman correlation and median relative difference
 # |a-b|/max(|a|,|b|) across the structures; scale = 90th percentile of |value| (DFT).
-# Empty: constant descriptor (lap_concentration = 1/2).
 descriptor,spearman,median_rel_diff,scale
 zeta,0.9926,0.0191,0.08102
 m1,0.9999,0.000562,1.073
@@ -12,7 +11,6 @@ f_bond,1.0000,0.000927,0.6105
 f_int,0.9998,0.00413,0.1628
 lnf,0.8934,0.0616,0.263
 lnf_charge_weighted,0.9528,0.0102,0.5447
-lap_concentration,,,0.5
 lap_concentration_valence,0.9768,0.0646,0.3147
 ellip_bond_bounded_avg,0.8972,0.125,0.5295
 f_NCI,0.9959,0.00932,0.7252

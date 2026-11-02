@@ -56,7 +56,7 @@ The window is laid out like desktop software:
 - **Views**, in tabs across the top:
   - *Structure*: the cell and atoms in 3D, and a slice of the density through any lattice
     plane (log or linear colour, atoms near the plane marked).
-  - *Descriptors*: all 56 in a table with a domain filter and search; select a row to see
+  - *Descriptors*: all 55 in a table with a domain filter and search; select a row to see
     its plot, value, units and formula alongside. *Export* gives a one-row CSV (for
     building datasets), a long CSV with units and formulas, or JSON with the run metadata.
   - *Plots*: one figure per descriptor, showing the quantity it summarises with its value
@@ -140,7 +140,7 @@ The models and the scripts that train them are in `property_prediction/`.
 import pydemi
 
 vd = pydemi.read_chgcar("CHGCAR")
-feats = pydemi.featurize(vd)     # dict of all 56 descriptors
+feats = pydemi.featurize(vd)     # dict of all 55 descriptors
 pydemi.catalogue()               # their metadata: domain, formula, units, range, fallbacks
 ```
 
@@ -151,11 +151,11 @@ pydemi catalogue --out catalogue.csv
 pydemi sweep CHGCAR --param c2 --range 1.0:2.5:0.05 --out sweep.csv   # shell-radius sensitivity
 ```
 
-## Descriptors (56)
+## Descriptors (55)
 
 | domain | n | descriptors |
 |---|---|---|
-| bonding | 19 | `zeta`, `m1`, `m2`, `sigma_r2`, `f_core`, `f_bond`, `f_int`, `lnf`, `lnf_charge_weighted`, `lap_concentration`, `lap_concentration_valence`, `ellip_bond_bounded_avg`, `f_NCI`, `NCI_attractive`, `sign_lambda2_rho_mean`, `V_spread`, `V_int_min`, `rho_mid_mean`, `rho_mid_std` |
+| bonding | 18 | `zeta`, `m1`, `m2`, `sigma_r2`, `f_core`, `f_bond`, `f_int`, `lnf`, `lnf_charge_weighted`, `lap_concentration_valence`, `ellip_bond_bounded_avg`, `f_NCI`, `NCI_attractive`, `sign_lambda2_rho_mean`, `V_spread`, `V_int_min`, `rho_mid_mean`, `rho_mid_std` |
 | structural | 19 | `rho_perc_a`, `rho_perc_b`, `rho_perc_c`, `perc_anisotropy`, `n_max`, `n_min`, `n_NNM`, `Q_NNM`, `rho_min`, `rho_min_ratio`, `rho_int_mean`, `T_eigenvalues_t1`, `T_eigenvalues_t2`, `T_eigenvalues_t3`, `charge_FA`, `shannon_entropy`, `fisher_information`, `disequilibrium`, `LMC_complexity` |
 | heterogeneity | 18 | `m1_site_std`, `m1_site_range`, `m1_site_max`, `m1_site_min`, `m1_within_element_var`, `m1_between_element_var`, `f_bond_site_std`, `f_bond_site_range`, `f_bond_site_max`, `f_bond_site_min`, `f_bond_within_element_var`, `f_bond_between_element_var`, `zeta_site_std`, `zeta_site_range`, `zeta_site_max`, `zeta_site_min`, `zeta_within_element_var`, `zeta_between_element_var` |
 

@@ -33,7 +33,7 @@ def transfer() -> pd.DataFrame:
 
 def grade(rho: float) -> str:
     if not math.isfinite(rho):
-        return "constant"
+        return "unknown"
     return "excellent" if rho >= 0.99 else "good" if rho >= 0.95 else "fair" if rho >= 0.8 else "poor"
 
 
@@ -64,24 +64,21 @@ def descriptors(dft: dict, pred: dict) -> pd.DataFrame:
         rho = float(tr.at[name, "spearman"]) if name in tr.index else math.nan
         scale = float(tr.at[name, "scale"]) if name in tr.index else math.nan
         g = grade(rho)
-        if g == "constant":
-            diff, note = math.nan, "constant"
-        elif scale > 0 and max(abs(a), abs(b)) < NOISE * scale:
+        if scale > 0 and max(abs(a), abs(b)) < NOISE * scale:
             diff, note = math.nan, "≈ 0 in both"
         else:
             diff = relative(a, b)
             note = "" if not math.isfinite(diff) else "differs" if diff > FAR else ""
         rows.append({"descriptor": name, "domain": cat.at[name, "domain"], "DFT": a, "ML": b,
                      "difference %": 100 * diff if math.isfinite(diff) else math.nan, "note": note,
-                     "transfer": g if g == "constant" else f"{g} (ρs {rho:.3f})"})
+                     "transfer": f"{g} (ρs {rho:.3f})" if math.isfinite(rho) else g})
     return pd.DataFrame(rows)
 
 
 def descriptor_summary(table: pd.DataFrame) -> dict[str, float]:
-    compared = table[table["note"] != "constant"]
-    d = compared["difference %"]
-    close = int((d <= 100 * CLOSE).sum() + (compared["note"] == "≈ 0 in both").sum())
-    return {"median": float(d.median()), "close": close, "n": len(compared),
+    d = table["difference %"]
+    close = int((d <= 100 * CLOSE).sum() + (table["note"] == "≈ 0 in both").sum())
+    return {"median": float(d.median()), "close": close, "n": len(table),
             "far": int((d > 100 * FAR).sum())}
 
 

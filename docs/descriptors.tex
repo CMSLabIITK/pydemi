@@ -42,7 +42,7 @@
 
 \begin{center}
 {\LARGE\bfseries Charge-density descriptors from a CHGCAR}\\[0.8ex]
-{\large Definitions, formulas and physical meaning of the 56 pydemi descriptors}\\[1.2ex]
+{\large Definitions, formulas and physical meaning of the 55 pydemi descriptors}\\[1.2ex]
 Shubham Kumar Maurya, CMS Lab, IIT Kanpur \quad\textbullet\quad 30 October 2026
 \end{center}
 
@@ -50,7 +50,7 @@ Shubham Kumar Maurya, CMS Lab, IIT Kanpur \quad\textbullet\quad 30 October 2026
 \noindent\fcolorbox{MidnightBlue!40}{MidnightBlue!4}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule}{%
 \textbf{In one paragraph.} Every descriptor below is a single number computed from one file, the
 VASP \textsf{CHGCAR}: the crystal structure in its header and the electron density $\rho$ on a periodic
-grid. The descriptors fall into three groups. \emph{Bonding} descriptors (19) ask how the charge is
+grid. The descriptors fall into three groups. \emph{Bonding} descriptors (18) ask how the charge is
 arranged around each atom and in the bonds. \emph{Structural} descriptors (19) look at the density
 of the whole cell: how well it connects, its peaks and valleys, its directionality and its
 information content. \emph{Heterogeneity} descriptors (18) ask how different the atoms of one
@@ -65,7 +65,7 @@ of this rule are stated in the entries concerned.}}
 \lab{Formula} how it is computed;
 \lab{Physics} what it tells about the material, with limiting cases;
 \lab{Caveat} where present, what can mislead.
-A table of all 56 descriptors with page references is at the end (p.~\pageref{sec:index}).
+A table of all 55 descriptors with page references is at the end (p.~\pageref{sec:index}).
 
 \tableofcontents
 
@@ -157,7 +157,7 @@ the dataset when the derivatives were taken by finite differences instead of FFT
 was coarsened to 80\%, were dropped (Sec.~\ref{sec:dropped}).
 
 %=====================================================================
-\section{Bonding descriptors (19)}
+\section{Bonding descriptors (18)}
 
 \subsection{Where the charge sits: radial moments and shell fractions}
 The simplest picture of a solid is a set of atoms. These six descriptors ask how far the charge
@@ -305,26 +305,19 @@ to the depleted regions around them. Low-density voxels carry little weight, so 
 sensitive to the grid than $\mathrm{lnf}$, and it is not interchangeable with it: a crystal can have
 a small concentrated volume holding most of its charge.
 
-\desc{lap_concentration}{lap_concentration}{dimensionless\quad always $1/2$}
-\Def The share of the total absolute Laplacian that comes from concentration regions.
-\Frm
-\[
-\frac{\sum_{k:\,\nabla^2\rho_k<0}|\nabla^2\rho_k|}{\sumk|\nabla^2\rho_k|}=\frac12 .
-\]
-\Phy None: on a periodic cell the Laplacian integrates to zero, $\int\nabla^2\rho\,dV=0$ (the
-divergence theorem with no boundary; in Fourier space the $\mathbf G=0$ component of
-$\nabla^2\rho$ is $-|\mathbf G|^2\rho(\mathbf G)=0$). The positive and negative parts therefore have
-equal weight and the ratio is $1/2$ for every crystal. It is kept so that the catalogue matches the
-specification, and it is the one descriptor excluded from the 55 informative ones.
-
 \desc{lap_concentration_valence}{lap_concentration_valence}{dimensionless\quad$[0,1]$}
-\Def The same ratio, restricted to the valence region outside the cores ($r_k>c_1$).
+\Def The share of the absolute Laplacian outside the cores ($r_k>c_1$) that comes from
+concentration regions.
 \Frm
 \[
 L_{\rm val}=\frac{\sum_{k:\,r_k>c_1,\ \nabla^2\rho_k<0}|\nabla^2\rho_k|}{\sum_{k:\,r_k>c_1}|\nabla^2\rho_k|}
 =\frac12-\frac{\int_{\rm out}\nabla^2\rho\,dV}{2\int_{\rm out}|\nabla^2\rho|\,dV}.
 \]
-\Phy Outside the cores the identity above no longer forces $1/2$, and by the divergence theorem
+\Phy Over the whole cell the same ratio carries no information: on a periodic cell the Laplacian
+integrates to zero, $\int\nabla^2\rho\,dV=0$ (the divergence theorem with no boundary; in Fourier
+space the $\mathbf G=0$ component of $\nabla^2\rho$ is $-|\mathbf G|^2\rho(\mathbf G)=0$), so the
+positive and negative parts have equal weight and the ratio is $1/2$ for every crystal. Outside the
+cores this no longer holds, and by the divergence theorem
 \[
 \int_{r>c_1}\nabla^2\rho\,dV=-\oint_{\text{core surfaces}}\frac{\partial\rho}{\partial n}\,dS ,
 \]
@@ -825,7 +818,7 @@ a part due to the chemistry of the different elements.
 
 %=====================================================================
 \clearpage
-\section{All 56 descriptors at a glance}\label{sec:index}
+\section{All 55 descriptors at a glance}\label{sec:index}
 {\small
 \renewcommand{\arraystretch}{1.12}
 \begin{longtable}{@{}>{\raggedright}p{0.37\linewidth} l >{\raggedright\arraybackslash}p{0.39\linewidth} r@{}}
@@ -833,7 +826,7 @@ a part due to the chemistry of the different elements.
 descriptor & units & what it captures & page\\
 \midrule
 \endhead
-\multicolumn{4}{@{}l}{\textbf{Bonding (19)}}\\
+\multicolumn{4}{@{}l}{\textbf{Bonding (18)}}\\
 \dn{m1} & \AA & mean electron--nucleus distance & \pageref{d:m1}\\
 \dn{m2} & \AA$^2$ & mean squared distance; outer charge & \pageref{d:m2}\\
 \dn{sigma_r2} & \AA$^2$ & width of the radial distribution & \pageref{d:sigma_r2}\\
@@ -843,7 +836,6 @@ descriptor & units & what it captures & page\\
 \dn{zeta} & -- & non-radial share of the gradient & \pageref{d:zeta}\\
 \dn{lnf} & -- & volume of charge concentration & \pageref{d:lnf}\\
 \dn{lnf_charge_weighted} & -- & charge in concentration regions & \pageref{d:lnf_charge_weighted}\\
-\dn{lap_concentration} & -- & always 1/2 (not informative) & \pageref{d:lap_concentration}\\
 \dn{lap_concentration_valence} & -- & concentration vs.\ depletion in the valence region & \pageref{d:lap_concentration_valence}\\
 \dn{ellip_bond_bounded_avg} & -- & flattening of the bonding charge & \pageref{d:ellip_bond_bounded_avg}\\
 \dn{f_NCI} & -- & volume of low, flat density & \pageref{d:f_NCI}\\
@@ -882,8 +874,7 @@ descriptor & units & what it captures & page\\
 \end{longtable}
 }
 \textbf{Defaults:} $c_1=0.8$\,\AA, $c_2=1.5$\,\AA; FFT derivatives; nearest-atom partition;
-\texttt{featurize} returns all 56. The 55 informative descriptors are all but
-\dn{lap_concentration}.
+\texttt{featurize} returns all 55.
 
 \subsection*{Not included, and why}\label{sec:dropped}
 \begin{itemize}[leftmargin=1.4em,itemsep=0.3ex,topsep=0.3ex]

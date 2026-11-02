@@ -94,6 +94,7 @@ Join key: `formula_sp` in properties.csv = the dataset folder name (6,059 one-to
 
 Notes from the data:
 - `lap_concentration` is 0.5 for every structure (an identity on a periodic grid): no information.
+  It was removed from pydemi in 0.3.0 (55 descriptors); `data/descriptors.csv` still has the column.
 - `n_NNM` / `Q_NNM` are non-zero in 37 % of structures, likely PAW pseudo-density peaks just
   outside the fixed 0.8 Å cutoff, not true non-nuclear maxima.
 - 421 structures have no element with two or more sites: their within-element variances are NaN.

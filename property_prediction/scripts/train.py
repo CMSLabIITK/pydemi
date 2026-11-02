@@ -3,7 +3,7 @@ the JCIM 2026 split (train 4,847 / val 606 / test 606).
 
 Feature sets
     comp   composition only: Magpie element statistics + stoichiometry (138, matminer)
-    desc   the pydemi charge-density descriptors (55: lap_concentration is constant)
+    desc   the 55 pydemi charge-density descriptors
     both   the two together (193)
     penn, descpenn   both / desc + 3 Penn-model features (data/penn_features.csv: valence
            plasma energy, predicted band gap, 1 + (hw_p / E_g)^2); for the dielectric targets
@@ -85,7 +85,7 @@ def load() -> tuple[pd.DataFrame, dict[str, list[str]], pd.DataFrame]:
     meta = pd.read_csv(DATA / "targets_columns.csv").set_index("column")
     for k, v in EXTRA.items():
         meta.loc[k, ["units", "task", "source"]] = [v[5], "regression", f"properties.csv ({v[6]})"]
-    desc = [f for f in pydemi.descriptor_names() if f != "lap_concentration"]
+    desc = [f for f in pydemi.descriptor_names() if f != "lap_concentration"]  # pydemi < 0.3 had 56
     cc = [c for c in comp.columns if c != "structure"]
     return d, {"comp": cc, "desc": desc, "both": desc + cc, "penn": desc + cc + PENN,
                "descpenn": desc + PENN}, meta

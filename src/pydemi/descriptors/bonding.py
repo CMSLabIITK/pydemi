@@ -130,29 +130,16 @@ def lnf_charge_weighted(vd: VolumetricData) -> Result:
     return finite_or(weighted_negative_fraction(laplacian(vd), vd.rho.data), 0.0, "zero_density")
 
 
-@register(name="lap_concentration", domain="bonding", field="rho", requires=["laplacian"],
-          units="dimensionless", range=(0.0, 1.0), sentinel_cases={"uniform_density": 0.5})
-def lap_concentration(vd: VolumetricData) -> Result:
-    """lap_concentration = sum_{lap rho < 0} |lap rho_k| / sum_k |lap rho_k|
-
-    Identically 1/2 for every periodic density: int lap rho dV = 0 exactly on
-    a periodic grid (documented correction to the specification; kept for
-    completeness, see ``lap_concentration_valence``). Uniform density: 0.5, flagged.
-    """
-    if is_uniform(vd.rho.data):
-        return Sentinel(0.5, "uniform_density")
-    return finite_or(concentration(laplacian(vd)), 0.5, "uniform_density")
-
-
 @register(name="lap_concentration_valence", domain="bonding", field="rho",
           requires=["laplacian", "geometry", "shells"], units="dimensionless", range=(0.0, 1.0),
           sentinel_cases={"uniform_density": 0.5, "empty_region": 0.5})
 def lap_concentration_valence(vd: VolumetricData) -> Result:
     """lap_concentration_valence = sum_{r > c1, lap rho < 0} |lap rho_k| / sum_{r > c1} |lap rho_k|
 
-    The Laplacian concentration outside the core shell, where it is not
-    fixed at 1/2 by the periodic identity (documented correction). Uniform
-    density or no voxel beyond c1: 0.5, flagged.
+    The Laplacian concentration outside the core shell. Over the whole cell the
+    ratio is identically 1/2 (int lap rho dV = 0 on a periodic grid), so it is
+    only informative restricted to a region. Uniform density or no voxel beyond
+    c1: 0.5, flagged.
     """
     if is_uniform(vd.rho.data):
         return Sentinel(0.5, "uniform_density")

@@ -76,7 +76,7 @@ def test_structure_view_needs_no_descriptors(loaded):
 
 def test_descriptor_table_search_export_and_partition(loaded):
     at = _show(loaded, 1)
-    assert len(at.dataframe[0].value) == len(pydemi.descriptor_names()) == 56
+    assert len(at.dataframe[0].value) == len(pydemi.descriptor_names()) == 55
     labels = {d.label for d in at.get("download_button")}
     assert {"CSV, one row", "CSV, table", "JSON", "Descriptor reference (PDF)"} <= labels
     assert "No descriptor selected" in _html(at)
@@ -216,7 +216,7 @@ def test_structure_tab_predicts_then_offers_the_views(monkeypatch):
     assert "Predicted CHGCAR" in [d.label for d in at.get("download_button")]
     text = _html(at)
     assert "ML-predicted density" in text and "<td>Charge scale</td>" in text
-    assert len(at.dataframe[0].value) == 56          # the descriptors view, now on the prediction
+    assert len(at.dataframe[0].value) == 55          # the descriptors view, now on the prediction
     details = dict(zip(at.dataframe[1].value["key"], at.dataframe[1].value["value"]))
     assert details["density_origin"] == "predicted" and details["density_grid_rule"].startswith("vasp")
 
@@ -270,5 +270,5 @@ def test_compare_predicts_on_the_chgcar_grid_and_sets_both_side_by_side(loaded, 
     at.segmented_control(key="cmp_part").set_value("Descriptors")
     at = _show(at, COMPARE)
     desc = at.dataframe[0].value
-    assert len(desc) == 56 and {"DFT", "ML", "difference %", "transfer"} <= set(desc.columns)
+    assert len(desc) == 55 and {"DFT", "ML", "difference %", "transfer"} <= set(desc.columns)
     assert {d.label for d in at.get("download_button")} >= {"CSV", "Predicted CHGCAR"}

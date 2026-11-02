@@ -361,11 +361,9 @@ def _fig_lap(kind: str) -> Callable[[Data, str, dict[str, float]], tuple[go.Figu
         else:
             neg, pos, y = rad["lap_neg"], rad["lap_pos"], "∫|∇²ρ| dV per shell (e/Å²)"
             cap = ("|∇²ρ| at each distance from the nearest nucleus, for ∇²ρ < 0 (blue) and "
-                   "∇²ρ > 0 (red). ")
-            cap += ("On a periodic grid both totals are equal, so lap_concentration is always 1/2."
-                    if kind == "lap" else
-                    "lap_concentration_valence is the blue share beyond c1 (the grey core "
-                    "region is excluded), where the two need not balance.")
+                   "∇²ρ > 0 (red). lap_concentration_valence is the blue share beyond c1 (the "
+                   "grey core region is excluded). Over the whole cell the two totals are equal "
+                   "on a periodic grid, so only the valence share is informative.")
         fig = go.Figure([_bar(e, neg, "∇²ρ < 0", NEG), _bar(e, pos, "∇²ρ ≥ 0", POS)])
         fig.update_layout(barmode="stack" if kind in ("volume", "charge") else "overlay")
         if kind not in ("volume", "charge"):
@@ -833,7 +831,7 @@ FIGURES: dict[str, Callable[[Data, str, dict[str, float]], tuple[go.Figure, str]
     "zeta": fig_zeta, "m1": fig_m1, "m2": fig_m2, "sigma_r2": fig_sigma_r2,
     "f_core": _fig_shell("core"), "f_bond": _fig_shell("bond"), "f_int": _fig_shell("int"),
     "lnf": _fig_lap("volume"), "lnf_charge_weighted": _fig_lap("charge"),
-    "lap_concentration": _fig_lap("lap"), "lap_concentration_valence": _fig_lap("valence"),
+    "lap_concentration_valence": _fig_lap("valence"),
     "ellip_bond_bounded_avg": fig_ellip, "f_NCI": fig_f_nci, "NCI_attractive": fig_nci_attractive,
     "sign_lambda2_rho_mean": fig_sign_lambda2, "V_spread": fig_v_spread, "V_int_min": fig_v_int_min,
     "rho_mid_mean": fig_rho_mid_mean, "rho_mid_std": fig_rho_mid_std,

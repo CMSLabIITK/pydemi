@@ -52,7 +52,7 @@ def test_radial_profiles_reproduce_the_bonding_descriptors(run):
     assert rad["vol_neg"].sum() / rad["volume"].sum() == pytest.approx(f["lnf"], rel=1e-12)
     assert rad["charge_neg"].sum() / q.sum() == pytest.approx(f["lnf_charge_weighted"], rel=1e-9)
     lap = rad["lap_neg"].sum() / (rad["lap_neg"].sum() + rad["lap_pos"].sum())
-    assert lap == pytest.approx(f["lap_concentration"], rel=1e-9)
+    assert lap == pytest.approx(0.5, abs=1e-9)                # whole cell: the periodic identity
     r = 0.5 * (rad["edges"][1:] + rad["edges"][:-1])
     assert np.sum(r * q) / q.sum() == pytest.approx(f["m1"], abs=plots.RADIAL_BIN)
     fisher = d["info"]["fisher_radial"].sum()

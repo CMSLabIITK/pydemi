@@ -49,8 +49,6 @@ FORMULAS: dict[str, tuple[str, list[str]]] = {
     "lnf": (r"\mathrm{lnf} = \frac{1}{N} \sum_k \mathbf{1}\!\left[\nabla^2\rho_k < 0\right]",
             [_LAP, r"$\mathbf{1}[\cdot]$ is 1 where the condition holds, else 0."]),
     "lnf_charge_weighted": (r"\mathrm{lnf}_\rho = \frac{\sum_{k:\, \nabla^2\rho_k < 0} \rho_k}{\sum_k \rho_k}", [_LAP]),
-    "lap_concentration": (r"\frac{\sum_{k:\, \nabla^2\rho_k < 0} |\nabla^2\rho_k|}{\sum_k |\nabla^2\rho_k|} = \frac{1}{2}",
-                          [_LAP, r"On a periodic grid $\int \nabla^2\rho \, dV = 0$, so this ratio is always $1/2$."]),
     "lap_concentration_valence": (
         r"\frac{\sum_{k:\, r_k > c_1,\ \nabla^2\rho_k < 0} |\nabla^2\rho_k|}{\sum_{k:\, r_k > c_1} |\nabla^2\rho_k|}",
         [_LAP, r"Only voxels outside the cores ($r_k > c_1$)."]),

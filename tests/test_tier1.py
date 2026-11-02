@@ -6,13 +6,15 @@ import numpy as np
 import pytest
 
 import pydemi
+from pydemi.core.derivatives import laplacian
 from pydemi.descriptors.registry import REGISTRY, register
 from pydemi.io.base import Lattice, Structure
+from pydemi.operators.laplacian import concentration
 from pydemi.validate.analytic import (SlaterSuperposition, cubic_cell, slater_lnf, slater_moment,
                                       uniform)
 
 TIER1 = ["zeta", "m1", "m2", "sigma_r2", "f_core", "f_bond", "f_int", "lnf",
-         "lnf_charge_weighted", "lap_concentration", "lap_concentration_valence"]
+         "lnf_charge_weighted", "lap_concentration_valence"]
 Z, A = 3.0, 4.0
 
 
@@ -60,13 +62,16 @@ def test_two_atoms_give_nonzero_anisotropy():
 
 
 @pytest.mark.parametrize("backend", ["fft", "fd"])
-def test_lap_concentration_is_identically_one_half(backend):
-    """Documented correction: int lap rho dV = 0 on a periodic grid, so the ratio is 1/2."""
+def test_laplacian_concentration_is_one_half_only_over_the_whole_cell(backend):
+    """int lap rho dV = 0 on a periodic grid, so the whole-cell ratio is 1/2 (hence not a
+    descriptor); restricted to the valence region it is not."""
     s = Structure(Lattice(np.array([[4.0, 0, 0], [1.1, 4.3, 0], [0.5, 0.7, 4.6]])), ["H", "O"],
                   [[0.1, 0.2, 0.3], [0.55, 0.6, 0.7]])
     vd = SlaterSuperposition(s, [1.2, 2.0], [1.0, 6.0], tol=1e-20).volumetric((40, 42, 44))
     f = _f(vd, derivative_backend=backend)
-    assert f["lap_concentration"] == pytest.approx(0.5, abs=1e-10)
+    assert "lap_concentration" not in f
+    lap = laplacian(vd.rho.data, vd.rho.lattice, backend=backend)
+    assert concentration(lap) == pytest.approx(0.5, abs=1e-10)
     assert f["lap_concentration_valence"] != pytest.approx(0.5, abs=1e-3)
 
 
@@ -75,7 +80,7 @@ def test_uniform_density_sentinels():
                                    return_metadata=True)
     assert not any(np.isnan(v) for v in feats.values())
     for name, value in (("zeta", 0.0), ("lnf", 0.0), ("lnf_charge_weighted", 0.0),
-                        ("lap_concentration", 0.5), ("lap_concentration_valence", 0.5)):
+                        ("lap_concentration_valence", 0.5)):
         assert feats[name] == value
         assert meta[f"{name}__flag"] == 1
         assert f"{name}:uniform_density" in meta["sentinels"]

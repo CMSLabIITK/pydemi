@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.3.0 (2026-11-02)
+
+- **55 descriptors**: `lap_concentration` is removed. On a periodic grid the Laplacian
+  integrates to zero over the cell, so this ratio was 1/2 for every density and carried no
+  information. Its informative form, `lap_concentration_valence` (the same ratio outside the
+  cores), stays. `featurize`, `descriptor_names()`, the catalogue and CSV outputs have one
+  column fewer; the bonding domain has 18 descriptors. The shipped property models never used
+  it and are unchanged.
+
 ## 0.2.2 (2026-11-02)
 
 - **Property models v2** (`properties_v2.json.xz`, replaces v1): the 17 properties of the
