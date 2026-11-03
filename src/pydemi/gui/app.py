@@ -27,6 +27,7 @@ from pydemi import ml, props
 from pydemi.gui import app_views, compare, core, plots, predict, viewer
 from pydemi.gui import properties as P
 from pydemi.gui.formulas import formula as typeset
+from pydemi.gui.names import label as descriptor_label
 from pydemi.io.base import Structure, VolumetricData
 
 PDF = Path(__file__).with_name("descriptors.pdf")
@@ -355,8 +356,9 @@ def _figure(name: str, pdata: dict, feats: dict, key: str) -> str:
 def _detail(name: str, feats: dict, cat: Any, caption: str) -> None:
     """The property panel of one descriptor."""
     units = cat.at[name, "units"]
-    _props([("Descriptor", name), ("Domain", cat.at[name, "domain"]),
-            ("Value", _fmt(feats[name])), ("Units", plots.UNIT_TEXT.get(units, units) or units)])
+    _props([("Descriptor", descriptor_label(name)), ("Name in pydemi", name),
+            ("Domain", cat.at[name, "domain"]), ("Value", _fmt(feats[name])),
+            ("Units", plots.UNIT_TEXT.get(units, units) or units)])
     _head("Formula")
     tex, symbols = typeset(name)
     st.latex(tex)
@@ -414,7 +416,7 @@ def _view_descriptors(label: str, info: dict, feats: dict, meta: dict, pdata: di
         key="table_domain", on_change=_keep, args=("table_domain",), label_visibility="collapsed",
         format_func=lambda d: f"All {len(table)}" if d == "all" else f"{d.capitalize()} {counts[d]}")
     query = t2.text_input("Search", value=_kept("table_query", ""), key="table_query",
-                          placeholder="Search name or formula", on_change=_keep,
+                          placeholder="Search descriptor, name or formula", on_change=_keep,
                           label_visibility="collapsed", args=("table_query",)).strip().lower()
     with t3.popover("Export", icon=":material/download:", width="stretch"):
         st.download_button("CSV, one row", core.wide_row(label, feats).to_csv(index=False),
@@ -434,6 +436,7 @@ def _view_descriptors(label: str, info: dict, feats: dict, meta: dict, pdata: di
     view = table if domain == "all" else table[table["domain"] == domain]
     if query:
         view = view[view["descriptor"].str.lower().str.contains(query, regex=False)
+                    | view["name"].str.lower().str.contains(query, regex=False)
                     | view["formula"].str.lower().str.contains(query, regex=False)]
     view = view.assign(value=view["value"].map(_fmt),
                        units=view["units"].map(lambda u: plots.UNIT_TEXT.get(u, u) or u)).reset_index(drop=True)
@@ -444,7 +447,7 @@ def _view_descriptors(label: str, info: dict, feats: dict, meta: dict, pdata: di
                              hide_index=True, width="stretch", height=560, on_select="rerun",
                              selection_mode="single-row", key=f"table_{domain}_{query}",
                              column_config={
-                                 "descriptor": st.column_config.TextColumn(width=210, pinned=True),
+                                 "descriptor": st.column_config.TextColumn(width=300, pinned=True),
                                  "domain": st.column_config.TextColumn(width=100),
                                  "fallback": st.column_config.CheckboxColumn(
                                      "fallback", width=70, help="took its documented fallback value")})
@@ -455,7 +458,7 @@ def _view_descriptors(label: str, info: dict, feats: dict, meta: dict, pdata: di
     with right:
         rows = event.selection.rows
         if rows:
-            name = view.at[rows[0], "descriptor"]
+            name = view.at[rows[0], "name"]
             caption = _figure(name, pdata, feats, key="table_fig")
             _detail(name, feats, cat, caption)
         else:
@@ -484,7 +487,8 @@ def _view_plots(feats: dict, pdata: dict) -> None:
     t2.button("", icon=":material/arrow_back:", width="stretch", on_click=_step, args=(names, -1),
               key="plot_prev", help="Previous descriptor")
     name = t3.selectbox("Descriptor", names, key="plot_name", label_visibility="collapsed",
-                        format_func=lambda n: f"{names.index(n) + 1}/{len(names)}  {n} = {_fmt(feats[n])}",
+                        format_func=lambda n: (f"{names.index(n) + 1}/{len(names)}  "
+                                               f"{descriptor_label(n)} = {_fmt(feats[n])}"),
                         on_change=_keep, args=("plot_name",))
     t4.button("", icon=":material/arrow_forward:", width="stretch", on_click=_step,
               args=(names, 1), key="plot_next", help="Next descriptor")
@@ -566,7 +570,8 @@ def _view_properties(label: str, feats: dict, meta: dict) -> None:
                    + (f" ⚠ {n_weak} weak models (test R² below {P.WEAK_R2}) give rough "
                       "indications only." if n_weak else "")
                    + (f" :material/warning: {len(far)} descriptors lie outside the range of the "
-                      f"training materials ({', '.join(far[:4])}{', ...' if len(far) > 4 else ''}): "
+                      f"training materials ({', '.join(map(descriptor_label, far[:4]))}"
+                      f"{', ...' if len(far) > 4 else ''}): "
                       "treat the values with extra care." if far else ""))
     with right:
         rows = event.selection.rows
@@ -750,12 +755,13 @@ def _view_compare(dft: Optional[Source], partition: str) -> None:
                              f"({ds['far']})", key="cmp_far", value=_kept("cmp_far", False),
                              on_change=_keep, args=("cmp_far",))
         view = desc[desc["difference %"] > 100 * compare.FAR] if only_far else desc
-        view = view.assign(DFT=view["DFT"].map(_fmt), ML=view["ML"].map(_fmt)).reset_index(drop=True)
+        view = (view.assign(DFT=view["DFT"].map(_fmt), ML=view["ML"].map(_fmt))
+                .drop(columns=["name"]).reset_index(drop=True))
         far = [None if not math.isfinite(d) else d > 100 * compare.FAR for d in view["difference %"]]
         st.dataframe(_styled(view, "difference %", far, "{:.2f}"), hide_index=True, width="stretch",
                      height=560, key=f"cmp_desc_{only_far}",
                      column_config={
-                         "descriptor": st.column_config.TextColumn(width=210, pinned=True),
+                         "descriptor": st.column_config.TextColumn(width=300, pinned=True),
                          "transfer": st.column_config.TextColumn(
                              help="How well the descriptor transfers to predicted densities in general: "
                                   "Spearman ρs between DFT and ML values over the 605 held-out "

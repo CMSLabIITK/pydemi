@@ -8,6 +8,9 @@
   cores), stays. `featurize`, `descriptor_names()`, the catalogue and CSV outputs have one
   column fewer; the bonding domain has 18 descriptors. The shipped property models never used
   it and are unchanged.
+- The graphical interface shows descriptive names ("Interstitial charge fraction") in its
+  tables, plots and property charts, with the short name (`f_int`) in the descriptor panel
+  and in the exports; the command line and the Python API keep the short names.
 
 ## 0.2.2 (2026-11-02)
 

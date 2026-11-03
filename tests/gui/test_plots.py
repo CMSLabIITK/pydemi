@@ -7,7 +7,7 @@ import pytest
 
 pytest.importorskip("plotly")
 
-from pydemi.gui import core, plots  # noqa: E402
+from pydemi.gui import core, names, plots  # noqa: E402
 import pydemi
 from pydemi.io.base import Lattice, Structure
 from pydemi.validate.analytic import GaussianSuperposition
@@ -32,7 +32,7 @@ def test_every_descriptor_has_a_figure(run):
     assert set(plots.FIGURES) == set(pydemi.descriptor_names())
     for name in pydemi.descriptor_names():
         fig, caption = plots.figure(name, data, feats)
-        assert fig.layout.title.text.startswith(f"{name} = ") and caption
+        assert fig.layout.title.text.startswith(f"{names.label(name)} = ") and caption
         fig.to_json()                              # serializable, as the browser needs it
 
 

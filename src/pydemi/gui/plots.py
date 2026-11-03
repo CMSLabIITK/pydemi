@@ -24,6 +24,7 @@ from pydemi.descriptors import heterogeneity as H
 from pydemi.descriptors import structural as S
 from pydemi.descriptors.registry import (FeatureOptions, Sentinel, field_derivatives, geometry,
                                          laplacian, masks, options)
+from pydemi.gui.names import label
 from pydemi.io.base import VolumetricData
 from pydemi.operators.anisotropy import anisotropy_tensor
 from pydemi.operators.sitestats import site_charge
@@ -237,7 +238,7 @@ def _fmt(x: float) -> str:
 def _layout(fig: go.Figure, name: str, value: float, x: str, y: str, **kw: Any) -> go.Figure:
     unit = _units().get(name, "")
     unit = UNIT_TEXT.get(unit, unit)
-    fig.update_layout(title=f"{name} = {_fmt(value)}{' ' + unit if unit else ''}",
+    fig.update_layout(title=f"{label(name)} = {_fmt(value)}{' ' + unit if unit else ''}",
                       xaxis_title=x, yaxis_title=y, bargap=kw.pop("bargap", 0), height=430, margin=dict(l=60, r=20, t=60, b=50),
                       legend=dict(orientation="h", yanchor="bottom", y=1.0, x=1, xanchor="right"),
                       **kw)

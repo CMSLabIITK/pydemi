@@ -82,8 +82,14 @@ def test_descriptor_table_search_export_and_partition(loaded):
     assert "No descriptor selected" in _html(at)
     at.text_input(key="table_query").set_value("NCI")
     at = _show(at, 1)
-    assert set(at.dataframe[0].value["descriptor"]) == {"f_NCI", "NCI_attractive",
-                                                         "sign_lambda2_rho_mean"}
+    assert set(at.dataframe[0].value["descriptor"]) == {"NCI volume fraction", "Attractive NCI fraction",
+                                                         "Signed NCI density"}
+    at.text_input(key="table_query").set_value("rho_mid")       # the short names are searched too
+    at = _show(at, 1)
+    assert set(at.dataframe[0].value["descriptor"]) == {"Mean bond-midpoint density",
+                                                         "Bond-midpoint density spread"}
+    at.text_input(key="table_query").set_value("NCI")
+    at = _show(at, 1)
     at.selectbox(key="partition").set_value("power")
     at = _show(at, 1)
     assert at.session_state["keep_partition"] == "power" and len(at.dataframe[0].value) == 3
@@ -98,7 +104,9 @@ def test_plot_browser_steps_through_a_domain(loaded):
     at.button(key="plot_next").click()
     at = _show(at, 2)
     assert at.selectbox(key="plot_name").value == names[1]
-    assert f"<td>Descriptor</td><td>{names[1]}</td>" in _html(at)
+    page = _html(at)
+    assert "<td>Descriptor</td><td>Site range of mean charge distance</td>" in page
+    assert f"<td>Name in pydemi</td><td>{names[1]}</td>" in page
 
 
 def test_switching_views_keeps_choices(loaded):

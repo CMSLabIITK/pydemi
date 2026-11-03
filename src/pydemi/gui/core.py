@@ -23,6 +23,7 @@ import numpy as np
 import pandas as pd
 
 import pydemi
+from pydemi.gui.names import label
 from pydemi.io.base import VolumetricData
 
 PARTITIONS = ("nearest", "power", "becke")
@@ -112,12 +113,13 @@ def compute(vd: VolumetricData, partition: str = "nearest") -> tuple[dict[str, f
 
 
 def results_table(feats: dict[str, float], meta: Optional[dict[str, Any]] = None) -> pd.DataFrame:
-    """One row per descriptor: domain, value, units, formula, sentinel flag."""
+    """One row per descriptor: descriptive name, short name, domain, value, units, formula,
+    sentinel flag."""
     cat = pydemi.catalogue().set_index("name")
     flagged = set()
     if meta and meta.get("sentinels"):
         flagged = {item.split(":")[0] for item in str(meta["sentinels"]).split(";") if item}
-    rows = [{"descriptor": n, "domain": cat.at[n, "domain"], "value": v,
+    rows = [{"descriptor": label(n), "name": n, "domain": cat.at[n, "domain"], "value": v,
              "units": cat.at[n, "units"], "formula": cat.at[n, "formula"],
              "fallback": n in flagged} for n, v in feats.items()]
     table: pd.DataFrame = pd.DataFrame(rows)

@@ -10,7 +10,7 @@ import zipfile
 import numpy as np
 import pytest
 
-from pydemi.gui import core
+from pydemi.gui import core, names
 import pydemi
 from pydemi.io.base import Lattice, Structure
 from pydemi.validate.analytic import GaussianSuperposition
@@ -56,7 +56,8 @@ def test_summary_and_tables(chgcar):
     assert info["electrons"] == pytest.approx(9.0, rel=1e-6)
     feats, meta = core.compute(vd)
     table = core.results_table(feats, meta)
-    assert list(table["descriptor"]) == pydemi.descriptor_names()
+    assert list(table["name"]) == pydemi.descriptor_names()
+    assert list(table["descriptor"]) == [names.label(n) for n in pydemi.descriptor_names()]
     assert table["units"].notna().all() and table["formula"].str.len().gt(0).all()
     row = core.wide_row("NaCl", feats)
     assert row.shape == (1, len(feats) + 1)
@@ -83,3 +84,10 @@ def test_every_descriptor_has_a_typeset_formula():
             assert line.count("$") % 2 == 0, name
             if line.startswith("$$"):
                 assert line.endswith("$$") and line.count("$") == 4, name
+
+
+def test_every_descriptor_has_its_own_descriptive_name():
+    shown = [names.label(n) for n in pydemi.descriptor_names()]
+    assert set(names.NAMES) == set(pydemi.descriptor_names())
+    assert len(set(shown)) == len(shown) and all(s and s[0].isupper() for s in shown)
+    assert names.label("MagpieData mean Number") == "MagpieData mean Number"

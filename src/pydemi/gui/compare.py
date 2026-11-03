@@ -15,6 +15,7 @@ import pandas as pd
 import pydemi
 from pydemi import props
 from pydemi.gui import properties as P
+from pydemi.gui.names import label
 from pydemi.io.base import VolumetricData
 
 TRANSFER = Path(__file__).with_name("transfer.csv")
@@ -69,7 +70,7 @@ def descriptors(dft: dict, pred: dict) -> pd.DataFrame:
         else:
             diff = relative(a, b)
             note = "" if not math.isfinite(diff) else "differs" if diff > FAR else ""
-        rows.append({"descriptor": name, "domain": cat.at[name, "domain"], "DFT": a, "ML": b,
+        rows.append({"descriptor": label(name), "name": name, "domain": cat.at[name, "domain"], "DFT": a, "ML": b,
                      "difference %": 100 * diff if math.isfinite(diff) else math.nan, "note": note,
                      "transfer": f"{g} (ρs {rho:.3f})" if math.isfinite(rho) else g})
     return pd.DataFrame(rows)
@@ -117,7 +118,7 @@ def export(desc: pd.DataFrame, prop: Optional[pd.DataFrame], dft: dict, pred: di
            pdft: Optional[dict], ppred: Optional[dict]) -> pd.DataFrame:
     """Plain numbers of both inputs for the CSV download."""
     rows = [{"kind": "descriptor", "name": n, "dft": dft[n], "ml": pred[n], "relative_difference": d / 100}
-            for n, d in zip(desc["descriptor"], desc["difference %"])]
+            for n, d in zip(desc["name"], desc["difference %"])]
     if prop is not None and pdft is not None and ppred is not None:
         rows += [{"kind": "property", "name": n, "dft": pdft[n], "ml": ppred[n],
                   "relative_difference": relative(pdft[n], ppred[n])} for n in prop["name"]]

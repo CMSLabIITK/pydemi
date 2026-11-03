@@ -11,6 +11,7 @@ import pandas as pd
 import plotly.graph_objects as go
 
 from pydemi import props
+from pydemi.gui.names import label
 from pydemi.gui.plots import ACCENT, ELEMENT_COLORS, MUTED
 
 UNIT_TEXT = {"1": "", "0/1": "", "W/(m K)": "W/(m·K)"}
@@ -41,7 +42,7 @@ def feature_text(f: str) -> str:
         return f"{prop} ({stat.replace('_', ' ')})"
     if f.endswith("-norm"):
         return f"stoichiometry {f}"
-    return f
+    return label(f)
 
 
 def is_composition(f: str) -> bool:

@@ -133,7 +133,7 @@ def test_gui_table_and_texts(property_bundle):
     assert P.counts({"site_counts": "Na:1,Cl:2"}) == {"Na": 1, "Cl": 2} and P.counts({}) == {}
     assert P.inputs_text(b) == f"the {len(FEATS)} descriptors and the composition (Magpie)"
     assert P.feature_text("MagpieData avg_dev Electronegativity") == "Electronegativity (avg dev)"
-    assert P.feature_text("2-norm") == "stoichiometry 2-norm" and P.feature_text("zeta") == "zeta"
+    assert P.feature_text("2-norm") == "stoichiometry 2-norm" and P.feature_text("zeta") == "Non-radial gradient share"
     gap = b.targets["band_gap"]
     kinds = {tr.name for tr in P.importance(gap).data}
     assert kinds <= {"descriptor", "composition"} and kinds

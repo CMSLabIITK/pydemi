@@ -36,7 +36,7 @@ def test_descriptor_table_marks_differences_and_noise():
     pred["m1"] *= 1.10                                       # 9 % apart
     pred["f_int"] *= 1.005                                   # within 1 %
     dft["rho_mid_std"], pred["rho_mid_std"] = 1e-6 * scale["rho_mid_std"], 3e-6 * scale["rho_mid_std"]
-    t = compare.descriptors(dft, pred).set_index("descriptor")
+    t = compare.descriptors(dft, pred).set_index("name")
     assert len(t) == 55
     assert t.at["m1", "difference %"] == pytest.approx(100 * 0.1 / 1.1) and t.at["m1", "note"] == "differs"
     assert t.at["f_int", "difference %"] < 1 and t.at["f_int", "note"] == ""
