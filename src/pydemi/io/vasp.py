@@ -9,6 +9,7 @@ the data in Fortran (column-major, fastest index first) order.
 
 * A CHGCAR stores rho * V_cell: every value is divided by the cell volume
   here, so the density comes back in electrons / Angstrom^3.
+* Plain, gzip, bzip2 and xz files are read alike (detected from the first bytes).
 * Only the first block, the total density, is read. A spin-polarized run
   writes further blocks (the magnetization, after the PAW
   augmentation-occupancy lines); they are not used.
@@ -16,6 +17,9 @@ the data in Fortran (column-major, fastest index first) order.
 
 from __future__ import annotations
 
+import bz2
+import gzip
+import lzma
 from pathlib import Path
 from typing import Optional, Sequence, Union
 
@@ -26,6 +30,26 @@ from ..io.base import (FloatArray, Grid, Lattice, Structure, VolumetricData, exp
                        species_labels)
 
 PathLike = Union[str, Path]
+
+
+def _read_text(path: PathLike) -> str:
+    """The text of a plain or gzip / bzip2 / xz compressed file, recognised by its first
+    bytes rather than its name."""
+    with open(path, "rb") as f:
+        head = f.read(6)
+    text: str
+    if head.startswith(b"\x1f\x8b"):
+        with gzip.open(path, "rt") as g:
+            text = g.read()
+    elif head.startswith(b"BZh"):
+        with bz2.open(path, "rt") as b:
+            text = b.read()
+    elif head.startswith(b"\xfd7zXZ\x00"):
+        with lzma.open(path, "rt") as x:
+            text = x.read()
+    else:
+        text = Path(path).read_text()
+    return text
 
 
 # ----------------------------------------------------------------------
@@ -123,7 +147,7 @@ def read_blocks(path: PathLike, scaled_by_volume: bool, species: Optional[Sequen
 
     ``scaled_by_volume``: True for a CHGCAR (stored as rho * V).
     """
-    lines = Path(path).read_text().splitlines()
+    lines = _read_text(path).splitlines()
     structure, idx = _parse_header(lines, species)
     dim_idx = _find_dims(lines, idx)
     if dim_idx < 0:

@@ -27,7 +27,10 @@ PathLike = Union[str, Path]
 
 def _read(path: Path) -> Any:
     from .io.vasp import read_chgcar
-    return read_chgcar(path / "CHGCAR" if path.is_dir() else path)
+    if path.is_dir():  # a run directory: its CHGCAR, plain or compressed
+        found = [path / f"CHGCAR{ext}" for ext in ("", ".gz", ".bz2", ".xz")]
+        path = next((f for f in found if f.exists()), found[0])
+    return read_chgcar(path)
 
 
 def _one(path: str, options: dict[str, Any]) -> dict[str, Any]:

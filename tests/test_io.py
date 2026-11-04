@@ -151,3 +151,27 @@ def test_potcar_style_labels(tmp_path):
     write_volumetric(p, s, [rng.random((3, 3, 3))])
     p.write_text(p.read_text().replace("  Fe O\n", "  Fe_pv O/abc\n"))
     assert read_chgcar(p).structure.species == ["Fe", "Fe", "O"]
+
+
+@pytest.mark.parametrize("ext", [".gz", ".bz2", ".xz"])
+def test_compressed_chgcar(tmp_path, ext):
+    """gzip, bzip2 and xz files read like the plain one; detection uses the first bytes,
+    so a compressed file without its extension is read too; a run directory holding only
+    a compressed CHGCAR is found by the batch reader."""
+    import bz2, gzip, lzma
+    from pydemi.batch import _read
+    s = _structure()
+    rho = rng.random((5, 6, 7))
+    plain = tmp_path / "CHGCAR"
+    write_volumetric(plain, s, [rho])
+    opener = {".gz": gzip.open, ".bz2": bz2.open, ".xz": lzma.open}[ext]
+    run = tmp_path / "run"
+    run.mkdir()
+    packed = run / f"CHGCAR{ext}"
+    with opener(packed, "wb") as f:
+        f.write(plain.read_bytes())
+    no_ext = tmp_path / "packed_without_extension"
+    no_ext.write_bytes(packed.read_bytes())
+    for vd in (read_chgcar(packed), read_chgcar(no_ext), _read(run)):
+        np.testing.assert_allclose(vd.rho.data, read_chgcar(plain).rho.data, rtol=0)
+        assert vd.structure.species == ["Fe", "Fe", "O"]

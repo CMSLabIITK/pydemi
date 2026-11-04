@@ -11,6 +11,10 @@
 - The graphical interface shows descriptive names ("Interstitial charge fraction") in its
   tables, plots and property charts, with the short name (`f_int`) in the descriptor panel
   and in the exports; the command line and the Python API keep the short names.
+- `read_chgcar`, `featurize`, `pydemi featurize` and `pydemi batch` read gzip-, bzip2- and
+  xz-compressed CHGCAR files, recognised by their first bytes, so the file name does not
+  matter; a run directory that holds only `CHGCAR.gz` (or `.bz2`, `.xz`) is found too. Until
+  now only the graphical interface accepted compressed files.
 
 ## 0.2.2 (2026-11-02)
 
