@@ -18,6 +18,9 @@ identifiers:
   - type: doi
     value: 10.5281/zenodo.23891115
     description: "pydemi 0.2.2"
+  - type: doi
+    value: 10.5281/zenodo.23952610
+    description: "pydemi 0.3.0"
 repository-code: "https://github.com/CMSLabIITK/pydemi"
 abstract: >-
   pydemi turns the charge density in a VASP CHGCAR into 55 named,
