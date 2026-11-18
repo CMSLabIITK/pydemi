@@ -1,7 +1,7 @@
 """
 pydemi.descriptors.structural
 =============================
-Structural-domain descriptors (spec §8.2): percolation, the extremum census,
+Structural-domain descriptors: percolation, the extremum census,
 non-nuclear maxima, the density floor, the charge-anisotropy tensor and the
 information-theoretic measures.
 

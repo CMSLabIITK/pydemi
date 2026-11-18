@@ -1,4 +1,4 @@
-"""Milestone 1: I/O and the data model (spec §2, §3, §16)."""
+"""I/O and the data model."""
 
 import numpy as np
 import pytest
@@ -86,7 +86,7 @@ def test_roundtrip_single_block(tmp_path):
 
 
 def test_volume_division(tmp_path):
-    """CHGCAR stores rho * V_cell: the reader must divide by V (spec §3, §16)."""
+    """CHGCAR stores rho * V_cell: the reader must divide by V."""
     s = _structure()
     p = tmp_path / "CHGCAR"
     write_volumetric(p, s, [np.full((4, 4, 4), 0.25)])

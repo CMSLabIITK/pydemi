@@ -1,10 +1,10 @@
-"""Retrain the 17 properties on the reduced descriptor sets of redundancy.py.
+"""Retrain the 17 properties without the redundant descriptors of redundancy.py (37 descriptors).
 
 Same protocol as the paper (scripts/train.py: ridge, random forest, 50-trial Optuna LightGBM,
 5 seeds, fixed split); only the feature list changes. The 55-descriptor baseline is the
 paper's study_v1 'desc' set and is not refitted.
     cd property_prediction && OMP_NUM_THREADS=1 WORKERS=8 THREADS=2 nice -n 10 \
-        ~/miniconda3/envs/pydemi/bin/python redundancy/scripts/train_sets.py
+        python redundancy/scripts/train_sets.py
     -> redundancy/results/train/jobs/<target>__<set>.json, models/, train.log
 """
 
@@ -26,7 +26,7 @@ sys.path.insert(0, str(HERE / "scripts"))
 from redundancy import PROPS  # noqa: E402
 
 SETS = json.load(open(HERE / "results/sets.json"))
-RUN = [s for s in ("no_redundant", "important34", "lean")]
+RUN = ["no_redundant"]
 
 
 def run(target: str, fs: str) -> str:

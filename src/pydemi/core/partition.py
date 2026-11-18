@@ -1,7 +1,7 @@
 """
 pydemi.core.partition
 =====================
-Assignment of voxels to atoms (spec §9), behind one interface.
+Assignment of voxels to atoms, behind one interface.
 
 Every scheme yields memory-bounded chunks of (voxel, atom, weight, distance,
 direction) pairs, where distance and direction are measured from THAT atom's

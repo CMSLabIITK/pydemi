@@ -1,18 +1,19 @@
 #!/usr/bin/env bash
-# Step 1: the 56 pydemi descriptors of every CHGCAR in the CMS Lab dataset (read-only input).
-# 16 worker processes, one thread each, lowest priority. Output: ../data/descriptors_56.csv
+# The 55 pydemi descriptors of every CHGCAR of the dataset (one folder per structure), with
+# 16 worker processes of one thread each.
+#   scripts/run_descriptors.sh <dataset directory>
+# Output: ../data/descriptors_batch.csv and ../data/provenance.txt
 set -euo pipefail
+SRC="$(cd "${1:?usage: run_descriptors.sh <dataset directory>}" && pwd)"
 cd "$(dirname "$0")/../data"
 export OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 NUMEXPR_NUM_THREADS=1
-REPO="$(cd ../.. && pwd)"
-export PYTHONPATH="$REPO/src"
 PY="${PYTHON:-python}"
 {
   echo "started: $(date -Is)"
-  echo "host: $(hostname)  workers: 16  partition: nearest (default settings)"
-  echo "input: /data/sai/new_charge/6000_data_aug13/*/CHGCAR"
-  echo "pydemi: $($PY -c 'import pydemi; print(pydemi.__version__)')  git: $(git -C "$REPO" rev-parse --short HEAD) (working tree has uncommitted changes: $(git -C "$REPO" status --porcelain | wc -l) files)"
+  echo "workers: 16  partition: nearest (default settings)"
+  echo "input: $SRC/*/CHGCAR"
+  echo "pydemi: $($PY -c 'import pydemi; print(pydemi.__version__)')"
   echo "numpy/scipy: $($PY -c 'import numpy, scipy; print(numpy.__version__, scipy.__version__)')"
 } > provenance.txt
-exec nice -n 19 $PY -m pydemi.cli batch /data/sai/new_charge/6000_data_aug13 --glob "*/CHGCAR" \
-     --out descriptors_56.csv --workers 16 --on-error record
+exec nice -n 19 $PY -m pydemi.cli batch "$SRC" --glob "*/CHGCAR" \
+     --out descriptors_batch.csv --workers 16 --on-error record

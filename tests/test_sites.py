@@ -1,4 +1,4 @@
-"""Milestone 6: site aggregation and the heterogeneity meta-operator (spec §8.4)."""
+"""Site aggregation and the heterogeneity meta-operator."""
 
 import numpy as np
 import pytest

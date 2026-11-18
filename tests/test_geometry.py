@@ -1,4 +1,4 @@
-"""Milestone 3: geometry pass, shells and image machinery (spec §5, §16)."""
+"""Geometry pass, shells and image machinery."""
 
 import itertools
 
@@ -42,7 +42,7 @@ def test_nearest_atom_matches_brute_force_in_a_sheared_cell():
 
 
 def test_extreme_shear_where_a_3x3x3_supercell_fails():
-    """Why the image range is widened adaptively (spec §16, minimum-image bugs):
+    """Why the image range is widened adaptively:
     in this cell the nearest image of some voxels lies outside the 3x3x3 supercell."""
     lat = Lattice(np.array([[6.0, 0.0, 0.0], [5.7, 0.8, 0.0], [5.5, 0.6, 0.7]]))
     s = Structure(lat, ["Fe", "O", "Ni"], FRAC)

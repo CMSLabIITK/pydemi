@@ -1,7 +1,7 @@
 """
 pydemi.descriptors
 ==================
-The descriptor registry, :func:`featurize` and :func:`catalogue` (spec §8, §12).
+The descriptor registry, :func:`featurize` and :func:`catalogue`.
 
 Importing this package registers every descriptor of the three domains
 (bonding, structural, heterogeneity). Every descriptor is computed from the

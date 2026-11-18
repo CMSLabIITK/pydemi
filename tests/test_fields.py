@@ -1,6 +1,7 @@
-"""Milestone 8: derived fields -- the Hartree potential, NCI (spec §6, §8.1)."""
+"""Derived fields -- the Hartree potential, NCI."""
 
 import math
+import os
 from pathlib import Path
 
 import numpy as np
@@ -15,7 +16,8 @@ from pydemi.fields.potential import hartree_potential
 from pydemi.io.base import Lattice, Structure
 from pydemi.validate.analytic import GaussianSuperposition, SlaterSuperposition, cubic_cell, uniform
 
-REAL = Path("/data/sai/new_charge/6000_data_aug13/FeNi3_221/CHGCAR")
+# a real PAW pseudo-density: the FeNi3 CHGCAR of the dataset, if PYDEMI_DATASET points at it
+REAL = Path(os.environ.get("PYDEMI_DATASET", "/nonexistent")) / "FeNi3_221" / "CHGCAR"
 
 
 def _crystal(shape=(30, 30, 32)):

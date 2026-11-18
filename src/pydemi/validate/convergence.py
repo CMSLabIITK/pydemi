@@ -1,12 +1,12 @@
 """
 pydemi.validate.convergence
 ===========================
-Grid-convergence harness and shell-cutoff sensitivity (spec §5, §11).
+Grid-convergence harness and shell-cutoff sensitivity.
 
 * :func:`grid_convergence` -- recompute every descriptor on Fourier-resampled
   (coarser) copies of one density and report the relative change of each,
   so the adequacy of a grid can be judged per descriptor.
-* :func:`analytic_convergence` -- the Slater 1s closed forms of §11 against
+* :func:`analytic_convergence` -- the Slater 1s closed forms against
   grid spacing, from which :func:`recommended_spacing` reads the coarsest
   spacing that meets a tolerance: the recommended minimum mesh comes out of
   the analytic tests rather than a guess.
@@ -50,7 +50,7 @@ def grid_convergence(vd: VolumetricData, scales: Sequence[float] = (0.9, 0.8),
 
 def analytic_convergence(spacings: Iterable[float] = (0.12, 0.09, 0.07, 0.05),
                          zeta: float = 3.0, box: float = 4.0, backend: str = "fd") -> Any:
-    """Relative errors of the Slater 1s closed forms (spec §11) against grid spacing."""
+    """Relative errors of the Slater 1s closed forms against grid spacing."""
     import pandas as pd
 
     from ..descriptors import featurize

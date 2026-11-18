@@ -5,11 +5,6 @@ names it was trained on, their training range, and each model's test-set scores 
 predictions. ``load`` reads a bundle, ``predict`` turns a descriptor dict into one row per
 property.
 
-A model may also read composition features, the Magpie element statistics and stoichiometry
-of matminer (Ward et al., npj Comput. Mater. 2, 16028, 2016). The bundle then carries the
-element table, and ``composition_features`` computes them from the site counts, the way
-matminer does, so matminer is not needed here.
-
 pydemi ships one bundle, ``properties_v2.json.xz``: LightGBM models of 17 properties trained
 on the descriptors alone, on the CMS Lab dataset with targets from the Materials Project
 (written by ``property_prediction/scripts/build_bundle.py``). ``PYDEMI_PROPERTY_MODEL`` points
@@ -91,7 +86,6 @@ class Target:
     test_formula: list[str] = field(repr=False)
     booster: Any = field(repr=False)
     features: list[str] = field(default_factory=list, repr=False)   # the model's inputs, in order
-    inputs: str = "descriptors"     # "descriptors", "composition" or "descriptors + composition"
     importance_kind: str = "share of split gain"
     seed_metrics: dict[str, tuple[float, float]] = field(default_factory=dict)  # mean, std over seeds
 
@@ -127,11 +121,6 @@ class Bundle:
     feature_range: dict[str, tuple[float, float]]
     targets: dict[str, Target]
     dataset: Optional[dict[str, Any]] = field(default=None, repr=False)
-    composition: Optional[dict[str, Any]] = field(default=None, repr=False)
-
-    @property
-    def needs_composition(self) -> bool:
-        return any(t.inputs != "descriptors" for t in self.targets.values())
 
     @property
     def groups(self) -> list[str]:
@@ -172,7 +161,7 @@ def load(path: Union[str, Path, None] = None) -> Bundle:
             floor=t["floor"], metrics=t["metrics"], n_train=t["n_train"], n_test=t["n_test"],
             importance=t["importance"], test_y=t["test"]["y"], test_p=t["test"]["p"],
             test_formula=t["test"]["formula"], booster=lgb.Booster(model_str=t["booster"]),
-            features=t.get("features", raw["features"]), inputs=t.get("inputs", "descriptors"),
+            features=t.get("features", raw["features"]),
             importance_kind=t.get("importance_kind", "share of split gain"),
             seed_metrics={k: (v[0], v[1]) for k, v in t.get("metrics_seeds", {}).items()})
     dataset = raw.get("dataset")
@@ -183,7 +172,7 @@ def load(path: Union[str, Path, None] = None) -> Bundle:
     return Bundle(name=raw["name"], path=p, created=raw["created"], split=raw["split"],
                   data=raw["data"], features=raw["features"],
                   feature_range={k: (v[0], v[1]) for k, v in raw["feature_range"].items()},
-                  targets=targets, dataset=dataset, composition=raw.get("composition"))
+                  targets=targets, dataset=dataset)
 
 
 def _value(t: Target, z: float) -> float:
@@ -193,54 +182,14 @@ def _value(t: Target, z: float) -> float:
     return max(y, t.floor) if t.floor is not None else y
 
 
-STATS = ("minimum", "maximum", "range", "mean", "avg_dev", "mode")
-
-
-def composition_features(counts: Mapping[str, float], table: Mapping[str, Any]) -> dict[str, float]:
-    """The Magpie composition features of a material from its site counts, e.g. {"Mg": 4, "O": 4}.
-
-    ``table`` is a bundle's ``composition`` block: ``p`` (the stoichiometry p-norms),
-    ``properties`` (the element properties) and ``elements`` (symbol -> one value per property,
-    None where unknown). Same as matminer's Stoichiometry() + ElementProperty "magpie" preset.
-    """
-    import numpy as np
-    els = [e for e, n in counts.items() if n > 0]
-    w = np.array([float(counts[e]) for e in els])
-    frac = w / w.sum()
-    out: dict[str, float] = {}
-    for p in table["p"]:
-        out[f"{p}-norm"] = float(len(els)) if p == 0 else float((frac ** p).sum() ** (1.0 / p))
-    rows = [table["elements"].get(e) for e in els]
-    for j, prop in enumerate(table["properties"]):
-        v = np.array([math.nan if r is None or r[j] is None else float(r[j]) for r in rows])
-        mean = float(np.average(v, weights=w))
-        stats = {"minimum": float(v.min()), "maximum": float(v.max()),
-                 "range": float(v.max() - v.min()), "mean": mean,
-                 "avg_dev": float(np.average(np.abs(v - mean), weights=w)),
-                 "mode": float(v[np.isclose(w, w.max())].min())}
-        for stat in STATS:
-            out[f"MagpieData {stat} {prop}"] = stats[stat]
-    return out
-
-
-def predict(feats: Mapping[str, float], bundle: Optional[Bundle] = None,
-            counts: Optional[Mapping[str, float]] = None) -> dict[str, float]:
+def predict(feats: Mapping[str, float], bundle: Optional[Bundle] = None) -> dict[str, float]:
     """Each property's prediction for one material: the value in the target's units, or for a
-    classification the probability of the positive class. NaN descriptors are allowed.
-
-    ``counts`` (sites of each element, e.g. ``structure.site_counts()``) is needed when a model
-    of the bundle reads composition features.
-    """
+    classification the probability of the positive class. NaN descriptors are allowed."""
     import numpy as np
     b = bundle or load()
-    values = dict(feats)
-    if b.needs_composition:
-        if counts is None or b.composition is None:
-            raise ValueError("these property models need the composition: pass counts=")
-        values.update(composition_features(counts, b.composition))
     pred = {}
     for name, t in b.targets.items():
-        x = np.array([[float(values.get(f, math.nan)) for f in (t.features or b.features)]])
+        x = np.array([[float(feats.get(f, math.nan)) for f in (t.features or b.features)]])
         pred[name] = _value(t, float(t.booster.predict(x)[0]))
     return pred
 

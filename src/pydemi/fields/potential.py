@@ -1,7 +1,7 @@
 """
 pydemi.fields.potential
 =======================
-The electronic Hartree potential on the density grid (spec §6.3), in eV,
+The electronic Hartree potential on the density grid, in eV,
 from the CHGCAR density by one FFT:
 
     V_H(G) = 4 pi rho(G) / |G|^2   for G != 0,   V_H(0) = 0,    |G| = 2 pi |B^T n|

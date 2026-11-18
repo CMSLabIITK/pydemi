@@ -22,7 +22,6 @@ TRANSFER = Path(__file__).with_name("transfer.csv")
 NOISE = 1e-3     # below this fraction of a descriptor's typical size in both densities: noise
 CLOSE = 0.01     # relative difference counted as agreement
 FAR = 0.05       # relative difference marked in the table
-INPUT_TEXT = {"descriptors + composition": "D + C", "descriptors": "D", "composition": "C"}
 
 
 @lru_cache(maxsize=1)
@@ -109,7 +108,7 @@ def properties(dft: dict[str, float], pred: dict[str, float], bundle: props.Bund
                      "from DFT CHGCAR": P.value_text(t, a) if ok_a else "n/a (metal)",
                      "from ML CHGCAR": P.value_text(t, b) if ok_b else "n/a (metal)",
                      "ML − DFT": diff, "agree": agree, "typical error": P.error_text(t),
-                     "units": P.units(t), "inputs": INPUT_TEXT.get(t.inputs, t.inputs),
+                     "units": P.units(t),
                      "weak": P.weak(t), "name": name})
     return pd.DataFrame(rows)
 

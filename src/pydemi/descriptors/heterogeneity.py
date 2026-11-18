@@ -1,7 +1,7 @@
 """
 pydemi.descriptors.heterogeneity
 ================================
-Heterogeneity domain (spec §8.4): a meta-operator over per-site descriptors.
+Heterogeneity domain: a meta-operator over per-site descriptors.
 
 For a base descriptor X with per-site values X^(i) (site aggregation, see
 :mod:`pydemi.operators.sitestats`), :func:`heterogeneity` registers
@@ -115,7 +115,7 @@ def heterogeneity(base: str, per_site: PerSite, units: str, formula: str,
                  sentinel_cases=cases,
                  doc=f"{name} = {text} X^(i),  X^(i) = {formula}\n\n"
                      "Site-restricted sums use the partition weights w_i(r_k); w_e is the "
-                     "fraction of sites of element e (spec §8.4).")(fn)
+                     "fraction of sites of element e.")(fn)
 
 
 heterogeneity("m1", _per_site_m1, "Angstrom",

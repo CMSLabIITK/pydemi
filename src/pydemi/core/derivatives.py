@@ -1,8 +1,7 @@
 """
 pydemi.core.derivatives
 =======================
-Gradient, Laplacian and Hessian on a periodic, possibly non-orthogonal grid
-(spec §4).
+Gradient, Laplacian and Hessian on a periodic, possibly non-orthogonal grid.
 
 Let A hold the lattice vectors as rows and ``B = inv(A)^T`` the reciprocal
 vectors b1, b2, b3 as rows, WITHOUT the 2 pi factor. With fractional

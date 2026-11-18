@@ -4,12 +4,12 @@ The API key is read by the MP client from ~/.config/.pmgrc.yaml (PMG_MAPI_KEY) o
 MP_API_KEY environment variable; it is never printed or written anywhere by this script.
 
 Writes, into ../data:
-  mp_summary.csv      one row per material: electronic, thermodynamic, magnetic, dielectric,
-                      surface and summary-elastic properties (nested fields flattened)
-  mp_elasticity.csv   one row per material with elastic data: VRH moduli, Young's modulus,
-                      Debye temperature, sound velocities, thermal conductivity, the 21
-                      independent IEEE elastic constants C11..C66
-  mp_cohesive.csv     MP's cohesive energy per atom (to check the "formation energy" column)
+  mp_summary.csv      one row per material: formation energy, band gap, metallicity, direct
+                      gap and refractive index
+  mp_elasticity.csv   one row per material with elastic data: VRH moduli, Debye temperature,
+                      sound velocities, minimum thermal conductivities, the 21 independent
+                      IEEE elastic constants C11..C66
+  mp_cohesive.csv     the cohesive energy per atom
   mp_raw.json.gz      the documents as returned, for provenance
   mp_provenance.txt   date, database and client versions, counts, ids MP did not return
 """
@@ -28,21 +28,12 @@ HERE = Path(__file__).resolve().parents[1] / "data"
 IDS = pd.read_csv(HERE / "properties.csv")["material_id"].tolist()
 
 SUMMARY_FIELDS = [
-    "material_id", "formula_pretty", "nsites", "volume", "density", "density_atomic", "symmetry",
-    "band_gap", "cbm", "vbm", "efermi", "is_gap_direct", "is_metal",
-    "formation_energy_per_atom", "energy_above_hull", "energy_per_atom",
-    "uncorrected_energy_per_atom", "is_stable", "equilibrium_reaction_energy_per_atom",
-    "is_magnetic", "ordering", "total_magnetization", "total_magnetization_normalized_vol",
-    "total_magnetization_normalized_formula_units", "num_magnetic_sites",
-    "bulk_modulus", "shear_modulus", "universal_anisotropy", "homogeneous_poisson",
-    "e_total", "e_ionic", "e_electronic", "n", "e_ij_max",
-    "weighted_surface_energy", "weighted_work_function", "surface_anisotropy", "shape_factor",
-    "theoretical", "deprecated", "last_updated",
+    "material_id", "formula_pretty", "formation_energy_per_atom", "band_gap", "is_metal",
+    "is_gap_direct", "n",
 ]
 ELASTIC_FIELDS = [
-    "material_id", "order", "state", "elastic_tensor", "bulk_modulus", "shear_modulus",
-    "youngs_modulus", "universal_anisotropy", "homogeneous_poisson", "debye_temperature",
-    "sound_velocity", "thermal_conductivity", "fitting_method", "warnings",
+    "material_id", "elastic_tensor", "bulk_modulus", "shear_modulus", "debye_temperature",
+    "sound_velocity", "thermal_conductivity",
 ]
 
 

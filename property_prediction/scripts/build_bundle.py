@@ -1,12 +1,8 @@
 """The v2 property-model bundle for pydemi.props / the GUI, from the study (scripts/train.py).
 
 The 17 properties of the pydemi paper, each predicted from the descriptors alone: the
-seed-0 LightGBM model of the "desc" feature set. Its test metrics are those of that one
-model; the 5-seed mean and spread (the numbers the paper reports) are stored next to them.
-Left out, as in the paper: the Poisson ratio, the anisotropy index, the energy above the
-hull and the three dielectric constants (descriptor-only test R² below 0.70), and the two
-benchmark-table columns. The v1 bundle (pydemi 0.2.0-0.2.1) chose among composition,
-descriptors and both per target and had 22 properties.
+seed-0 LightGBM model of each property. Its test metrics are those of that one model; the
+5-seed mean and spread (the numbers the paper reports) are stored next to them.
 
 The model text keeps only what prediction reads: the per-node training statistics
 (split_gain, internal_value/weight/count, leaf_weight/count) and the tree_sizes header are
@@ -35,18 +31,12 @@ import pandas as pd
 import pydemi
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from train import load  # noqa: E402
-from train_preview import SHOW  # noqa: E402
+from train import PROPS, SHOW, load  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 STUDY = ROOT / "results" / "study_v1"
-KEEP = ("bulk_modulus", "shear_modulus", "youngs_modulus", "C11", "C12", "C44", "debye_temperature",
-        "sound_velocity_transverse", "sound_velocity_longitudinal", "thermal_conductivity_clarke",
-        "thermal_conductivity_cahill", "formation_energy", "cohesive_energy", "band_gap", "is_metal",
-        "is_gap_direct", "refractive_index")
+KEEP = tuple(PROPS)
 SET = "desc"
-GROUP = {"refractive_index": "Optical"}   # the paper's grouping; no dielectric constants in v2
-INPUTS = {"comp": "composition", "desc": "descriptors", "both": "descriptors + composition"}
 PACKAGE = ROOT.parent / "src" / "pydemi"
 # per-node training statistics and the tree-size index: not read by predict
 UNUSED = ("split_gain=", "internal_value=", "internal_weight=", "internal_count=",
@@ -91,7 +81,6 @@ def main() -> None:
     rows = []
     for name in KEEP:
         label, symbol, group, how, floor = SHOW[name]
-        group = GROUP.get(name, group)
         fs = SET
         j = json.loads((STUDY / "jobs" / f"{name}__{fs}.json").read_text())
         val = {fs: float(np.mean([r["val_loss"] for r in j["models"]["lgbm"]["seeds"]]))}
@@ -105,7 +94,7 @@ def main() -> None:
         bundle["targets"][name] = {
             "label": label, "symbol": symbol, "group": group, "task": task,
             "units": meta.at[name, "units"], "description": meta.at[name, "description"],
-            "transform": how, "floor": floor, "features": j["features"], "inputs": INPUTS[fs],
+            "transform": how, "floor": floor, "features": j["features"],
             "set": fs, "val_loss": val, "params": j["models"]["lgbm"]["params"],
             "metrics": {k: s0[k] for k in METRICS[task]},
             "metrics_seeds": {k: [float(np.mean([r[k] for r in seeds])), float(np.std([r[k] for r in seeds], ddof=1))]

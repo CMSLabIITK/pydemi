@@ -1,7 +1,7 @@
 """
 pydemi.descriptors.bonding
 ==========================
-Bonding-domain descriptors (spec §8.1).
+Bonding-domain descriptors.
 
 Distances r_k and unit vectors u_k are those of the geometry pass (nearest
 nucleus, minimum image); shells are core r <= c1, bond c1 < r <= c2,

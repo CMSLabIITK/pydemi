@@ -1,7 +1,7 @@
 """
 pydemi.cli
 ==========
-Command line (spec §12):
+Command line:
 
     pydemi featurize CHGCAR --out features.json
     pydemi batch ./runs --glob "*/CHGCAR" --out features.csv --workers 8 --domains bonding

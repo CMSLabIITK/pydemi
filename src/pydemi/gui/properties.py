@@ -21,32 +21,9 @@ GAPPED_ONLY = ("is_gap_direct", "dielectric_total", "dielectric_electronic", "di
                "refractive_index")
 
 
-def counts(meta: dict) -> dict[str, int]:
-    """Sites of each element, from the descriptors' metadata ("Mg:4,O:4")."""
-    pairs = (x.split(":") for x in str(meta.get("site_counts", "")).split(",") if ":" in x)
-    return {e: int(n) for e, n in pairs}
-
-
 def inputs_text(bundle: props.Bundle) -> str:
     """What the models read, for the caption under the table."""
-    kinds = {t.inputs for t in bundle.targets.values()}
-    if kinds == {"descriptors"}:
-        return f"the {len(bundle.features)} descriptors"
-    return f"the {len(bundle.features)} descriptors and the composition (Magpie)"
-
-
-def feature_text(f: str) -> str:
-    """A short name for a model input: Magpie columns become "Electronegativity (mean)"."""
-    if f.startswith("MagpieData "):
-        _, stat, prop = f.split(" ", 2)
-        return f"{prop} ({stat.replace('_', ' ')})"
-    if f.endswith("-norm"):
-        return f"stoichiometry {f}"
-    return label(f)
-
-
-def is_composition(f: str) -> bool:
-    return f.startswith("MagpieData ") or f.endswith("-norm")
+    return f"the {len(bundle.features)} descriptors"
 
 
 def metallic(pred: dict[str, float]) -> bool:
@@ -138,7 +115,7 @@ def export(pred: dict[str, float], bundle: props.Bundle) -> pd.DataFrame:
                           "kind": "probability" if t.task == "classification" else "value",
                           "units": t.units, "test_mae": t.error,
                           "test_r2": t.metrics.get("r2"), "test_roc_auc": t.metrics.get("roc_auc"),
-                          "inputs": t.inputs, "weak_model": weak(t), "n_train": t.n_train,
+                          "weak_model": weak(t), "n_train": t.n_train,
                           "model": bundle.name}
                          for name, t in bundle.targets.items()])
 
@@ -198,19 +175,14 @@ def probabilities(t: props.Target, value: float) -> go.Figure:
 
 
 def importance(t: props.Target, top: int = 10) -> go.Figure:
-    """The inputs the model leans on most, descriptors and composition features told apart."""
+    """The descriptors the model leans on most."""
     items = list(t.importance.items())[:top][::-1]
     fig = go.Figure()
-    for kind, color, comp in (("descriptor", ELEMENT_COLORS[2], False), ("composition", ELEMENT_COLORS[0], True)):
-        sel = [(k, v) for k, v in items if is_composition(k) == comp]
-        if sel:
-            fig.add_bar(x=[100 * v for _, v in sel], y=[feature_text(k) for k, _ in sel], orientation="h",
-                        marker_color=color, name=kind, hovertemplate="%{y}: %{x:.1f} %<extra></extra>")
-    fig.update_yaxes(categoryorder="array", categoryarray=[feature_text(k) for k, _ in items])
+    fig.add_bar(x=[100 * v for _, v in items], y=[label(k) for k, _ in items], orientation="h",
+                marker_color=ELEMENT_COLORS[2], hovertemplate="%{y}: %{x:.1f} %<extra></extra>")
+    fig.update_yaxes(categoryorder="array", categoryarray=[label(k) for k, _ in items])
     what = "mean |SHAP|" if "SHAP" in t.importance_kind else "split gain"
-    _layout(fig, f"Top {len(items)} inputs", f"Share of {what} (%)", "", height=40 + 26 * len(items) + 60)
-    fig.update_layout(showlegend=True, legend=dict(orientation="h", y=-0.25, x=0),
-                      height=fig.layout.height + 30)
+    _layout(fig, f"Top {len(items)} descriptors", f"Share of {what} (%)", "", height=40 + 26 * len(items) + 60)
     return fig
 
 
@@ -240,7 +212,7 @@ def model_rows(t: props.Target, pred: dict[str, float], bundle: props.Bundle,
         rows.append((f"{'R²' if key == 'r2' else 'ROC-AUC'}, 5 seeds",
                      f"{m:.3f} ± {sd:.3f}" if sd >= 5e-4 else f"{m:.3f} (spread < 0.001)"))
     n_in = len(t.features) if t.features else len(bundle.features)
-    rows += [("Inputs", f"{t.inputs} ({n_in})"),
+    rows += [("Inputs", f"{n_in} descriptors"),
              ("Trained on", f"{t.n_train:,} materials"), ("Tested on", f"{t.n_test:,} materials"),
              ("Model", bundle.name)]
     return rows

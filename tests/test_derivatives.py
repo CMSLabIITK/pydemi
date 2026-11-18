@@ -1,4 +1,4 @@
-"""Milestone 2: derivatives on periodic, non-orthogonal grids (spec §4)."""
+"""Derivatives on periodic, non-orthogonal grids."""
 
 import functools
 import itertools
@@ -102,7 +102,7 @@ def test_slater_fd_converges_away_from_the_cusp(lat):
 
 
 def test_fft_rings_on_a_cusp():
-    """Documented limitation (spec §4): spectral derivatives of a cusped density
+    """Documented limitation: spectral derivatives of a cusped density
     ring across the cell and do not converge with grid refinement."""
     for n in (48, 96):
         rho, grad, lap, d = _slater(TRICLINIC, n)

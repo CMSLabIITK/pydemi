@@ -1,100 +1,70 @@
-# Property prediction from pydemi descriptors
+# Property models of the pydemi paper
 
-Can the 56 charge-density descriptors predict ground-state properties as well as models
-that read the whole charge-density grid (the JCIM 2026 study), at a fraction of the cost?
-And can we predict more than the five properties of that study?
-
-Dataset: the CMS Lab set of 6,059 VASP calculations (`/data/sai/new_charge/6000_data_aug13`,
-read only), with the train / val / test split of the earlier study (4,847 / 606 / 606).
+The scripts that train and evaluate the property models of the paper: 17 properties
+predicted from the 55 pydemi descriptors, on the 6,059 VASP charge densities of
+Kumar et al., J. Chem. Inf. Model. 66, 7113 (2026), with the training, validation and test
+split distributed with that dataset (4,847 / 606 / 606).
 
 ```
-scripts/   how every file in data/ was made
-data/      inputs and computed tables (not in git: regenerate with scripts/)
-results/   models, metrics and figures (not in git)
+scripts/      every step below
+redundancy/   the models without the strongly correlated descriptors
+data/         inputs and tables (not in git; made by the scripts)
+results/      models and scores (not in git; made by the scripts)
 ```
+
+## Inputs
+
+- The `CHGCAR` files of the dataset, one folder per structure.
+- `data/properties.csv`: the property table distributed with the dataset (material ids,
+  split, the moduli, and the energy and Debye-temperature columns used in Table 4).
+- A Materials Project API key for `fetch_mp.py`, read by the MP client from
+  `~/.config/.pmgrc.yaml` or the `MP_API_KEY` environment variable.
+- For `train_mlheldout.py`: `data/descriptors_chargE3net_test605.csv`, the descriptors of the
+  ChargE3Net-predicted densities of the 605 test structures of the density model (in the
+  data deposit of the paper).
 
 ## Steps
 
-1. **Descriptors** (done 2026-10-19): `scripts/run_descriptors.sh` computes the 56 pydemi
-   descriptors of every CHGCAR (16 workers, 37 min, 0 errors) into
-   `data/descriptors_56.csv`; `data/provenance.txt` records versions and settings.
-2. **Targets**: `data/properties.csv` holds the dataset's property table
-   (bulk, shear, Young's moduli, Poisson ratio, Debye temperature, and the energy per atom
-   relative to free atoms, i.e. the *cohesive* energy, labelled "formation energy" there).
-   `scripts/fetch_mp.py` adds Materials Project data for the same `mp-` ids (needs an API key
-   in `~/.config/.pmgrc.yaml`; not run yet).
-3. **Training tables** (done 2026-10-19): `scripts/build_tables.py` cleans and joins
-   everything (rules and counts in `data/build_report.txt`):
-   - `data/descriptors.csv`: 6,059 materials x the 56 descriptors (+ ids, split);
-     units and formulas in `data/descriptors_columns.csv`.
-   - `data/targets.csv`: 6,059 materials x 23 targets (+ ids, split, flags `has_f_element`,
-     `born_stable`); units, source, task and counts in `data/targets_columns.csv`.
-   - `data/dataset.csv`: the two joined, ready for training.
-4. **Composition features** (done 2026-10-20): `scripts/features_composition.py` writes
-   `data/composition.csv`, the matminer Magpie element statistics (132) + stoichiometry
-   p-norms (6) of each formula, for the composition-only baseline.
-5. **Models** (running since 2026-10-20): `scripts/train.py`, one job per target x feature set
-   (comp 138 / desc 55 / both 193; `lap_concentration` dropped as constant) with ridge, random
-   forest (500 trees) and LightGBM (50 Optuna TPE trials on val, early stopping on val);
-   RF and LightGBM refit with 5 seeds, test split scored only at the end. Two extra targets
-   `energy_jcim` / `debye_jcim` are the properties.csv columns the JCIM table used (its
-   "formation energy" differs from MP's cohesive energy, mean |diff| 0.47 eV/atom).
-   Results in `results/study_v1/` (jobs/*.json, models/, train.log);
-   `scripts/summarize.py` makes summary.csv, best.csv, jcim.csv, shap.csv.
-   `refractive_index` is modelled on log10 (it is sqrt(ε_∞); one validation material, NbAs,
-   has n = 216 and drove tuning and selection on the linear scale): first-run jobs kept in
-   `results/study_v1/superseded/`.
-6. **GUI bundle** (2026-10-20): `scripts/magpie_table.py` writes `data/magpie_table.json`, the
-   element table `pydemi.props.composition_features` uses (matches matminer to 3e-16 on all
-   6,059 materials); `scripts/build_bundle.py` writes `results/study_v1/properties_v1.json.xz`
-   and copies it into the package (`src/pydemi/properties_v1.json.xz`, 35 MB): per target the
-   feature set with the lowest validation loss, seed-0 LightGBM, with the per-node training
-   statistics dropped from the model text (identical predictions, checked by the script).
-   22 targets (energy_above_hull left out: R² < 0.1). Shipped with pydemi 0.2.0-0.2.1;
-   replaced by the v2 bundle (step 12).
-8. **Penn-model features for the dielectric targets** (2026-10-23, not adopted):
-   `scripts/penn_features.py` writes `data/penn_features.csv` (valence plasma energy from the
-   electron count and volume, the v1 band-gap model's prediction, out-of-fold on train, and
-   1 + (hw_p/E_g)^2). Retrained with
-   `FEATURE_SETS=penn,descpenn ONLY=dielectric_electronic,refractive_index,dielectric_total,dielectric_ionic OUT=results/study_v1_penn python scripts/train.py`
-   (results in `results/study_v1_penn/`). Validation loss improved by at most 2 %, and every
-   test-R² change lies inside its bootstrap 95 % interval over the 123 test materials, so the
-   v1 models are kept.
-7. **Preview models** (superseded by 6): `scripts/train_preview.py` (descriptors only, untuned).
-9. **Top-10 descriptors** (2026-10-29): `scripts/train_top10.py` ranks the descriptors of each
-   target by mean |SHAP| of the five descriptor LightGBM models on the training split and
-   retrains on the top 10 with the protocol of `train.py` -> `results/study_v1_top10/`.
-   `scripts/train_topk.py` does the same for other K, per property or one common set.
-10. **Weak targets** (2026-10-29): `scripts/weak_targets.py` (data, bootstrap intervals,
-    learning curves, constant baselines), `scripts/weak_gap_oracle.py` (PBE gap as an extra
-    input, an upper bound) and `scripts/weak_clean.py` (dielectric targets without gap < 0.1 eV)
-    -> `results/weak_targets/`.
-11. **Correlated descriptors** (2026-10-30): `redundancy/` groups descriptors with
-    |Spearman rho| >= 0.90 on the training split and retrains without the redundant ones;
-    see `redundancy/README.md`.
-12. **GUI bundle v2** (2026-11-02, pydemi 0.2.2): `scripts/build_bundle.py` now writes
-    `results/study_v1/properties_v2.json.xz` and copies it into the package (33 MB): the 17
-    properties of the paper, each the seed-0 LightGBM model on the descriptors alone ("desc"),
-    with the 5-seed test scores stored next to its own. pydemi and the GUI use it by default.
-13. **Held out from both models** (2026-11-02): `scripts/train_mlheldout.py` makes the 605 test
-    structures of the density model the test set, retrains the 17 descriptor models without
-    them (same protocol, 5 seeds) and applies them to the descriptors of the DFT and of the
-    ChargE3Net-predicted densities -> `results/study_v1_mlheldout/` (summary.csv,
-    predictions.csv).
+```bash
+cd property_prediction
+scripts/run_descriptors.sh /path/to/dataset   # 1. descriptors -> data/descriptors_batch.csv
+python scripts/fetch_mp.py                    # 2. Materials Project targets -> data/mp_*.csv
+python scripts/build_tables.py                # 3. cleaned targets + descriptors -> data/dataset.csv
+python scripts/train.py                       # 4. ridge, random forest, LightGBM -> results/study_v1/
+python scripts/summarize.py                   # 5. scores and SHAP shares -> results/study_v1/*.csv
+python scripts/train_top10.py                 # 6. models on the ten most important descriptors
+python redundancy/scripts/redundancy.py       # 7. correlated descriptors (training split)
+python redundancy/scripts/train_sets.py       #    retrain without them
+python redundancy/scripts/compare.py          #    change in test score, bootstrap intervals
+python scripts/train_mlheldout.py             # 8. property models on DFT vs predicted densities
+python scripts/build_bundle.py                # 9. the models shipped with pydemi
+```
 
-Cleaning rules (see build_tables.py):
-- K, G, E as published in properties.csv; Poisson ratio >= 0.5 removed.
-- MP elastic data kept only where K and G are 0-1000 GPa and equal properties.csv; C11, C12,
-  C44 and the anisotropy index only where the stiffness tensor is Born-stable (smallest
-  eigenvalue > 1 GPa); A_U is computed from the unrounded tensor.
-- is_gap_direct only for materials with a gap; dielectric constants are heavy-tailed (log10).
-- cohesive_energy is MP's; it is less reliable for lanthanides and actinides (has_f_element).
-
-Join key: `formula_sp` in properties.csv = the dataset folder name (6,059 one-to-one).
-
-Notes from the data:
-- `lap_concentration` is 0.5 for every structure (an identity on a periodic grid): no information.
-  It was removed from pydemi in 0.3.0 (55 descriptors); `data/descriptors.csv` still has the column.
-- `n_NNM` / `Q_NNM` are non-zero in 37 % of structures, likely PAW pseudo-density peaks just
-  outside the fixed 0.8 Å cutoff, not true non-nuclear maxima.
-- 421 structures have no element with two or more sites: their within-element variances are NaN.
+1. **Descriptors.** `run_descriptors.sh` runs `pydemi batch` over every `CHGCAR` with 16
+   worker processes; `data/provenance.txt` records the versions.
+2. **Targets.** `fetch_mp.py` downloads the Materials Project data (database version
+   2026.04.13) for the material ids of `properties.csv`.
+3. **Training tables.** `build_tables.py` cleans and joins the targets and descriptors; the
+   rules and the counts they remove are written to `data/build_report.txt`:
+   - K, G and E are those of `properties.csv`.
+   - The Materials Project elastic data are kept only where K and G lie between 0 and
+     1000 GPa and equal those of `properties.csv` to 0.001 GPa (6,000 materials); C11, C12
+     and C44 only where the stiffness tensor is mechanically stable, its smallest eigenvalue
+     above 1 GPa (5,791).
+   - The direct-gap label is defined only for materials with a gap (1,836).
+4. **Models.** `train.py` trains, for each property, a ridge (logistic) model, a random
+   forest (500 trees) and LightGBM (50 Optuna trials on the validation set, early stopping);
+   the random forest and LightGBM are refitted with five seeds, and the test set is scored
+   only at the end. The refractive index is modelled on a log10 scale. Two extra targets,
+   `energy_jcim` and `debye_jcim`, are the columns of `properties.csv` used for Table 4.
+5. **Summary.** `summarize.py` writes the test scores of every model, the best model per
+   property, the five targets of Table 4 and the SHAP shares of the descriptors.
+6. **Ten descriptors.** `train_top10.py` ranks the descriptors of each property by their
+   mean |SHAP| in the LightGBM models on the training set and retrains on the ten highest.
+7. **Correlated descriptors.** See `redundancy/README.md`.
+8. **Predicted densities.** `train_mlheldout.py` makes the 605 test structures of the
+   density model the test set, retrains the 17 models without them and applies them to the
+   descriptors of the DFT and of the ChargE3Net-predicted densities.
+9. **Shipped models.** `build_bundle.py` writes the seed-0 LightGBM model of each property,
+   with its test scores, into `src/pydemi/properties_v2.json.xz`, which `pydemi.props` and
+   the graphical interface read.

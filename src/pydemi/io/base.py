@@ -1,7 +1,7 @@
 """
 pydemi.io.base
 ==============
-The data model (spec §2): :class:`Lattice`, :class:`Grid`, :class:`Structure`
+The data model: :class:`Lattice`, :class:`Grid`, :class:`Structure`
 and :class:`VolumetricData`.
 
 Conventions
@@ -189,7 +189,7 @@ def as_structure(obj: Any) -> Structure:
 
 @dataclass(eq=False)
 class VolumetricData:
-    """One structure with its charge density (spec §2).
+    """One structure with its charge density.
 
     ``rho`` is the total density of a VASP CHGCAR (the PAW pseudo-density),
     in electrons / Angstrom^3. It is the only field: every descriptor is
@@ -224,7 +224,7 @@ class VolumetricData:
         return dataclasses.replace(self, options=options)
 
     def astype(self, dtype: Any) -> "VolumetricData":
-        """Copy with the density cast to ``dtype`` (float32 mode, spec §13); fresh cache."""
+        """Copy with the density cast to ``dtype`` (float32 mode); fresh cache."""
         return dataclasses.replace(self, rho=self.rho.astype(dtype), cache={})
 
 

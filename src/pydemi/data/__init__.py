@@ -1,13 +1,12 @@
 """
 pydemi.data
 ===========
-Element data shipped with pydemi (spec §15: element data live only in this
-directory and in :mod:`pydemi.constants`).
+Element data shipped with pydemi.
 
 ``elements.csv``   Z, symbol, covalent radius (Angstrom), ground-state configuration
 
-Covalent radii from Cordero et al. (2008) as tabulated by Magpie (BSD licence,
-``LICENSE-matminer``), configurations from pymatgen; read here without pymatgen.
+Covalent radii from Cordero et al., Dalton Trans. 2832 (2008), configurations from
+pymatgen; read here without pymatgen.
 pydemi uses the covalent radii (scaled shells, power partition).
 """
 
@@ -50,7 +49,7 @@ def symbol_of(z: int) -> str:
 
 
 def covalent_radius(symbol: str) -> float:
-    """Covalent radius in Angstrom (Cordero et al. 2008, via Magpie)."""
+    """Covalent radius in Angstrom (Cordero et al. 2008)."""
     r = _row(symbol)[1]
     if r is None:
         raise KeyError(f"no covalent radius for {symbol!r}")

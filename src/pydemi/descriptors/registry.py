@@ -1,7 +1,7 @@
 """
 pydemi.descriptors.registry
 ===========================
-Descriptor registration and metadata (spec §8), the options ``featurize``
+Descriptor registration and metadata, the options ``featurize``
 takes, and the shared accessors descriptors use.
 
 Every descriptor is a function ``f(vd) -> float`` registered with
@@ -23,7 +23,7 @@ density, no voxels in a region, ...) returns ``Sentinel(value, case)``: the
 documented constant ``value`` for the documented ``case``. ``featurize``
 reports the value and sets the companion flag ``<name>__flag`` -- never a
 bare NaN. The only NaN allowed is a within-element variance when no element
-has two sites, which comes with the per-element site counts (spec §10).
+has two sites, which comes with the per-element site counts.
 
 Intensivity
 -----------
@@ -132,7 +132,7 @@ class DescriptorSpec:
 
     @property
     def formula(self) -> str:
-        """First paragraph of the docstring: the formula in spec notation."""
+        """First paragraph of the docstring: the formula."""
         return self.doc.strip().split("\n\n")[0].replace("\n", " ").strip()
 
 

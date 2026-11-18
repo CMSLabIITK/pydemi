@@ -1,7 +1,7 @@
 """
 pydemi.operators.sitestats
 ==========================
-Site aggregation and the variance decomposition (spec §7, §8.4).
+Site aggregation and the variance decomposition.
 
 Site aggregation restricts every sum to one atom's voxels -- for a smooth
 partition, weights them by w_i(r_k) -- and returns per-site arrays. For a

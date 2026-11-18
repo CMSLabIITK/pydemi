@@ -57,10 +57,10 @@ def test_density_error_needs_the_same_grid():
 
 def test_property_table_agrees_within_the_typical_error(property_bundle):
     from pydemi import props
-    path, X, counts = property_bundle
+    path, X = property_bundle
     b = props.load(path)
     feats = dict(zip(NAMES, X[0]))
-    p = props.predict(feats, b, counts=counts[0])
+    p = props.predict(feats, b)
     q = dict(p)
     name = next(n for n, t in b.targets.items() if t.task == "regression" and t.error)
     q[name] = p[name] + 3 * b.targets[name].error             # far beyond the typical error

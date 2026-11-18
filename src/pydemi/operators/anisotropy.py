@@ -1,7 +1,7 @@
 """
 pydemi.operators.anisotropy
 ===========================
-Directional structure of any field's gradient (spec §7):
+Directional structure of any field's gradient:
 
     gradient anisotropy   zeta = 1 - sum_k |grad f_k . u_k| / sum_k |grad f_k|
     anisotropy tensor     T_ab = sum_k d_a f_k d_b f_k / sum_k |grad f_k|^2     (tr T = 1)

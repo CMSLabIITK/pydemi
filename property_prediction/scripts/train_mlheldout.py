@@ -1,12 +1,13 @@
 """Property models evaluated on structures that neither the density model nor the property model saw.
 
-The 605 test structures of the density model (paper/analysis/out/descriptors_ml.csv) become the
-test set. Training and validation are the study split without them; the structures of the study's
+The 605 test structures of the density model become the test set; data/
+descriptors_chargE3net_test605.csv holds their descriptors from the ChargE3Net-predicted
+densities (in the data deposit of the paper). Training and validation are the study split without them; the structures of the study's
 test set that are not among the 605 are set aside. Same protocol as train.py (descriptors only,
 50-trial Optuna LightGBM, 5 seeds). The LightGBM boosters of every seed are then applied to the
 descriptors of the DFT and of the ChargE3Net-predicted densities of the 605 structures.
 
-    WORKERS=4 THREADS=4 OUT=results/study_v1_mlheldout FEATURE_SETS=desc python scripts/train_mlheldout.py
+    WORKERS=4 THREADS=4 OUT=results/study_v1_mlheldout python scripts/train_mlheldout.py
 -> results/study_v1_mlheldout/jobs/<target>__desc.json, predictions.csv, summary.csv
 """
 
@@ -26,13 +27,10 @@ from sklearn.metrics import mean_absolute_error, r2_score, roc_auc_score
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import train  # noqa: E402
-from train_preview import back  # noqa: E402
+from train import back  # noqa: E402
 
-ML = train.ROOT.parent / "paper/analysis/out/descriptors_ml.csv"
-TARGETS = ["bulk_modulus", "shear_modulus", "youngs_modulus", "C11", "C12", "C44", "debye_temperature",
-           "sound_velocity_transverse", "sound_velocity_longitudinal", "thermal_conductivity_clarke",
-           "thermal_conductivity_cahill", "formation_energy", "cohesive_energy", "band_gap", "is_metal",
-           "is_gap_direct", "refractive_index"]
+ML = train.DATA / "descriptors_chargE3net_test605.csv"
+TARGETS = train.PROPS
 TARGETS = [t for t in TARGETS if not train.ONLY or t in train.ONLY]
 HELD = set(pd.read_csv(ML, usecols=["structure"]).structure)
 

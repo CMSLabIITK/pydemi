@@ -3,12 +3,12 @@ pydemi.constants
 ================
 Every unit factor, cutoff and threshold pydemi uses. No other module
 hard-codes a number with physical meaning; element data live in
-``pydemi/data`` (spec §15).
+``pydemi/data``.
 
 Internal units
 --------------
 Lengths in Angstrom, densities in electrons / Angstrom^3, potentials in eV.
-Quantities the spec defines in atomic units (the NCI thresholds, the
+Quantities defined in atomic units (the NCI thresholds, the
 information measures) are converted explicitly at the point of use with
 the factors below.
 """
@@ -39,7 +39,7 @@ COULOMB_EV_ANGSTROM: float = HARTREE_EV * BOHR_ANGSTROM
 S_PREFACTOR: float = 2.0 * (3.0 * math.pi ** 2) ** (1.0 / 3.0)
 
 # ----------------------------------------------------------------------
-# shells (spec §5)
+# shells
 # ----------------------------------------------------------------------
 
 #: core: r <= c1 (Angstrom)
@@ -48,7 +48,7 @@ SHELL_C1: float = 0.8
 SHELL_C2: float = 1.5
 
 # ----------------------------------------------------------------------
-# derivatives (spec §4)
+# derivatives
 # ----------------------------------------------------------------------
 
 DERIVATIVE_BACKEND: str = "fft"
@@ -59,7 +59,7 @@ FD_ORDER: int = 4
 HESSIAN_CHUNK: int = 1 << 18
 
 # ----------------------------------------------------------------------
-# low-density guards (spec §6.2, §10)
+# low-density guards
 # ----------------------------------------------------------------------
 
 #: reduced gradient s / information measures: voxels with rho below this
@@ -67,7 +67,7 @@ HESSIAN_CHUNK: int = 1 << 18
 RHO_FLOOR_AU: float = 1e-8
 
 # ----------------------------------------------------------------------
-# descriptor thresholds (spec §8)
+# descriptor thresholds
 # ----------------------------------------------------------------------
 
 #: NCI region: s < NCI_S_MAX and rho < NCI_RHO_MAX_AU (e/bohr^3)
@@ -79,7 +79,7 @@ NNM_R_CUT: float = 0.8
 BOND_TOL: float = 0.1
 
 # ----------------------------------------------------------------------
-# partitions (spec §9)
+# partitions
 # ----------------------------------------------------------------------
 
 #: Becke: weights go to the BECKE_CELLS nearest atom images; each cell
@@ -97,5 +97,5 @@ MIN_PAIR_WEIGHT: float = 1e-10
 #: and equidistant atom images are then ordered by a geometric rule (pydemi.core.geometry)
 GEOMETRY_EPS: float = 1e-8
 #: a field whose range max - min is below this fraction of max |f| is uniform
-#: (the uniform-density sentinel case, spec §10)
+#: (the uniform-density sentinel case)
 UNIFORM_TOL: float = 1e-12

@@ -1,7 +1,7 @@
 """
 pydemi.io.vasp
 ==============
-The CHGCAR reader (spec §3), pydemi's only input, and a writer for the
+The CHGCAR reader, pydemi's only input, and a writer for the
 same format.
 
 Layout: a POSCAR header, a blank line, the grid dimensions n1 n2 n3, then

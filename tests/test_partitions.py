@@ -1,4 +1,4 @@
-"""Milestone 11: power and Becke partitions (spec §9)."""
+"""Power and Becke partitions."""
 
 import functools
 

@@ -1,7 +1,7 @@
 """
 pydemi.core.geometry
 ====================
-The geometry pass every descriptor shares (spec §5), shells, and the
+The geometry pass every descriptor shares, shells, and the
 periodic-image machinery behind the partitions and the bond census.
 
 Nearest-atom pass
@@ -242,7 +242,7 @@ def shell_masks(geometry: NearestAtom, structure: Structure, shells: Shells) -> 
 
 
 # ----------------------------------------------------------------------
-# cached on VolumetricData (computed once per structure, spec §5, §13)
+# cached on VolumetricData (computed once per structure)
 # ----------------------------------------------------------------------
 
 def geometry_of(vd: VolumetricData) -> NearestAtom:

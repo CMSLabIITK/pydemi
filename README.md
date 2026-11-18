@@ -117,7 +117,8 @@ If you use predicted densities, please cite ChargE3Net as well as pydemi.
 ## Property estimates
 
 pydemi ships LightGBM models of 17 properties that read the descriptors alone, trained on
-the CMS Lab dataset (6,059 structures; train 4,847, validation 606, test 606) with targets
+the dataset of Kumar et al., J. Chem. Inf. Model. 66, 7113 (2026) (6,059 structures; train
+4,847, validation 606, test 606) with targets
 from the Materials Project (Jain et al., APL Mater. 1, 011002 (2013); CC BY 4.0): the bulk,
 shear and Young's moduli, C11, C12 and C44, the Debye temperature, the two sound velocities,
 the Clarke and Cahill minimum thermal conductivities, the formation and cohesive energies,
@@ -161,7 +162,8 @@ pydemi sweep CHGCAR --param c2 --range 1.0:2.5:0.05 --out sweep.csv   # shell-ra
 
 The formulas and their meaning are in `docs/descriptors.pdf` (also a download button in
 the interface). The potential is the Hartree potential of the CHGCAR density. Shells and
-the `power` partition use tabulated covalent radii shipped with the package.
+the `power` partition use the covalent radii of Cordero et al. (Dalton Trans. 2832, 2008),
+shipped with the package.
 
 Not included, on purpose: the ELF and local energy densities (from a CHGCAR, a PAW
 pseudo-density, they would rest on a density-only kinetic-energy estimate, not the true

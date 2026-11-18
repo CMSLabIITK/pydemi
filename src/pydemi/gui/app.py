@@ -508,7 +508,7 @@ def _bundle(path: str) -> props.Bundle:
     return props.load(path)
 
 
-def _view_properties(label: str, feats: dict, meta: dict) -> None:
+def _view_properties(label: str, feats: dict) -> None:
     lacking, path = props.missing(), props.model_path()
     if lacking:
         _empty("Property models need LightGBM", props.load_error() or
@@ -521,7 +521,7 @@ def _view_properties(label: str, feats: dict, meta: dict) -> None:
         return
     with st.spinner("Loading the property models..."):
         bundle = _bundle(str(path))
-    pred = props.predict(feats, bundle, counts=P.counts(meta))
+    pred = props.predict(feats, bundle)
     match = bundle.match(feats)
     table = P.table(pred, bundle, match)
 
@@ -687,7 +687,7 @@ def _view_compare(dft: Optional[Source], partition: str) -> None:
     vd = job.result
     assert vd is not None
     pred = Source(key, dft.name, f"{dft.label}_predicted", lambda: vd, sources=dict(vd.sources))
-    feats_d, meta_d, _ = _compute(dft, partition, info)
+    feats_d, _, _ = _compute(dft, partition, info)
     feats_m, _, _ = _compute(pred, partition, info)
     desc = compare.descriptors(feats_d, feats_m)
     ds = compare.descriptor_summary(desc)
@@ -696,9 +696,8 @@ def _view_compare(dft: Optional[Source], partition: str) -> None:
     bundle = _property_bundle()
     prop = pdft = pml = None
     if bundle is not None:
-        counts = P.counts(meta_d)
-        pdft = props.predict(feats_d, bundle, counts=counts)
-        pml = props.predict(feats_m, bundle, counts=counts)
+        pdft = props.predict(feats_d, bundle)
+        pml = props.predict(feats_m, bundle)
         prop = compare.properties(pdft, pml, bundle, bundle.match(feats_d))
 
     m = st.columns(4)
@@ -735,21 +734,16 @@ def _view_compare(dft: Optional[Source], partition: str) -> None:
                            width="stretch", on_click="ignore", key="download_compare_chgcar")
 
     if part == "Properties" and prop is not None:
-        comp = bundle is not None and bundle.needs_composition
-        shown = prop.drop(columns=["name", "agree", "weak"] + ([] if comp else ["inputs"]))
+        shown = prop.drop(columns=["name", "agree", "weak"])
         bad_rows = [None if d == "–" else not a for d, a in zip(prop["ML − DFT"], prop["agree"])]
         st.dataframe(_styled(shown, "ML − DFT", bad_rows), hide_index=True, width="stretch",
                      height=38 + 35 * len(shown), key="cmp_props",
-                     column_config={"property": st.column_config.TextColumn(width=200, pinned=True),
-                                    "inputs": st.column_config.TextColumn(
-                                        width=60, help="D: pydemi descriptors, C: composition")})
+                     column_config={"property": st.column_config.TextColumn(width=200, pinned=True)})
         st.caption((f"⚠ weak model (test R² below {P.WEAK_R2}): a rough indication only. "
                     if prop["weak"].any() else "")
                    + "Each property predicted twice by the same model: from the descriptors of the "
-                   "DFT CHGCAR and of the predicted one"
-                   + (" (the composition is the same)" if comp else "") + ". Green: the two "
-                   "differ by less than the model's typical error; red: by more, or the class changes."
-                   + (" Models that read the composition only (C) agree by construction." if comp else ""))
+                   "DFT CHGCAR and of the predicted one. Green: the two "
+                   "differ by less than the model's typical error; red: by more, or the class changes.")
     else:
         only_far = st.toggle(f"Only descriptors that differ by more than {100 * compare.FAR:.0f} % "
                              f"({ds['far']})", key="cmp_far", value=_kept("cmp_far", False),
@@ -882,7 +876,7 @@ for tab, kind in ((views[1], "descriptors"), (views[2], "plots"), (views[3], "pr
         elif kind == "plots":
             _view_plots(feats, pdata)
         else:
-            _view_properties(source.label, feats, meta)
+            _view_properties(source.label, feats)
 with views[4]:
     if views[4].open:
         _view_compare(_upload_source(upload) if upload is not None else None, partition)

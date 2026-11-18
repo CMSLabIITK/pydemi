@@ -1,4 +1,4 @@
-"""Milestone 10: structural domain -- percolation, census, NNM, floor, tensor, information (spec §8.2)."""
+"""Structural domain -- percolation, census, NNM, floor, tensor, information."""
 
 import math
 
@@ -38,7 +38,7 @@ def test_census_descriptors_are_per_volume():
 
 
 def test_simple_cubic_gaussians_percolate_at_the_midpoint_density():
-    """Spec §8.2 test: the bottleneck of a simple-cubic lattice is the bond midpoint,
+    """The bottleneck of a simple-cubic lattice is the bond midpoint,
     so rho_perc = rho(a/2, 0, 0) in all three directions."""
     a, alpha, n = 3.0, 1.2, 30
     s = cubic_cell(a, ["H"], [[0.0, 0.0, 0.0]])

@@ -64,6 +64,6 @@ for _x in ("m1", "f_bond", "zeta"):
 
 
 def label(name: str) -> str:
-    """The descriptive name of a descriptor; any other name (a composition feature, a
-    descriptor added later) is returned unchanged."""
+    """The descriptive name of a descriptor; any other name (a descriptor
+    added later) is returned unchanged."""
     return NAMES.get(name, name)

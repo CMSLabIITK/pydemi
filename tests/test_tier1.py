@@ -1,4 +1,4 @@
-"""Milestone 4: Tier-1 descriptors against analytic densities (spec §8.1, §11)."""
+"""Tier-1 descriptors against analytic densities."""
 
 import functools
 
@@ -47,7 +47,7 @@ def test_slater_moments_converge_with_the_grid():
 
 def test_slater_lnf_is_the_sphere_volume_fraction():
     """lnf -> volume fraction with r < 1/zeta. With finite differences; the FFT
-    Laplacian rings on the cusp (spec §4), which biases the sign count."""
+    Laplacian rings on the cusp, which biases the sign count."""
     exact = slater_lnf(Z, A ** 3)
     assert _f(_slater(96), derivative_backend="fd")["lnf"] == pytest.approx(exact, rel=0.05)
     assert _f(_slater(96), derivative_backend="fft")["lnf"] > 1.1 * exact

@@ -1,7 +1,7 @@
 """
 pydemi.operators.topology
 =========================
-Grid topology by direct operations that always terminate (spec §7, §8.2):
+Grid topology by direct operations that always terminate:
 no critical-point search, no Newton iteration.
 
 Extremum census

@@ -7,7 +7,7 @@ The density field, and the derivative cache every field shares.
 
 :func:`derivatives` returns a :class:`Derivatives` object for any field. It
 computes the gradient, Laplacian and Hessian eigenvalues at most once per
-(field, backend, order) and caches them on the VolumetricData (spec §13): the
+(field, backend, order) and caches them on the VolumetricData: the
 fractional Hessian is formed once, gives both the Laplacian and the
 eigenvalues, and is freed afterwards.
 """

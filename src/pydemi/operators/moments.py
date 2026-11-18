@@ -1,7 +1,7 @@
 """
 pydemi.operators.moments
 ========================
-Radial moments of any field about the nearest nucleus (spec §7):
+Radial moments of any field about the nearest nucleus:
 
     m_n = sum_k w_k r_k^n / sum_k w_k,     w = field ("signed") or |field| ("abs")
 

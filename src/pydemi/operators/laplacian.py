@@ -1,7 +1,7 @@
 """
 pydemi.operators.laplacian
 ==========================
-Laplacian-derived statistics of any field (spec §7):
+Laplacian-derived statistics of any field:
 
     sign fraction            (1/N) sum_k 1(lap f_k < 0)
     charge-weighted variant  sum_{lap f < 0} w_k / sum_k w_k

@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- `pydemi.props` reads model bundles on the descriptors only: `props.composition_features`
+  and the `counts=` argument of `props.predict` are removed (the shipped models never used
+  them), and the graphical interface no longer has an inputs column.
+- The covalent radii are credited to Cordero et al. (2008) directly; the values are unchanged.
+- `property_prediction/` keeps only the scripts behind the results of the paper.
+
 ## 0.3.0 (2026-11-02)
 
 - **55 descriptors**: `lap_concentration` is removed. On a periodic grid the Laplacian

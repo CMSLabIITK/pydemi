@@ -1,7 +1,7 @@
 """
 pydemi.operators.fractions
 ==========================
-Shell fractions of any field (spec §7):
+Shell fractions of any field:
 
     f_shell = sum_{k in shell} w_k / sum_k w_k
 

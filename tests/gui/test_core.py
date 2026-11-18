@@ -90,4 +90,4 @@ def test_every_descriptor_has_its_own_descriptive_name():
     shown = [names.label(n) for n in pydemi.descriptor_names()]
     assert set(names.NAMES) == set(pydemi.descriptor_names())
     assert len(set(shown)) == len(shown) and all(s and s[0].isupper() for s in shown)
-    assert names.label("MagpieData mean Number") == "MagpieData mean Number"
+    assert names.label("not_a_descriptor") == "not_a_descriptor"

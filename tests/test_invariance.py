@@ -1,4 +1,4 @@
-"""Milestone 5: invariance harness (spec §10).
+"""Invariance harness.
 
 Every registered descriptor is run on a low-symmetry test crystal and on its
 2x2x2 supercell, a rigid translation and a rigid rotation, and must agree to

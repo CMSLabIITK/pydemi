@@ -1,4 +1,4 @@
-"""Milestone 12: batch, CLI, sweep, convergence, float32, sentinels (spec §5, §11-13)."""
+"""Batch, CLI, sweep, convergence, float32, sentinels."""
 
 import json
 import math
@@ -94,7 +94,7 @@ def test_grid_convergence_report():
 
 
 def test_recommended_mesh_comes_from_the_analytic_tests():
-    """Spec §11: the minimum mesh is read off the Slater closed forms, not guessed."""
+    """The minimum mesh is read off the Slater closed forms, not guessed."""
     table = analytic_convergence(spacings=(0.1, 0.08, 0.06))
     print(table.to_string())
     errs = table["integral_rel_error"].to_numpy()
@@ -106,7 +106,7 @@ def test_recommended_mesh_comes_from_the_analytic_tests():
 # ---------------------------------------------------------------- float32
 
 def test_float32_agrees_with_float64():
-    """Spec §13: float32 mode, with the discrepancy reported."""
+    """Float32 mode, with the discrepancy reported."""
     vd = _vd((24, 24, 26))
     a = pydemi.featurize(vd, domains=["bonding", "structural", "heterogeneity"])
     b = pydemi.featurize(vd, domains=["bonding", "structural", "heterogeneity"], float32=True)
@@ -121,7 +121,7 @@ def test_float32_agrees_with_float64():
 # ---------------------------------------------------------------- sentinels across domains
 
 def test_uniform_density_no_bare_nan_in_any_domain():
-    """Spec §10: every degenerate case gives a documented constant, never a bare NaN; the only
+    """Every degenerate case gives a documented constant, never a bare NaN; the only
     NaN allowed is a within-element variance, which comes with its flag and the site counts."""
     feats, meta = pydemi.featurize(uniform(Structure(LAT, ["Fe", "O"], [[0, 0, 0], [0.5, 0.5, 0.5]]),
                                            (12, 12, 12)), return_metadata=True)

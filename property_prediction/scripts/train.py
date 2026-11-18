@@ -1,12 +1,8 @@
-"""The property-prediction study: for every target, three feature sets and three models on
-the JCIM 2026 split (train 4,847 / val 606 / test 606).
+"""The property models of the paper: for each of the 17 properties (and the two columns of
+Kumar et al. used in the comparison of Table 4), three models on the 55 pydemi descriptors,
+with the split of Kumar et al., J. Chem. Inf. Model. 66, 7113 (2026): train 4,847 / val 606 /
+test 606.
 
-Feature sets
-    comp   composition only: Magpie element statistics + stoichiometry (138, matminer)
-    desc   the 55 pydemi charge-density descriptors
-    both   the two together (193)
-    penn, descpenn   both / desc + 3 Penn-model features (data/penn_features.csv: valence
-           plasma energy, predicted band gap, 1 + (hw_p / E_g)^2); for the dielectric targets
 Models
     ridge  standardised linear model (logistic for classes); alpha / C picked on val
     rf     random forest, 500 trees, fixed settings
@@ -14,7 +10,7 @@ Models
 rf and lgbm are refit with 5 seeds; the test split is scored once per fitted model, never
 used for choosing anything. Seeds vary bagging and column sampling only: the split is fixed.
 
-One job per (target, feature set), resumable: results/study_v1/jobs/<target>__<set>.json
+One job per target, resumable: results/study_v1/jobs/<target>__desc.json
 holds the metrics, best parameters, test predictions and SHAP importances; the LightGBM
 boosters go to results/study_v1/models/.
 
@@ -48,9 +44,6 @@ from sklearn.preprocessing import StandardScaler
 
 import pydemi
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
-from train_preview import SHOW, back, forward  # noqa: E402
-
 ROOT = Path(__file__).resolve().parents[1]
 DATA = ROOT / "data"
 OUT = ROOT / os.environ.get("OUT", "results/study_v1")
@@ -61,34 +54,57 @@ SEEDS = list(range(int(os.environ.get("SEEDS", "5"))))
 ONLY = [s for s in os.environ.get("ONLY", "").split(",") if s]
 MAX_ROUNDS, PATIENCE = 10000, 200
 
-# the JCIM study's own energy and Debye columns (properties.csv), for the comparison
+# label, symbol, group, transform for training, lower bound of the prediction
+SHOW = {
+    "bulk_modulus": ("Bulk modulus", "K", "Mechanical", None, 0.0),
+    "shear_modulus": ("Shear modulus", "G", "Mechanical", None, 0.0),
+    "youngs_modulus": ("Young's modulus", "E", "Mechanical", None, 0.0),
+    "C11": ("Elastic constant", "C11", "Elastic tensor", None, None),
+    "C12": ("Elastic constant", "C12", "Elastic tensor", None, None),
+    "C44": ("Elastic constant", "C44", "Elastic tensor", None, None),
+    "debye_temperature": ("Debye temperature", "θ_D", "Thermal", None, 0.0),
+    "sound_velocity_transverse": ("Sound velocity, transverse", "v_t", "Thermal", None, 0.0),
+    "sound_velocity_longitudinal": ("Sound velocity, longitudinal", "v_l", "Thermal", None, 0.0),
+    "thermal_conductivity_clarke": ("Min. thermal conductivity, Clarke", "κ_Clarke", "Thermal", None, 0.0),
+    "thermal_conductivity_cahill": ("Min. thermal conductivity, Cahill", "κ_Cahill", "Thermal", None, 0.0),
+    "formation_energy": ("Formation energy", "E_f", "Energetics", None, None),
+    "cohesive_energy": ("Cohesive energy", "E_coh", "Energetics", None, None),
+    "band_gap": ("Band gap (PBE)", "E_g", "Electronic", None, 0.0),
+    "is_metal": ("Metallic", "P(metal)", "Electronic", None, None),
+    "is_gap_direct": ("Direct gap", "P(direct)", "Electronic", None, None),
+    "refractive_index": ("Refractive index", "n", "Optical", "log10", 1.0),  # heavy tail
+}
+PROPS = list(SHOW)
+
+# the energy and Debye columns of Kumar et al. (properties.csv), for the comparison of Table 4
 EXTRA = {
     "energy_jcim": ("Energy vs free atoms (JCIM column)", "E_form", "Energetics", None, None,
                     "eV/atom", "formation_energy_per_atom"),
     "debye_jcim": ("Debye temperature (JCIM column)", "θ_D", "Thermal", None, 0.0,
                    "K", "debye_temperature"),
 }
-TARGETS = {**{k: v for k, v in SHOW.items()}, **{k: v[:5] for k, v in EXTRA.items()}}
-SETS = tuple(os.environ.get("FEATURE_SETS", "comp,desc,both").split(","))
-PENN = ["hw_p", "Eg_pred", "penn_eps"]
+TARGETS = {**SHOW, **{k: v[:5] for k, v in EXTRA.items()}}
+SETS = ("desc",)
+
+
+def forward(y: np.ndarray, how: str | None) -> np.ndarray:
+    return np.log10(np.clip(y, 1e-12, None)) if how == "log10" else y
+
+
+def back(z: np.ndarray, how: str | None) -> np.ndarray:
+    return 10.0 ** z if how == "log10" else z
 
 
 def load() -> tuple[pd.DataFrame, dict[str, list[str]], pd.DataFrame]:
     d = pd.read_csv(DATA / "dataset.csv")
-    comp = pd.read_csv(DATA / "composition.csv").drop(columns=["material_id", "split"])
     p = pd.read_csv(DATA / "properties.csv")
     p = p[["formula_sp"] + [v[6] for v in EXTRA.values()]].rename(
         columns={"formula_sp": "structure", **{v[6]: k for k, v in EXTRA.items()}})
-    d = d.merge(comp, on="structure", how="left").merge(p, on="structure", how="left")
-    if (DATA / "penn_features.csv").exists():
-        d = d.merge(pd.read_csv(DATA / "penn_features.csv")[["structure"] + PENN], on="structure", how="left")
+    d = d.merge(p, on="structure", how="left")
     meta = pd.read_csv(DATA / "targets_columns.csv").set_index("column")
     for k, v in EXTRA.items():
         meta.loc[k, ["units", "task", "source"]] = [v[5], "regression", f"properties.csv ({v[6]})"]
-    desc = [f for f in pydemi.descriptor_names() if f != "lap_concentration"]  # pydemi < 0.3 had 56
-    cc = [c for c in comp.columns if c != "structure"]
-    return d, {"comp": cc, "desc": desc, "both": desc + cc, "penn": desc + cc + PENN,
-               "descpenn": desc + PENN}, meta
+    return d, {"desc": list(pydemi.descriptor_names())}, meta
 
 
 def scores(task: str, y: np.ndarray, p: np.ndarray) -> dict[str, float]:

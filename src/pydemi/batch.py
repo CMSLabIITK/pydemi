@@ -1,7 +1,7 @@
 """
 pydemi.batch
 ============
-Featurize many structures in parallel (spec §12, §13): one process per
+Featurize many structures in parallel: one process per
 structure via ``concurrent.futures.ProcessPoolExecutor``, never per
 descriptor.
 

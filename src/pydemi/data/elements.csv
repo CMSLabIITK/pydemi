@@ -1,5 +1,5 @@
 # Element data for pydemi.
-# covalent_radius: Angstrom (Magpie / Cordero 2008, BSD licence, see LICENSE-matminer).
+# covalent_radius: Angstrom (Cordero et al., Dalton Trans. 2832, 2008).
 # configuration: ground state (pymatgen). Empty cell = no value in the source.
 Z,symbol,covalent_radius,configuration
 1,H,0.31,1s1

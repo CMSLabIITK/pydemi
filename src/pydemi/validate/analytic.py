@@ -1,7 +1,7 @@
 """
 pydemi.validate.analytic
 ========================
-Analytic reference densities with closed-form descriptor values (spec §11).
+Analytic reference densities with closed-form descriptor values.
 
 ``SlaterSuperposition``
     rho_i(r) = N_i (zeta_i^3 / pi) exp(-2 zeta_i r)   (hydrogenic 1s, normalized to N_i).
@@ -19,7 +19,7 @@ Analytic reference densities with closed-form descriptor values (spec §11).
 Both are summed over atoms and all periodic images that reach the cell, and
 evaluate the exact gradient and Hessian with the density.
 
-``uniform`` builds a constant density: every sentinel case (spec §10).
+``uniform`` builds a constant density: every sentinel case.
 """
 
 from __future__ import annotations

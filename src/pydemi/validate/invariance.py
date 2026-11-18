@@ -1,7 +1,7 @@
 """
 pydemi.validate.invariance
 ==========================
-Transformations under which every descriptor must be unchanged (spec §10):
+Transformations under which every descriptor must be unchanged:
 
 * :func:`supercell` -- the cell replaced by an (n1, n2, n3) supercell of the
   same material: every grid is tiled exactly and the atoms are replicated.
