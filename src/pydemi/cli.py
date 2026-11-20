@@ -6,7 +6,7 @@ Command line:
     pydemi featurize CHGCAR --out features.json
     pydemi batch ./runs --glob "*/CHGCAR" --out features.csv --workers 8 --domains bonding
     pydemi catalogue --out catalogue.csv
-    pydemi sweep CHGCAR --param c2 --range 1.0:2.5:0.05 --out sweep.csv
+    pydemi sweep CHGCAR --param b --range 1.0:1.5:0.02 --out sweep.csv
     pydemi gui                      # graphical interface in the browser (pip install "pydemi[gui]")
     pydemi predict Si.cif --out-dir predicted   # ChargE3Net density from a structure (pydemi[ml])
 
@@ -26,8 +26,9 @@ from typing import Any, Optional, Sequence
 def _options(p: argparse.ArgumentParser) -> None:
     p.add_argument("--domains", default=None,
                    help="comma-separated: bonding,structural,heterogeneity")
-    p.add_argument("--partition", default="nearest", choices=["nearest", "power", "becke"])
-    p.add_argument("--shells", default=None, help="c1,c2 in Angstrom (default 0.8,1.5)")
+    p.add_argument("--partition", default="nearest", choices=["nearest", "becke"])
+    p.add_argument("--shells", default=None,
+                   help="a,b: core and outer sphere radii in covalent radii (default 0.79,1.14)")
     p.add_argument("--laplacian-method", default="metric", choices=["metric", "diagonal"])
     p.add_argument("--derivative-backend", default="fft", choices=["fft", "fd"])
     p.add_argument("--fd-order", type=int, default=4)
@@ -40,9 +41,17 @@ def _kwargs(a: argparse.Namespace) -> dict[str, Any]:
         "laplacian_method": a.laplacian_method, "derivative_backend": a.derivative_backend,
         "fd_order": a.fd_order, "float32": a.float32}
     if a.shells:
-        c1, c2 = (float(x) for x in a.shells.split(","))
-        kw["shells"] = (c1, c2)
+        kw["shells"] = _shells(a.shells)
     return kw
+
+
+def _shells(text: str) -> Any:
+    """--shells: 'a,b', the sphere factors."""
+    from .core.geometry import Shells
+    parts = [x.strip() for x in text.split(",")]
+    if len(parts) != 2:
+        raise SystemExit(f"--shells: expected a,b, got {text!r}")
+    return Shells(float(parts[0]), float(parts[1]))
 
 
 def _read_one(a: argparse.Namespace) -> Any:
@@ -80,9 +89,9 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     c = sub.add_parser("catalogue", help="descriptor metadata")
     c.add_argument("--out", required=True)
 
-    s = sub.add_parser("sweep", help="shell-cutoff sensitivity")
+    s = sub.add_parser("sweep", help="sensitivity to the sphere factors a, b")
     s.add_argument("path")
-    s.add_argument("--param", required=True, choices=["c1", "c2"])
+    s.add_argument("--param", required=True, choices=["a", "b"])
     s.add_argument("--range", required=True, help="start:stop:step (inclusive)")
     s.add_argument("--out", required=True)
     _options(s)
@@ -157,10 +166,10 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         kw = _kwargs(a)
         kw.pop("shells", None)
         vd = _read_one(a)
-        if a.param == "c1":
-            df = sensitivity_sweep(vd, c1_range=values, **kw)
+        if a.param == "a":
+            df = sensitivity_sweep(vd, a_range=values, **kw)
         else:
-            df = sensitivity_sweep(vd, c2_range=values, **kw)
+            df = sensitivity_sweep(vd, b_range=values, **kw)
         df.to_csv(a.out, index=False)
         return 0
     return 2

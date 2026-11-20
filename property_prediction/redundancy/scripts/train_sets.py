@@ -1,8 +1,8 @@
 """Retrain the 17 properties without the redundant descriptors of redundancy.py (37 descriptors).
 
 Same protocol as the paper (scripts/train.py: ridge, random forest, 50-trial Optuna LightGBM,
-5 seeds, fixed split); only the feature list changes. The 55-descriptor baseline is the
-paper's study_v1 'desc' set and is not refitted.
+5 seeds, fixed split); only the feature list changes. The 54-descriptor baseline is the
+paper's study_v2 'desc' set and is not refitted.
     cd property_prediction && OMP_NUM_THREADS=1 WORKERS=8 THREADS=2 nice -n 10 \
         python redundancy/scripts/train_sets.py
     -> redundancy/results/train/jobs/<target>__<set>.json, models/, train.log

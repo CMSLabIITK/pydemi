@@ -46,17 +46,20 @@ def test_radial_profiles_reproduce_the_bonding_descriptors(run):
     rad = d["radial"]
     hi = rad["edges"][1:]
     q = rad["charge"]
-    core_, bond = hi <= d["c1"] + 1e-9, (hi > d["c1"] + 1e-9) & (hi <= d["c2"] + 1e-9)
-    assert q[core_].sum() / q.sum() == pytest.approx(f["f_core"], rel=1e-9)
-    assert q[bond].sum() / q.sum() == pytest.approx(f["f_bond"], rel=1e-9)
+    reg = d["regions"]
+    total = reg["core"].sum() + reg["bond"].sum() + reg["int"].sum()
+    assert total == pytest.approx(q.sum(), rel=1e-12)
+    for w in ("core", "bond", "int"):
+        assert reg[w].sum() / total == pytest.approx(f[f"f_{w}"], rel=1e-9)
+    s = 0.5 * (reg["edges"][1:] + reg["edges"][:-1])
+    assert s[reg["core"] != 0].max() <= d["a"] + plots.RATIO_BIN
+    assert s[reg["int"] != 0].min() >= d["b"] - plots.RATIO_BIN
     assert rad["vol_neg"].sum() / rad["volume"].sum() == pytest.approx(f["lnf"], rel=1e-12)
     assert rad["charge_neg"].sum() / q.sum() == pytest.approx(f["lnf_charge_weighted"], rel=1e-9)
     lap = rad["lap_neg"].sum() / (rad["lap_neg"].sum() + rad["lap_pos"].sum())
     assert lap == pytest.approx(0.5, abs=1e-9)                # whole cell: the periodic identity
     r = 0.5 * (rad["edges"][1:] + rad["edges"][:-1])
     assert np.sum(r * q) / q.sum() == pytest.approx(f["m1"], abs=plots.RADIAL_BIN)
-    fisher = d["info"]["fisher_radial"].sum()
-    assert fisher == pytest.approx(f["fisher_information"], rel=1e-9)
 
 
 def test_histograms_are_centred_on_their_descriptors(run):
@@ -78,6 +81,7 @@ def test_points_and_sites_match_the_descriptors(run):
     assert d["maxima"]["total"] / V == pytest.approx(f["n_max"], rel=1e-12)
     assert d["minima"]["total"] / V == pytest.approx(f["n_min"], rel=1e-12)
     assert d["nnm"]["q"].sum() == pytest.approx(f["Q_NNM"], abs=1e-12)
+    assert (~d["nnm"]["core"]).sum() / V == pytest.approx(f["n_NNM"], rel=1e-12)
     assert np.std(d["potential"]["sites"]) == pytest.approx(f["V_spread"], rel=1e-12)
     assert np.mean(d["bonds"]["rho"]) == pytest.approx(f["rho_mid_mean"], rel=1e-12)
     np.testing.assert_allclose(d["percolation"]["levels"],

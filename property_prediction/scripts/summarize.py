@@ -1,10 +1,10 @@
 """Tables from the finished jobs of scripts/train.py.
 
-    results/study_v1/summary.csv    every target x model: test metrics, mean and std over the
+    results/study_v2/summary.csv    every target x model: test metrics, mean and std over the
                                     seeds (ridge: one fit), LightGBM 5-seed ensemble
-    results/study_v1/best.csv       per target: the best model by mean test R² / ROC-AUC
-    results/study_v1/jcim.csv       the five targets of the comparison of Table 4
-    results/study_v1/shap.csv       per target, LightGBM: share of the mean |SHAP| of each
+    results/study_v2/best.csv       per target: the best model by mean test R² / ROC-AUC
+    results/study_v2/jcim.csv       the five targets of the comparison of Table 4
+    results/study_v2/shap.csv       per target, LightGBM: share of the mean |SHAP| of each
                                     descriptor on the test set, seed mean
 
     python scripts/summarize.py
@@ -20,7 +20,7 @@ import numpy as np
 import pandas as pd
 
 ROOT = Path(__file__).resolve().parents[1]
-OUT = ROOT / os.environ.get("OUT", "results/study_v1")
+OUT = ROOT / os.environ.get("OUT", "results/study_v2")
 METRICS = {"regression": ("r2", "mae", "rmse", "median_ae"),
            "classification": ("roc_auc", "accuracy", "f1", "logloss")}
 JCIM = {"bulk_modulus": "K", "shear_modulus": "G", "youngs_modulus": "E", "energy_jcim": "E_atoms",

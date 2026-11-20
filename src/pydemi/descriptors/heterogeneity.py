@@ -14,12 +14,16 @@ For a base descriptor X with per-site values X^(i) (site aggregation, see
 
 with w_e the fraction of sites of element e, so that
 Var_i(X) = within + between exactly (one-way ANOVA). Applied to m1, f_bond
-and zeta. Every site-restricted sum honours the ``partition`` option.
+and zeta. Every site-restricted sum honours the ``partition`` option. With
+the ``nearest`` partition, the per-site sums of f_bond use the cells of the
+sphere rule (every voxel to the atom with the smallest r_i / R_i), so that the
+bond regions of the sites add up to the bond region of the cell; m1 and zeta
+keep the nearest-atom cells.
 
-Sentinels: a within-element variance is NaN when no element has two or more
-sites (no within-element information; the per-element site counts are in
-the metadata); a between-element variance is 0.0 for a single-element
-structure; both flagged.
+Sentinels: a within-element variance is 0.0 when no element has two or more
+sites, as in any supercell of the structure, where the copies of a site are
+equal; a between-element variance is 0.0 for a single-element structure; both
+flagged (the per-element site counts are in the metadata).
 """
 
 from __future__ import annotations
@@ -29,7 +33,8 @@ from typing import Callable
 import numpy as np
 from numpy.typing import NDArray
 
-from ..core.partition import partition_of
+from ..core.geometry import sphere_geometry_of
+from ..core.partition import HardPartition, Partition, partition_of
 from ..io.base import VolumetricData
 from ..operators.sitestats import (SiteStatistics, SiteSums, site_f_bond, site_m1, site_statistics,
                                    site_sums, site_zeta)
@@ -39,14 +44,22 @@ F64 = NDArray[np.float64]
 PerSite = Callable[[VolumetricData], "F64 | Sentinel"]
 
 
-def density_site_sums(vd: VolumetricData) -> SiteSums:
-    """Site sums of rho under the requested partition (cached on vd)."""
+def density_site_sums(vd: VolumetricData, shell_cells: bool = False) -> SiteSums:
+    """Site sums of rho under the requested partition (cached on vd).
+
+    ``shell_cells``: with the ``nearest`` partition, sum over the cells of the
+    sphere rule instead (for the per-site region sums).
+    """
     o = options(vd)
-    key = ("site_sums", "rho", o.partition, o.shells.key(), o.derivative_backend, o.fd_order)
+    spheres = shell_cells and o.partition == "nearest"
+    scheme = "spheres" if spheres else o.partition
+    key = ("site_sums", "rho", scheme, o.shells.key(), o.derivative_backend, o.fd_order)
     if key not in vd.cache:
+        part: Partition = (HardPartition(sphere_geometry_of(vd), vd.structure.n_atoms, "spheres")
+                           if spheres else partition_of(vd, o.partition))
         c1, c2 = o.shells.atom_cutoffs(vd.structure)
-        vd.cache[key] = site_sums(partition_of(vd, o.partition), vd.rho.data,
-                                  field_derivatives(vd, "rho").gradient, c1, c2, vd.rho.dV)
+        vd.cache[key] = site_sums(part, vd.rho.data, field_derivatives(vd, "rho").gradient,
+                                  c1, c2, vd.rho.dV)
     out: SiteSums = vd.cache[key]
     return out
 
@@ -56,7 +69,7 @@ def _per_site_m1(vd: VolumetricData) -> "F64 | Sentinel":
 
 
 def _per_site_f_bond(vd: VolumetricData) -> "F64 | Sentinel":
-    return site_f_bond(density_site_sums(vd))
+    return site_f_bond(density_site_sums(vd, shell_cells=True))
 
 
 def _per_site_zeta(vd: VolumetricData) -> "F64 | Sentinel":
@@ -95,7 +108,7 @@ def heterogeneity(base: str, per_site: PerSite, units: str, formula: str,
         name = f"{base}_{suffix}"
         cases: dict[str, float] = {"uniform_density": 0.0}
         if attr == "within":
-            cases["one_site_per_element"] = float("nan")
+            cases["one_site_per_element"] = 0.0
         if attr == "between":
             cases["single_element"] = 0.0
 
@@ -105,7 +118,7 @@ def heterogeneity(base: str, per_site: PerSite, units: str, formula: str,
                 return st
             value = float(getattr(st, attr))
             if attr == "within" and st.max_sites_per_element < 2:
-                return Sentinel(float("nan"), "one_site_per_element")
+                return Sentinel(0.0, "one_site_per_element")
             if attr == "between" and st.n_elements == 1:
                 return Sentinel(0.0, "single_element")
             return value
@@ -121,7 +134,7 @@ def heterogeneity(base: str, per_site: PerSite, units: str, formula: str,
 heterogeneity("m1", _per_site_m1, "Angstrom",
               "sum_k w_i(k) rho_k r_ik / sum_k w_i(k) rho_k", ["geometry"])
 heterogeneity("f_bond", _per_site_f_bond, "dimensionless",
-              "sum_{c1 < r_ik <= c2} w_i(k) rho_k / sum_k w_i(k) rho_k", ["geometry", "shells"])
+              "sum_{a R_i < r_ik <= b R_i} w_i(k) rho_k / sum_k w_i(k) rho_k", ["geometry", "shells"])
 heterogeneity("zeta", _per_site_zeta, "dimensionless",
               "1 - sum_k w_i(k) |grad rho_k . u_ik| / sum_k w_i(k) |grad rho_k|",
               ["gradient", "geometry"])

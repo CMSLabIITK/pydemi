@@ -41,14 +41,13 @@ from typing import Any, Callable, Iterable, Literal, Mapping, Optional, Sequence
 
 import numpy as np
 
-from ..constants import (DERIVATIVE_BACKEND, FD_ORDER, LAPLACIAN_METHOD, NNM_R_CUT, SHELL_C1,
-                         SHELL_C2)
+from ..constants import DERIVATIVE_BACKEND, FD_ORDER, LAPLACIAN_METHOD
 from ..core.geometry import NearestAtom, ShellMasks, Shells, geometry_of, shells_of
 from ..fields.density import Derivatives, derivatives, rho
 from ..io.base import FloatArray, VolumetricData
 
 DOMAINS = ("bonding", "structural", "heterogeneity")
-PARTITIONS = ("nearest", "power", "becke")
+PARTITIONS = ("nearest", "becke")
 
 
 # ----------------------------------------------------------------------
@@ -61,11 +60,10 @@ class FeatureOptions:
 
     domains: tuple[str, ...] = DOMAINS
     partition: str = "nearest"
-    shells: Shells = Shells(SHELL_C1, SHELL_C2)
+    shells: Shells = Shells()
     laplacian_method: str = LAPLACIAN_METHOD
     derivative_backend: str = DERIVATIVE_BACKEND
     fd_order: int = FD_ORDER
-    nnm_r_cut: float = NNM_R_CUT
 
     def __post_init__(self) -> None:
         def check(value: str, allowed: Sequence[str], what: str) -> None:

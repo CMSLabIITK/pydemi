@@ -2,6 +2,36 @@
 
 ## Unreleased
 
+- **54 descriptors**: `fisher_information` is removed (breaking). It needed two cut-offs of its
+  own, a density floor and a 0.5 Angstrom core exclusion (`FISHER_CORE_RADIUS`, also removed),
+  and added little that the Shannon entropy, disequilibrium and LMC complexity do not already
+  carry. `featurize`, `descriptor_names()`, the catalogue and CSV outputs have one column
+  fewer; the structural domain has 18 descriptors, and the graphical interface has no Fisher
+  plot.
+- **Power-diagram partition removed** (breaking): the site descriptors use the nearest-atom
+  partition (default) or Becke cells; `partition="power"` and the `power_radii` argument of
+  the geometry pass are gone. The power diagram reordered the structures by their site
+  statistics, which made those descriptors depend on an extra choice of atomic radii; the
+  bond-region fraction per atom already uses cells scaled by the covalent radii.
+- **Regions by the sphere rule** (breaking): the core, bond and interstitial regions are no
+  longer shells at fixed distances (0.8 / 1.5 Angstrom) from the nearest nucleus. Around every
+  nucleus i lie a core sphere of radius a R_i and an outer sphere of radius b R_i (R_i the
+  covalent radius, a = 0.79, b = 1.14); a voxel is core inside any core sphere, bond inside an
+  outer sphere but in no core sphere, and interstitial outside every outer sphere. The factors
+  are the 1st and 99th percentiles of d / (R_A + R_B) over the nearest neighbour of every atom
+  of the 6,059-structure dataset. This is the only region definition: `Shells(a, b)` takes the
+  two factors (the `scaled` mode and Angstrom cutoffs are gone; `SHELL_C1`/`SHELL_C2` are
+  replaced by `SPHERE_A`/`SPHERE_B`), the command line takes `--shells a,b`, and
+  `pydemi sweep` varies `--param a` or `b`. Affected: f_core, f_bond, f_int,
+  lap_concentration_valence, ellip_bond_bounded_avg, V_int_min, rho_int_mean and the f_bond
+  site statistics, whose per-site sums give each voxel to the atom with the smallest r / R.
+- **Non-nuclear maxima outside the core spheres**: n_NNM and Q_NNM count the local maxima
+  outside every core sphere instead of those farther than 0.8 Angstrom (`NNM_R_CUT` and the
+  `nnm_r_cut` option are removed). The shell maximum of the pseudo-density around a heavy atom
+  no longer counts as non-nuclear (GaBi: Q_NNM 1.0 before, 0 now).
+- **Within-element variances are 0, not NaN**, when no element has two or more sites: the
+  value of every supercell of the structure, so the three descriptors are now unchanged under
+  a supercell for every structure (flagged as before). No descriptor returns NaN.
 - `pydemi.props` reads model bundles on the descriptors only: `props.composition_features`
   and the `counts=` argument of `props.predict` are removed (the shipped models never used
   them), and the graphical interface no longer has an inputs column.

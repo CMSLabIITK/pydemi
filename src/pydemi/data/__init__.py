@@ -7,7 +7,7 @@ Element data shipped with pydemi.
 
 Covalent radii from Cordero et al., Dalton Trans. 2832 (2008), configurations from
 pymatgen; read here without pymatgen.
-pydemi uses the covalent radii (scaled shells, power partition).
+pydemi uses the covalent radii (sphere rule).
 """
 
 from __future__ import annotations

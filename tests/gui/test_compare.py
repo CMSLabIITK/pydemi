@@ -37,12 +37,12 @@ def test_descriptor_table_marks_differences_and_noise():
     pred["f_int"] *= 1.005                                   # within 1 %
     dft["rho_mid_std"], pred["rho_mid_std"] = 1e-6 * scale["rho_mid_std"], 3e-6 * scale["rho_mid_std"]
     t = compare.descriptors(dft, pred).set_index("name")
-    assert len(t) == 55
+    assert len(t) == 54
     assert t.at["m1", "difference %"] == pytest.approx(100 * 0.1 / 1.1) and t.at["m1", "note"] == "differs"
     assert t.at["f_int", "difference %"] < 1 and t.at["f_int", "note"] == ""
     assert math.isnan(t.at["rho_mid_std", "difference %"]) and t.at["rho_mid_std", "note"] == "≈ 0 in both"
     s = compare.descriptor_summary(t.reset_index())
-    assert s == {"median": 0.0, "close": 54, "n": 55, "far": 1}
+    assert s == {"median": 0.0, "close": 53, "n": 54, "far": 1}
 
 
 def test_density_error_needs_the_same_grid():
@@ -77,4 +77,4 @@ def test_property_table_agrees_within_the_typical_error(property_bundle):
     assert t.at[cls, "ML − DFT"] == ("class differs" if abs(p[cls] - 0.5) > 0.01 else "same class")
     assert list(compare.properties(p, p, b)["agree"]) == [True] * len(b.targets)
     e = compare.export(compare.descriptors(feats, feats), t.reset_index(), feats, feats, p, q)
-    assert len(e) == 55 + len(b.targets) and set(e["kind"]) == {"descriptor", "property"}
+    assert len(e) == 54 + len(b.targets) and set(e["kind"]) == {"descriptor", "property"}

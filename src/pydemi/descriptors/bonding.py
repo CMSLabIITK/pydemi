@@ -4,8 +4,13 @@ pydemi.descriptors.bonding
 Bonding-domain descriptors.
 
 Distances r_k and unit vectors u_k are those of the geometry pass (nearest
-nucleus, minimum image); shells are core r <= c1, bond c1 < r <= c2,
-interstitial r > c2.
+nucleus, minimum image). The core, bond and interstitial regions are those of
+the sphere rule (:mod:`pydemi.core.geometry`): with s = min_i r_i / R_i, core
+s <= a, bond a < s <= b, interstitial s > b.
+
+The moments and the region charge fractions use the signed density: the small
+negative values of the PAW pseudo-density, which lie close to the nuclei, are
+kept, so the charge sums add up to the valence charge.
 """
 
 from __future__ import annotations
@@ -25,7 +30,7 @@ _ZERO = {"zero_density": 0.0}
 
 
 # ----------------------------------------------------------------------
-# Tier 1: gradient anisotropy, radial moments, shell fractions
+# Tier 1: gradient anisotropy, radial moments, region fractions
 # ----------------------------------------------------------------------
 
 @register(name="zeta", domain="bonding", field="rho", requires=["gradient", "geometry"],
@@ -81,7 +86,7 @@ def sigma_r2(vd: VolumetricData) -> Result:
 
 
 def _shell(which: str) -> None:
-    label = {"core": "r <= c1", "bond": "c1 < r <= c2", "int": "r > c2"}[which]
+    label = {"core": "s <= a", "bond": "a < s <= b", "int": "s > b"}[which]
 
     def fn(vd: VolumetricData) -> Result:
         m = masks(vd)
@@ -91,7 +96,7 @@ def _shell(which: str) -> None:
     register(name=f"f_{which}", domain="bonding", field="rho", requires=["geometry", "shells"],
              units="dimensionless", range=(0.0, 1.0), sentinel_cases=_ZERO,
              doc=f"f_{which} = sum_{{k: {label}}} rho_k / sum_k rho_k\n\n"
-                 "Shell fraction of the density about the nearest nucleus.")(fn)
+                 "Fraction of the charge in the region (sphere rule, s = min_i r_i / R_i).")(fn)
 
 
 for _w in ("core", "bond", "int"):
@@ -134,12 +139,12 @@ def lnf_charge_weighted(vd: VolumetricData) -> Result:
           requires=["laplacian", "geometry", "shells"], units="dimensionless", range=(0.0, 1.0),
           sentinel_cases={"uniform_density": 0.5, "empty_region": 0.5})
 def lap_concentration_valence(vd: VolumetricData) -> Result:
-    """lap_concentration_valence = sum_{r > c1, lap rho < 0} |lap rho_k| / sum_{r > c1} |lap rho_k|
+    """lap_concentration_valence = sum_{s > a, lap rho < 0} |lap rho_k| / sum_{s > a} |lap rho_k|
 
-    The Laplacian concentration outside the core shell. Over the whole cell the
+    The Laplacian concentration outside the core spheres. Over the whole cell the
     ratio is identically 1/2 (int lap rho dV = 0 on a periodic grid), so it is
-    only informative restricted to a region. Uniform density or no voxel beyond
-    c1: 0.5, flagged.
+    only informative restricted to a region. Uniform density or no voxel
+    outside the core spheres: 0.5, flagged.
     """
     if is_uniform(vd.rho.data):
         return Sentinel(0.5, "uniform_density")

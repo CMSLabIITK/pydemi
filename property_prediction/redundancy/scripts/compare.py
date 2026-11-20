@@ -1,8 +1,8 @@
-"""Test accuracy of the 55-descriptor models and of those without the redundant descriptors
+"""Test accuracy of the 54-descriptor models and of those without the redundant descriptors
 (LightGBM, 5 seeds; Table S6 of the paper).
 
 score = mean over the 5 seeds of test R2 (regression) or ROC AUC (classes).
-delta = reduced - all55; its 95 % interval is a paired bootstrap over the test structures
+delta = reduced - all; its 95 % interval is a paired bootstrap over the test structures
 (2,000 resamples) of the seed-averaged predictions, so it shows whether a change is larger
 than the test-set noise.
 -> redundancy/results/compare.csv
@@ -23,7 +23,7 @@ import sys  # noqa: E402
 sys.path.insert(0, str(HERE / "scripts"))
 from redundancy import PROPS  # noqa: E402
 
-SETS = {"all55": ROOT / "results/study_v1/jobs/{t}__desc.json",
+SETS = {"all": ROOT / "results/study_v2/jobs/{t}__desc.json",
         "no_redundant": HERE / "results/train/jobs/{t}__no_redundant.json"}
 REDUCED = ("no_redundant",)
 N = {k: len(v) for k, v in json.load(open(HERE / "results/sets.json")).items()}
@@ -45,11 +45,11 @@ def main() -> None:
     rng = np.random.default_rng(0)
     rows = []
     for t in PROPS:
-        base = load(str(SETS["all55"]).format(t=t))
+        base = load(str(SETS["all"]).format(t=t))
         f = roc_auc_score if base["cls"] else r2_score
         boot = [rng.integers(0, len(base["y"]), len(base["y"])) for _ in range(2000)]
         row = {"target": t, "symbol": base["symbol"], "metric": "AUC" if base["cls"] else "R2",
-               "all55": base["score"], "all55_mae": base["mae"]}
+               "all": base["score"], "all_mae": base["mae"]}
         for s in REDUCED:
             path = Path(str(SETS[s]).format(t=t))
             if not path.exists():
@@ -62,10 +62,10 @@ def main() -> None:
         rows.append(row)
     out = pd.DataFrame(rows)
     out.to_csv(HERE / "results/compare.csv", index=False)
-    print(f"{'property':30s} {'all 55':>7s}" + "".join(f"{s + ' (' + str(N[s]) + ')':>30s}"
+    print(f"{'property':30s} {'all 54':>7s}" + "".join(f"{s + ' (' + str(N[s]) + ')':>30s}"
                                                      for s in REDUCED))
     for _, r in out.iterrows():
-        line = f"{r.target:30s} {r.all55:7.3f}"
+        line = f"{r.target:30s} {r['all']:7.3f}"
         for s in REDUCED:
             if s in r and pd.notna(r.get(s)):
                 line += f"   {r[s]:.3f} ({r[f'{s}_delta']:+.3f} [{r[f'{s}_lo']:+.3f},{r[f'{s}_hi']:+.3f}])"

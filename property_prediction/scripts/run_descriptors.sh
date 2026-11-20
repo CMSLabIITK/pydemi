@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# The 55 pydemi descriptors of every CHGCAR of the dataset (one folder per structure), with
+# The 54 pydemi descriptors of every CHGCAR of the dataset (one folder per structure), with
 # 16 worker processes of one thread each.
 #   scripts/run_descriptors.sh <dataset directory>
 # Output: ../data/descriptors_batch.csv and ../data/provenance.txt

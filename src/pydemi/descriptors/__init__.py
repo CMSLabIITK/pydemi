@@ -73,7 +73,7 @@ def featurize(vd: VolumetricData, domains: Union[Sequence[str], str, None] = Non
         "site_counts": ",".join(f"{e}:{n}" for e, n in v.structure.site_counts().items()),
         "partition": opts.partition + (f"(k={BECKE_K},cells={BECKE_CELLS})"
                                        if opts.partition == "becke" else ""),
-        "shells": f"{opts.shells.c1},{opts.shells.c2}" + (",scaled" if opts.shells.scaled else ""),
+        "shells": f"spheres({opts.shells.a},{opts.shells.b})",
         "derivative_backend": opts.derivative_backend
         + (f"{opts.fd_order}" if opts.derivative_backend == "fd" else ""),
         "laplacian_method": opts.laplacian_method,

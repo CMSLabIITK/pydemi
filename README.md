@@ -56,7 +56,7 @@ The window is laid out like desktop software:
 - **Views**, in tabs across the top:
   - *Structure*: the cell and atoms in 3D, and a slice of the density through any lattice
     plane (log or linear colour, atoms near the plane marked).
-  - *Descriptors*: all 55 in a table with a domain filter and search; select a row to see
+  - *Descriptors*: all 54 in a table with a domain filter and search; select a row to see
     its plot, value, units and formula alongside. *Export* gives a one-row CSV (for
     building datasets), a long CSV with units and formulas, or JSON with the run metadata.
   - *Plots*: one figure per descriptor, showing the quantity it summarises with its value
@@ -126,6 +126,9 @@ the PBE band gap, whether a material is a metal and whether its gap is direct, a
 refractive index. Most have a test R² between 0.85 and 0.95 (bulk modulus 0.95, band gap
 0.85); the refractive index (0.76) and the direct-gap classification (ROC-AUC 0.79) are the
 weakest. These are the models of the pydemi paper. The estimates are not DFT values.
+The models were trained on densities computed with the PAW datasets of that dataset; for
+densities computed with other PAW datasets, such as those of the Materials Project, the
+estimates can be less accurate.
 
 ```python
 from pydemi import props
@@ -141,7 +144,7 @@ The models and the scripts that train them are in `property_prediction/`.
 import pydemi
 
 vd = pydemi.read_chgcar("CHGCAR")
-feats = pydemi.featurize(vd)     # dict of all 55 descriptors
+feats = pydemi.featurize(vd)     # dict of all 54 descriptors
 pydemi.catalogue()               # their metadata: domain, formula, units, range, fallbacks
 ```
 
@@ -149,21 +152,21 @@ pydemi.catalogue()               # their metadata: domain, formula, units, range
 pydemi featurize CHGCAR --out features.json            # one structure (.json or .csv)
 pydemi batch ./runs --glob "*/CHGCAR" --out all.csv     # many structures, in parallel
 pydemi catalogue --out catalogue.csv
-pydemi sweep CHGCAR --param c2 --range 1.0:2.5:0.05 --out sweep.csv   # shell-radius sensitivity
+pydemi sweep CHGCAR --param b --range 1.0:1.5:0.02 --out sweep.csv    # sphere-factor sensitivity
 ```
 
-## Descriptors (55)
+## Descriptors (54)
 
 | domain | n | descriptors |
 |---|---|---|
 | bonding | 18 | `zeta`, `m1`, `m2`, `sigma_r2`, `f_core`, `f_bond`, `f_int`, `lnf`, `lnf_charge_weighted`, `lap_concentration_valence`, `ellip_bond_bounded_avg`, `f_NCI`, `NCI_attractive`, `sign_lambda2_rho_mean`, `V_spread`, `V_int_min`, `rho_mid_mean`, `rho_mid_std` |
-| structural | 19 | `rho_perc_a`, `rho_perc_b`, `rho_perc_c`, `perc_anisotropy`, `n_max`, `n_min`, `n_NNM`, `Q_NNM`, `rho_min`, `rho_min_ratio`, `rho_int_mean`, `T_eigenvalues_t1`, `T_eigenvalues_t2`, `T_eigenvalues_t3`, `charge_FA`, `shannon_entropy`, `fisher_information`, `disequilibrium`, `LMC_complexity` |
+| structural | 18 | `rho_perc_a`, `rho_perc_b`, `rho_perc_c`, `perc_anisotropy`, `n_max`, `n_min`, `n_NNM`, `Q_NNM`, `rho_min`, `rho_min_ratio`, `rho_int_mean`, `T_eigenvalues_t1`, `T_eigenvalues_t2`, `T_eigenvalues_t3`, `charge_FA`, `shannon_entropy`, `disequilibrium`, `LMC_complexity` |
 | heterogeneity | 18 | `m1_site_std`, `m1_site_range`, `m1_site_max`, `m1_site_min`, `m1_within_element_var`, `m1_between_element_var`, `f_bond_site_std`, `f_bond_site_range`, `f_bond_site_max`, `f_bond_site_min`, `f_bond_within_element_var`, `f_bond_between_element_var`, `zeta_site_std`, `zeta_site_range`, `zeta_site_max`, `zeta_site_min`, `zeta_within_element_var`, `zeta_between_element_var` |
 
 The formulas and their meaning are in `docs/descriptors.pdf` (also a download button in
-the interface). The potential is the Hartree potential of the CHGCAR density. Shells and
-the `power` partition use the covalent radii of Cordero et al. (Dalton Trans. 2832, 2008),
-shipped with the package.
+the interface). The potential is the Hartree potential of the CHGCAR density. The core,
+bond and interstitial regions use the covalent radii of Cordero et al. (Dalton Trans. 2832,
+2008), shipped with the package.
 
 Not included, on purpose: the ELF and local energy densities (from a CHGCAR, a PAW
 pseudo-density, they would rest on a density-only kinetic-energy estimate, not the true

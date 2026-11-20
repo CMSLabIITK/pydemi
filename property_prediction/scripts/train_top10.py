@@ -1,12 +1,12 @@
 """Descriptor models restricted to the 10 most important descriptors of each target.
 
-The ranking is the mean |SHAP| of the five descriptor-only LightGBM models of study_v1
+The ranking is the mean |SHAP| of the five descriptor-only LightGBM models of study_v2
 (models/<target>__desc__s<seed>.txt.gz) on the TRAINING split, averaged over the seeds, so
 the test split plays no part in choosing the features. Each target is then retrained with
 its top 10 exactly as in train.py (ridge, random forest, 50-trial Optuna LightGBM, 5 seeds).
 
     OMP_NUM_THREADS=1 WORKERS=8 THREADS=2 nice -n 10 python scripts/train_top10.py
-    -> results/study_v1_top10/top10.json, jobs/<target>__top10.json, models/, train.log
+    -> results/study_v2_top10/top10.json, jobs/<target>__top10.json, models/, train.log
 """
 
 from __future__ import annotations
@@ -22,11 +22,11 @@ from pathlib import Path
 import lightgbm as lgb
 import numpy as np
 
-os.environ.setdefault("OUT", "results/study_v1_top10")
+os.environ.setdefault("OUT", "results/study_v2_top10")
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import train  # noqa: E402
 
-STUDY = train.ROOT / "results/study_v1"
+STUDY = train.ROOT / os.environ.get("STUDY", "results/study_v2")
 K = int(os.environ.get("TOP", "10"))
 
 

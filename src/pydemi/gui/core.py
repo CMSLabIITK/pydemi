@@ -26,7 +26,7 @@ import pydemi
 from pydemi.gui.names import label
 from pydemi.io.base import VolumetricData
 
-PARTITIONS = ("nearest", "power", "becke")
+PARTITIONS = ("nearest", "becke")
 DOMAINS = ("bonding", "structural", "heterogeneity")
 
 _COMPRESSED: dict[bytes, Callable[..., Any]] = {     # opener(file object) -> file object

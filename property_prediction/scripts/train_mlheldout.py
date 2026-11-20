@@ -7,8 +7,8 @@ test set that are not among the 605 are set aside. Same protocol as train.py (de
 50-trial Optuna LightGBM, 5 seeds). The LightGBM boosters of every seed are then applied to the
 descriptors of the DFT and of the ChargE3Net-predicted densities of the 605 structures.
 
-    WORKERS=4 THREADS=4 OUT=results/study_v1_mlheldout python scripts/train_mlheldout.py
--> results/study_v1_mlheldout/jobs/<target>__desc.json, predictions.csv, summary.csv
+    WORKERS=4 THREADS=4 OUT=results/study_v2_mlheldout python scripts/train_mlheldout.py
+-> results/study_v2_mlheldout/jobs/<target>__desc.json, predictions.csv, summary.csv
 """
 
 from __future__ import annotations
@@ -25,6 +25,7 @@ import numpy as np
 import pandas as pd
 from sklearn.metrics import mean_absolute_error, r2_score, roc_auc_score
 
+os.environ.setdefault("OUT", "results/study_v2_mlheldout")
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import train  # noqa: E402
 from train import back  # noqa: E402

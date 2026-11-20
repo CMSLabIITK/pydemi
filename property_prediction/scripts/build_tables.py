@@ -6,7 +6,7 @@ mp_elasticity.csv, mp_cohesive.csv (fetch_mp.py), descriptors_batch.csv (run_des
 Outputs (../data):
   targets.csv              one row per material: ids, split, the 17 cleaned targets, flags
   targets_columns.csv      what each target column is: units, source, task, count, cleaning
-  descriptors.csv          one row per material: ids, split, the 55 pydemi descriptors
+  descriptors.csv          one row per material: ids, split, the 54 pydemi descriptors
   descriptors_columns.csv  domain, units and formula of each descriptor (pydemi.catalogue)
   dataset.csv              descriptors and targets joined, ready for training
   build_report.txt         counts and what every cleaning rule removed

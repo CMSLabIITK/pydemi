@@ -16,11 +16,9 @@ i.e. the indicator 1(i(k) = i) replaced by w_i(r_k).
 Schemes
 -------
 ``nearest``    i(k) = argmin_i |r_k - R_i|                        (default)
-``power``      i(k) = argmin_i |r_k - R_i|^2 - R_i^2, R_i the covalent radius
 ``becke``      Becke fuzzy cells, pure geometry
 
-All three need only the structure (and, for ``power``, the tabulated
-covalent radii).
+Both need only the structure.
 
 Becke in periodic solids
 ------------------------
@@ -43,9 +41,8 @@ from numpy.typing import NDArray
 from scipy.spatial import cKDTree
 
 from ..constants import BECKE_CELLS, BECKE_K, MIN_PAIR_WEIGHT
-from ..data import covalent_radius
 from ..io.base import Structure, VolumetricData
-from .geometry import NearestAtom, assign_atoms, geometry_of, image_points, reps_for
+from .geometry import NearestAtom, geometry_of, image_points, reps_for
 from .grid import cart_coords
 
 F64 = NDArray[np.float64]
@@ -80,7 +77,7 @@ class Partition:
 
 
 class HardPartition(Partition):
-    """Every voxel belongs wholly to one atom (nearest atom or power diagram)."""
+    """Every voxel belongs wholly to one atom (nearest atom)."""
 
     def __init__(self, assignment: NearestAtom, n_atoms: int, scheme: str, chunk: int = 1 << 20):
         super().__init__(n_atoms)
@@ -102,11 +99,6 @@ class HardPartition(Partition):
                                       minlength=self.n_atoms), dtype=np.float64)
 
 
-def power_radii(vd: VolumetricData) -> F64:
-    """Covalent radius of every atom (the power-diagram weights)."""
-    return np.array([covalent_radius(s) for s in vd.structure.species], dtype=np.float64)
-
-
 def partition_of(vd: VolumetricData, scheme: str) -> Partition:
     """The partition ``scheme`` for ``vd``, cached on ``vd``."""
     key = ("partition", scheme)
@@ -114,9 +106,6 @@ def partition_of(vd: VolumetricData, scheme: str) -> Partition:
         n = vd.structure.n_atoms
         if scheme == "nearest":
             vd.cache[key] = HardPartition(geometry_of(vd), n, "nearest")
-        elif scheme == "power":
-            vd.cache[key] = HardPartition(assign_atoms(vd.shape, vd.structure, power_radii(vd)),
-                                          n, "power")
         elif scheme == "becke":
             vd.cache[key] = BeckePartition(vd.shape, vd.structure)
         else:

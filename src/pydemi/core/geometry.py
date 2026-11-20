@@ -1,7 +1,7 @@
 """
 pydemi.core.geometry
 ====================
-The geometry pass every descriptor shares, shells, and the
+The geometry pass every descriptor shares, the regions, and the
 periodic-image machinery behind the partitions and the bond census.
 
 Nearest-atom pass
@@ -29,32 +29,32 @@ on atom numbering or image enumeration, so it makes the same physical choice
 in a cell, its supercell, a translated and a rotated copy -- which the
 invariance requirements of the specification need.
 
-Power diagram
--------------
-:func:`assign_atoms` with ``power_radii`` assigns voxels to
-argmin_i |x - R_i|^2 - R_i^2 (radius-weighted Voronoi). Lifting every image
-to 4-D with coordinate sqrt(C - R_i^2), C = max R^2, turns that into an
-ordinary nearest-neighbour query, and the lifted distance bounds the
-Euclidean one, so the same image-range argument holds.
-
-Shells
-------
-core r <= c1, bond c1 < r <= c2, interstitial r > c2, with c1 = 0.8 and
-c2 = 1.5 Angstrom by default, or c = s * R_e with R_e the covalent radius of
-the nearest atom's element (radius-scaled mode).
+Regions (sphere rule)
+---------------------
+Around every nucleus i a core sphere of radius a R_i and an outer sphere of
+radius b R_i, with R_i the covalent radius. A voxel is core if it lies in any
+core sphere, bond if it lies in any outer sphere but in no core sphere, and
+interstitial otherwise. With s = min_i r_i / R_i: core s <= a, bond
+a < s <= b, interstitial s > b. This is the same as testing r against a R_i
+and b R_i for the atom with the smallest r_i / R_i (:func:`sphere_assignment`),
+so the masks and the per-site sums stay a lookup on one assignment. The
+default factors SPHERE_A = 0.79 and SPHERE_B = 1.14 are the 1st and 99th
+percentiles of d / (R_A + R_B) over the nearest neighbour of every atom of the
+6,059-structure dataset: the core spheres of bonded atoms almost never overlap,
+and almost no bond has interstitial voxels on its line.
 """
 
 from __future__ import annotations
 
 import itertools
 from dataclasses import dataclass
-from typing import Optional, Sequence
+from typing import Sequence
 
 import numpy as np
 from numpy.typing import NDArray
 from scipy.spatial import cKDTree
 
-from ..constants import GEOMETRY_EPS, SHELL_C1, SHELL_C2
+from ..constants import GEOMETRY_EPS, SPHERE_A, SPHERE_B
 from ..data import covalent_radius
 from ..io.base import Lattice, Structure, VolumetricData
 from .grid import cart_coords
@@ -120,10 +120,10 @@ def _rank(dk: F64, disp: F64, n_pick: int, eps: float) -> I64:
     return out
 
 
-def _nearest_images(tree: cKDTree, x: F64, pts4: F64, lattice: Lattice, n_pick: int,
+def _nearest_images(tree: cKDTree, x: F64, pts: F64, lattice: Lattice, n_pick: int,
                     chunk: int = 1 << 20) -> tuple[F64, I64]:
     """Distances and indices of the ``n_pick`` nearest images, ties broken geometrically."""
-    k0 = min(n_pick + 1, len(pts4))
+    k0 = min(n_pick + 1, len(pts))
     dist = np.empty((len(x), n_pick))
     idx = np.empty((len(x), n_pick), dtype=np.int64)
     for s in range(0, len(x), chunk):
@@ -137,43 +137,32 @@ def _nearest_images(tree: cKDTree, x: F64, pts4: F64, lattice: Lattice, n_pick: 
         dist[s:s + chunk], idx[s:s + chunk] = d[:, :n_pick], i[:, :n_pick]
         t = np.flatnonzero(tied)
         if t.size:
-            k = min(max(2 * k0, 8), len(pts4))
+            k = min(max(2 * k0, 8), len(pts))
             while True:
                 dk, ik = tree.query(x[s + t], k=k)
                 dk, ik = np.asarray(dk).reshape(-1, k), np.asarray(ik).reshape(-1, k)
-                if k >= len(pts4) or np.all(dk[:, -1] - dk[:, n_pick - 1] > GEOMETRY_EPS):
+                if k >= len(pts) or np.all(dk[:, -1] - dk[:, n_pick - 1] > GEOMETRY_EPS):
                     break
-                k = min(2 * k, len(pts4))
-            disp = (x[s + t][:, None, :3] - pts4[ik][:, :, :3]) @ lattice.inverse
+                k = min(2 * k, len(pts))
+            disp = (x[s + t][:, None, :] - pts[ik]) @ lattice.inverse
             order = _rank(dk, disp, n_pick, GEOMETRY_EPS)
             rows = np.arange(len(t))[:, None]
             dist[s + t], idx[s + t] = dk[rows, order], ik[rows, order]
     return dist, idx
 
 
-def assign_atoms(shape: Sequence[int], structure: Structure,
-                 power_radii: Optional[F64] = None) -> NearestAtom:
-    """Assign every voxel to an atom: nearest (``power_radii=None``) or power diagram.
+def nearest_atom(shape: Sequence[int], structure: Structure) -> NearestAtom:
+    """The geometry pass: nearest-nucleus distance, direction and index for every voxel.
 
-    Distance and direction are measured to the assigned atom's image; exact
+    Distance and direction are measured to the nearest atom's image; exact
     ties are resolved geometrically (module docstring).
     """
-    n = structure.n_atoms
-    if power_radii is None:
-        lift = np.zeros(n)
-    else:
-        w = np.asarray(power_radii, dtype=np.float64) ** 2
-        if w.shape != (n,):
-            raise ValueError(f"need {n} power radii, got shape {w.shape}")
-        lift = np.sqrt(w.max() - w)
     x = cart_coords(shape, structure.lattice).reshape(-1, 3)
-    x4 = np.hstack([x, np.zeros((len(x), 1))])
     reps = (1, 1, 1)
     while True:
         pts, owner, _ = image_points(structure, reps)
-        pts4 = np.hstack([pts, lift[owner][:, None]])
-        tree = cKDTree(pts4)
-        dist, idx = _nearest_images(tree, x4, pts4, structure.lattice, 1)
+        tree = cKDTree(pts)
+        dist, idx = _nearest_images(tree, x, pts, structure.lattice, 1)
         needed = reps_for(float(dist.max()), structure.lattice)
         if all(a <= b for a, b in zip(needed, reps)):
             break
@@ -187,42 +176,72 @@ def assign_atoms(shape: Sequence[int], structure: Structure,
     return NearestAtom(r.reshape(s3), u.reshape(s3 + (3,)), owner[best].reshape(s3))
 
 
-def nearest_atom(shape: Sequence[int], structure: Structure) -> NearestAtom:
-    """The geometry pass: nearest-nucleus distance, direction and index for every voxel."""
-    return assign_atoms(shape, structure, None)
+def sphere_assignment(shape: Sequence[int], structure: Structure) -> NearestAtom:
+    """Assign every voxel to the atom with the smallest r_i / R_i (R_i the covalent radius).
+
+    R_i is the same for every atom of one element, so the minimum is taken over
+    one nearest-image search per element. Ties within an element follow the
+    geometric rule of the nearest-atom pass; ties between elements (r_i / R_i
+    equal within GEOMETRY_EPS / 10) go to the element first in alphabetical
+    order. Distance and direction are measured to the assigned atom's image.
+    """
+    x = cart_coords(shape, structure.lattice).reshape(-1, 3)
+    species = [str(e) for e in structure.species]
+    best_s = np.full(len(x), np.inf)
+    best_atom = np.zeros(len(x), dtype=np.int64)
+    best_pt = np.zeros((len(x), 3))
+    for el in sorted(set(species)):
+        R = covalent_radius(el)
+        sub = np.array([k for k, e in enumerate(species) if e == el], dtype=np.int64)
+        reps = (1, 1, 1)
+        while True:
+            pts, owner, _ = image_points(structure, reps)
+            keep = np.isin(owner, sub)
+            p, o = pts[keep], owner[keep]
+            dist, idx = _nearest_images(cKDTree(p), x, p, structure.lattice, 1)
+            needed = reps_for(float(dist.max()), structure.lattice)
+            if all(a <= b for a, b in zip(needed, reps)):
+                break
+            reps = (max(needed[0], reps[0]), max(needed[1], reps[1]), max(needed[2], reps[2]))
+        s = dist[:, 0] / R
+        better = s < best_s - GEOMETRY_EPS / 10
+        best_s[better] = s[better]
+        best_atom[better] = o[idx[better, 0]]
+        best_pt[better] = p[idx[better, 0]]
+    diff = x - best_pt
+    r = np.linalg.norm(diff, axis=1)
+    safe = np.where(r > 1e-12, r, 1.0)
+    u = np.where(r[:, None] > 1e-12, diff / safe[:, None], 0.0)
+    s3 = tuple(int(m) for m in shape)
+    return NearestAtom(r.reshape(s3), u.reshape(s3 + (3,)), best_atom.reshape(s3))
 
 
 # ----------------------------------------------------------------------
-# shells
+# regions (sphere rule)
 # ----------------------------------------------------------------------
 
 @dataclass(frozen=True)
 class Shells:
-    """Radial shells about the nearest nucleus.
+    """The core, bond and interstitial regions of the sphere rule (module docstring).
 
-    Absolute mode (default): c1, c2 in Angstrom. Radius-scaled mode
-    (``scaled=True``): c1, c2 are multiples of the covalent radius of the
-    nearest atom's element.
+    ``a``, ``b``: radii of the core and the outer sphere of every atom, as
+    multiples of its covalent radius.
     """
 
-    c1: float = SHELL_C1
-    c2: float = SHELL_C2
-    scaled: bool = False
+    a: float = SPHERE_A
+    b: float = SPHERE_B
 
     def __post_init__(self) -> None:
-        if not (0.0 <= self.c1 < self.c2):
-            raise ValueError(f"need 0 <= c1 < c2, got c1={self.c1}, c2={self.c2}")
+        if not (0.0 <= self.a < self.b):
+            raise ValueError(f"need 0 <= a < b, got a={self.a}, b={self.b}")
 
     def atom_cutoffs(self, structure: Structure) -> tuple[F64, F64]:
-        """(c1_i, c2_i) per atom, Angstrom."""
-        if not self.scaled:
-            ones = np.ones(structure.n_atoms)
-            return self.c1 * ones, self.c2 * ones
+        """(a R_i, b R_i) per atom, Angstrom."""
         R = np.array([covalent_radius(s) for s in structure.species], dtype=np.float64)
-        return self.c1 * R, self.c2 * R
+        return self.a * R, self.b * R
 
-    def key(self) -> tuple[float, float, bool]:
-        return (float(self.c1), float(self.c2), bool(self.scaled))
+    def key(self) -> tuple[float, float]:
+        return (float(self.a), float(self.b))
 
 
 @dataclass(frozen=True, eq=False)
@@ -232,12 +251,15 @@ class ShellMasks:
     interstitial: BoolArray
 
 
-def shell_masks(geometry: NearestAtom, structure: Structure, shells: Shells) -> ShellMasks:
-    """Shells about the nearest nucleus; boundaries tested with GEOMETRY_EPS tolerance."""
+def shell_masks(spheres: NearestAtom, structure: Structure, shells: Shells) -> ShellMasks:
+    """The regions from the sphere-rule assignment ``spheres`` (:func:`sphere_assignment`).
+
+    Boundaries are tested with GEOMETRY_EPS tolerance.
+    """
     c1, c2 = shells.atom_cutoffs(structure)
-    r = geometry.distance
-    c1k = c1[geometry.atom_index] + GEOMETRY_EPS
-    c2k = c2[geometry.atom_index] + GEOMETRY_EPS
+    r = spheres.distance
+    c1k = c1[spheres.atom_index] + GEOMETRY_EPS
+    c2k = c2[spheres.atom_index] + GEOMETRY_EPS
     return ShellMasks(core=r <= c1k, bond=(r > c1k) & (r <= c2k), interstitial=r > c2k)
 
 
@@ -254,11 +276,20 @@ def geometry_of(vd: VolumetricData) -> NearestAtom:
     return result
 
 
+def sphere_geometry_of(vd: VolumetricData) -> NearestAtom:
+    """The sphere-rule assignment for ``vd``'s grid, cached on ``vd``."""
+    key = ("geometry", "spheres")
+    if key not in vd.cache:
+        vd.cache[key] = sphere_assignment(vd.shape, vd.structure)
+    result: NearestAtom = vd.cache[key]
+    return result
+
+
 def shells_of(vd: VolumetricData, shells: Shells) -> ShellMasks:
-    """Shell masks for ``vd`` and ``shells``, cached on ``vd``."""
+    """Region masks for ``vd`` and ``shells``, cached on ``vd``."""
     key = ("shells", shells.key())
     if key not in vd.cache:
-        vd.cache[key] = shell_masks(geometry_of(vd), vd.structure, shells)
+        vd.cache[key] = shell_masks(sphere_geometry_of(vd), vd.structure, shells)
     result: ShellMasks = vd.cache[key]
     return result
 

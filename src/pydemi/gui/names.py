@@ -14,7 +14,7 @@ NAMES: dict[str, str] = {
     "m2": "Mean squared charge distance",
     "sigma_r2": "Charge-distance variance",
     "f_core": "Core charge fraction",
-    "f_bond": "Bond-shell charge fraction",
+    "f_bond": "Bond-region charge fraction",
     "f_int": "Interstitial charge fraction",
     "lnf": "Negative-Laplacian volume fraction",
     "lnf_charge_weighted": "Negative-Laplacian charge fraction",
@@ -44,7 +44,6 @@ NAMES: dict[str, str] = {
     "T_eigenvalues_t3": "Gradient-direction eigenvalue 3",
     "charge_FA": "Gradient fractional anisotropy",
     "shannon_entropy": "Shannon entropy",
-    "fisher_information": "Fisher information",
     "disequilibrium": "Disequilibrium",
     "LMC_complexity": "LMC complexity",
 }

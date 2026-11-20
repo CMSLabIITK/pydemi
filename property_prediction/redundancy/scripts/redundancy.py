@@ -3,7 +3,7 @@
 Computed on the TRAINING split only. A descriptor is redundant when |Spearman rho| >= 0.90
 with another one: descriptors are grouped by complete linkage on 1 - |rho| (every pair in a
 group has |rho| >= 0.90) and each group keeps the member with the largest mean SHAP share
-over the 17 properties (55-descriptor LightGBM models, training split).
+over the 17 properties (54-descriptor LightGBM models, training split).
 -> redundancy/results/descriptors.csv, pairs.csv, groups.csv, sets.json
 """
 
@@ -37,7 +37,7 @@ def main() -> None:
 
     info = pd.DataFrame(index=names)
     info["domain"] = cat.loc[names, "domain"]
-    top = json.load(open(ROOT / "results/study_v1_top10/top10.json"))
+    top = json.load(open(ROOT / "results/study_v2_top10/top10.json"))
     share = pd.DataFrame({t: dict(top[t]["ranking"]) for t in PROPS}).reindex(names).fillna(0.0)
     info["shap_mean"] = share.mean(axis=1)
 
@@ -60,7 +60,7 @@ def main() -> None:
     info["redundant"] = [f not in keep for f in names]
     pd.DataFrame(groups).to_csv(OUT / "groups.csv", index=False)
 
-    sets = {"all55": names, "no_redundant": [f for f in names if not info.at[f, "redundant"]]}
+    sets = {"all": names, "no_redundant": [f for f in names if not info.at[f, "redundant"]]}
     json.dump(sets, open(OUT / "sets.json", "w"), indent=1)
     info.round(4).to_csv(OUT / "descriptors.csv", index_label="descriptor")
 

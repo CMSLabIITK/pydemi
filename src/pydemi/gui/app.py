@@ -36,7 +36,6 @@ MAX_JOBS = int(os.environ.get("PYDEMI_MAX_JOBS", "2"))
 N_DESCRIPTORS = len(pydemi.descriptor_names())
 PARTITION_HELP = {
     "nearest": "Each voxel belongs to its nearest atom. Fast; the default.",
-    "power": "Nearest atom after subtracting the covalent radius squared (radical Voronoi).",
     "becke": "Smooth Becke weights between neighbouring atoms. Much slower on large grids.",
 }
 # seconds per voxel, measured on this machine (FeNi3, Al2Te5, SnBi2Te4; descriptors + plot data)

@@ -72,18 +72,22 @@ def test_cli_commands(tmp_path):
     assert main(["batch", str(tmp_path), "--glob", "*/CHGCAR", "--out", str(tmp_path / "b.csv"),
                  "--workers", "1", "--domains", "bonding", "--quiet"]) == 0
     assert (tmp_path / "b.csv").read_text().count("\n") == 3          # header + 2 rows
-    assert main(["sweep", good, "--param", "c2", "--range", "1.2:1.6:0.2",
+    assert main(["sweep", good, "--param", "b", "--range", "1.0:1.4:0.2",
                  "--out", str(tmp_path / "s.csv"), "--domains", "bonding"]) == 0
     assert (tmp_path / "s.csv").read_text().count("\n") == 4
+    assert main(["featurize", good, "--out", str(tmp_path / "g.json"), "--domains", "bonding",
+                 "--shells", "0.7,1.2"]) == 0
+    meta = json.loads((tmp_path / "g.json").read_text())["metadata"]
+    assert meta["shells"] == "spheres(0.7,1.2)"
 
 
 # ---------------------------------------------------------------- sweep and convergence
 
 def test_sensitivity_sweep():
-    df = sensitivity_sweep(_vd(), c1_range=[0.6, 0.8, 1.6], c2_range=[1.2, 1.5],
+    df = sensitivity_sweep(_vd(), a_range=[0.6, 0.79, 1.3], b_range=[1.0, 1.14],
                            domains=["bonding"])
-    assert len(df) == 4                                        # (1.6, *) skipped: c1 >= c2
-    assert {"c1", "c2", "f_core", "f_bond", "f_int"} <= set(df.columns)
+    assert len(df) == 4                                        # (1.3, *) skipped: a >= b
+    assert {"a", "b", "f_core", "f_bond", "f_int"} <= set(df.columns)
     np.testing.assert_allclose(df["f_core"] + df["f_bond"] + df["f_int"], 1.0)
 
 
@@ -121,11 +125,8 @@ def test_float32_agrees_with_float64():
 # ---------------------------------------------------------------- sentinels across domains
 
 def test_uniform_density_no_bare_nan_in_any_domain():
-    """Every degenerate case gives a documented constant, never a bare NaN; the only
-    NaN allowed is a within-element variance, which comes with its flag and the site counts."""
+    """Every degenerate case gives a documented constant, never a NaN."""
     feats, meta = pydemi.featurize(uniform(Structure(LAT, ["Fe", "O"], [[0, 0, 0], [0.5, 0.5, 0.5]]),
                                            (12, 12, 12)), return_metadata=True)
     for k, v in feats.items():
-        if math.isnan(v):
-            assert k.endswith("within_element_var"), k
-            assert meta[f"{k}__flag"] == 1
+        assert not math.isnan(v), k

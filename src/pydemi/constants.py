@@ -39,13 +39,17 @@ COULOMB_EV_ANGSTROM: float = HARTREE_EV * BOHR_ANGSTROM
 S_PREFACTOR: float = 2.0 * (3.0 * math.pi ** 2) ** (1.0 / 3.0)
 
 # ----------------------------------------------------------------------
-# shells
+# regions
 # ----------------------------------------------------------------------
 
-#: core: r <= c1 (Angstrom)
-SHELL_C1: float = 0.8
-#: bond: c1 < r <= c2; interstitial: r > c2 (Angstrom)
-SHELL_C2: float = 1.5
+#: regions (sphere rule): around every nucleus i a core sphere of radius
+#: SPHERE_A R_i and an outer sphere of radius SPHERE_B R_i (R_i the covalent
+#: radius). Core: inside any core sphere; bond: inside an outer sphere but in no
+#: core sphere; interstitial: outside every outer sphere. The factors are the
+#: 1st / 99th percentiles of d / (R_A + R_B) over the nearest neighbour of every
+#: atom of the 6,059-structure dataset
+SPHERE_A: float = 0.79
+SPHERE_B: float = 1.14
 
 # ----------------------------------------------------------------------
 # derivatives
@@ -62,8 +66,8 @@ HESSIAN_CHUNK: int = 1 << 18
 # low-density guards
 # ----------------------------------------------------------------------
 
-#: reduced gradient s / information measures: voxels with rho below this
-#: (e/bohr^3) are treated as empty (s = inf there, so never NCI)
+#: reduced gradient s: voxels with rho below this (e/bohr^3) are treated as
+#: empty (s = inf there, so never NCI)
 RHO_FLOOR_AU: float = 1e-8
 
 # ----------------------------------------------------------------------
@@ -73,8 +77,6 @@ RHO_FLOOR_AU: float = 1e-8
 #: NCI region: s < NCI_S_MAX and rho < NCI_RHO_MAX_AU (e/bohr^3)
 NCI_S_MAX: float = 0.5
 NCI_RHO_MAX_AU: float = 0.05
-#: a local maximum is non-nuclear when farther than this from every nucleus (Angstrom)
-NNM_R_CUT: float = 0.8
 #: bond census: j is a first-shell neighbour of i when |R_ij| <= (1 + BOND_TOL) d_i
 BOND_TOL: float = 0.1
 

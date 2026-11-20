@@ -16,9 +16,10 @@ import numpy as np
 import plotly.graph_objects as go
 
 import pydemi
-from pydemi.constants import (ANGSTROM_BOHR, BOND_TOL, DENSITY_TO_AU, GEOMETRY_EPS, GRADIENT_TO_AU,
-                              NCI_RHO_MAX_AU, NCI_S_MAX, RHO_FLOOR_AU)
-from pydemi.core.geometry import bond_census_of
+from pydemi.constants import (ANGSTROM_BOHR, BOND_TOL, DENSITY_TO_AU, GEOMETRY_EPS, NCI_RHO_MAX_AU,
+                              NCI_S_MAX)
+from pydemi.core.geometry import bond_census_of, sphere_geometry_of
+from pydemi.data import covalent_radius
 from pydemi.descriptors import bonding as B
 from pydemi.descriptors import heterogeneity as H
 from pydemi.descriptors import structural as S
@@ -29,7 +30,8 @@ from pydemi.io.base import VolumetricData
 from pydemi.operators.anisotropy import anisotropy_tensor
 from pydemi.operators.sitestats import site_charge
 
-RADIAL_BIN = 0.05     # Angstrom; the default shell radii 0.8 and 1.5 fall on bin edges
+RADIAL_BIN = 0.05     # Angstrom
+RATIO_BIN = 0.025     # bins of s = min_i r_i / R_i (sphere rule)
 UNIT_BINS = 50        # bins on [0, 1] for cosines and ellipticities
 VALUE_BINS = 120      # bins for density and potential histograms
 MAX_POINTS = 3000     # extrema drawn in the 3D views (a random subset beyond that)
@@ -86,9 +88,9 @@ def plot_data(vd: VolumetricData, partition: str = "nearest") -> Data:
     sh = masks(v)
     rng = np.random.default_rng(0)
     out: Data = {"species": list(st.species), "labels": site_labels(list(st.species)),
-                 "c1": o.shells.c1, "c2": o.shells.c2, "scaled_shells": o.shells.scaled}
+                 "a": o.shells.a, "b": o.shells.b}
 
-    # radial profiles about the nearest nucleus; bin k is (k w, (k+1) w], like the shell masks
+    # radial profiles about the nearest nucleus; bin k is (k w, (k+1) w]
     k = np.clip(np.ceil((r - GEOMETRY_EPS) / RADIAL_BIN).astype(np.int64) - 1, 0, None).ravel()
     nb = int(k.max()) + 1
 
@@ -110,6 +112,16 @@ def plot_data(vd: VolumetricData, partition: str = "nearest") -> Data:
     del alap
     out["r2"] = _hist(r.ravel() ** 2, 100, (0.0, float(r.max()) ** 2), rho.ravel())
 
+    # charge over s = min_i r_i / R_i, split exactly by the region masks
+    sph = sphere_geometry_of(v)
+    R = np.array([covalent_radius(e) for e in st.species], dtype=np.float64)
+    s_ratio = (sph.distance / R[sph.atom_index]).ravel()
+    ks = np.floor(s_ratio / RATIO_BIN).astype(np.int64)
+    ns = int(ks.max()) + 1
+    out["regions"] = {"edges": RATIO_BIN * np.arange(ns + 1), **{
+        name: np.bincount(ks, weights=np.where(m, rho, 0.0).ravel(), minlength=ns) * dV
+        for name, m in (("core", sh.core), ("bond", sh.bond), ("int", sh.interstitial))}}
+
     # gradient direction: |cos| to the radial direction (zeta) and to T's axes (t1..t3)
     der = field_derivatives(v, "rho")
     g = der.gradient.reshape(-1, 3)
@@ -127,7 +139,7 @@ def plot_data(vd: VolumetricData, partition: str = "nearest") -> Data:
     else:
         out["tensor"] = None
 
-    # Hessian: bounded ellipticity in the bond shell, and the NCI map
+    # Hessian: bounded ellipticity in the bond region, and the NCI map
     ev = der.hessian_eigenvalues
     lam2 = ev[..., 1]
     sel = sh.bond & (lam2 < 0)
@@ -168,16 +180,15 @@ def plot_data(vd: VolumetricData, partition: str = "nearest") -> Data:
     out["atoms"] = (np.mod(st.frac_coords, 1.0)) @ v.lattice.matrix
     out["maxima"] = _points(c["maxima"], v, rng)
     out["minima"] = _points(c["lower26"] == 0, v, rng)
-    r_cut = o.nnm_r_cut
     maxima = np.flatnonzero(c["maxima"])
-    nnm, _ = S._nnm(v, np.full(st.n_atoms, r_cut))
+    nnm, _ = S._nnm(v)
     basin = v.cache[("basins",)].ravel()
     in_nnm = np.isin(basin, nnm)
     uniq, inv = np.unique(basin[in_nnm], return_inverse=True)
     q = np.bincount(inv, weights=rho.ravel()[in_nnm], minlength=uniq.size) / float(rho.sum())
-    out["nnm"] = {"r_cut": r_cut, "max_distance": geo.distance.ravel()[maxima],
-                  "q": q, "distance": geo.distance.ravel()[uniq],
-                  "atom": [st.species[i] for i in geo.atom_index.ravel()[uniq]]}
+    out["nnm"] = {"a": o.shells.a, "max_ratio": s_ratio[maxima], "core": sh.core.ravel()[maxima],
+                  "q": q, "ratio": s_ratio[uniq],
+                  "atom": [st.species[i] for i in sph.atom_index.ravel()[uniq]]}
 
     # density values
     lo, hi = float(rho.min()), float(rho.max())
@@ -195,11 +206,7 @@ def plot_data(vd: VolumetricData, partition: str = "nearest") -> Data:
         p = pa / N
         pos = p > 0
         lnr = np.log(p[pos] * st.volume * ANGSTROM_BOHR ** 3)      # ln(rho / mean rho)
-        valid = pa > RHO_FLOOR_AU
-        contrib = np.zeros_like(p)
-        contrib[valid] = (gn.reshape(p.shape)[valid] * GRADIENT_TO_AU / N) ** 2 / p[valid] * dVb
-        out["info"] = {"ln_ratio": _hist(lnr, 100, (float(lnr.min()), float(lnr.max())), p[pos] * dVb),
-                       "fisher_radial": rbin(contrib)}
+        out["info"] = {"ln_ratio": _hist(lnr, 100, (float(lnr.min()), float(lnr.max())), p[pos] * dVb)}
     else:
         out["info"] = None
 
@@ -240,7 +247,7 @@ def _layout(fig: go.Figure, name: str, value: float, x: str, y: str, **kw: Any) 
     unit = UNIT_TEXT.get(unit, unit)
     fig.update_layout(title=f"{label(name)} = {_fmt(value)}{' ' + unit if unit else ''}",
                       xaxis_title=x, yaxis_title=y, bargap=kw.pop("bargap", 0), height=430, margin=dict(l=60, r=20, t=60, b=50),
-                      legend=dict(orientation="h", yanchor="bottom", y=1.0, x=1, xanchor="right"),
+                      legend=kw.pop("legend", dict(orientation="h", yanchor="bottom", y=1.0, x=1, xanchor="right")),
                       **kw)
     return fig
 
@@ -281,33 +288,33 @@ def _weighted_fraction(h: Data) -> np.ndarray:
 
 # --- bonding: radial distribution about the nearest nucleus -----------
 
-def _shell_colors(edges: np.ndarray, d: Data, highlight: Optional[str] = None) -> list[str]:
-    hi = edges[1:]
-    out = []
-    for e in hi:
-        shell = "core" if e <= d["c1"] + 1e-9 else "bond" if e <= d["c2"] + 1e-9 else "int"
-        color = {"core": CORE, "bond": BOND, "int": INT}[shell]
-        out.append(color if highlight in (None, shell) else MUTED)
-    return out
-
-
-def _radial_charge(d: Data, name: str, value: float, highlight: Optional[str] = None,
-                   shells: bool = True) -> go.Figure:
+def _radial_charge(d: Data, name: str, value: float) -> go.Figure:
     rad = d["radial"]
     e = rad["edges"]
-    colors = _shell_colors(e, d, highlight) if shells else CORE
     fig = go.Figure(go.Bar(x=_centers(e), y=rad["charge"] / RADIAL_BIN, width=np.diff(e),
-                           marker_color=colors, marker_line_width=0, showlegend=False,
+                           marker_color=CORE, marker_line_width=0, showlegend=False,
                            hovertemplate="r = %{x:.3f} Å<br>dQ/dr = %{y:.4g} e/Å<extra></extra>"))
-    if shells and not d["scaled_shells"]:
-        for c, t in ((d["c1"], "c1"), (d["c2"], "c2")):
-            fig.add_vline(x=c, line_dash="dot", line_color="gray", annotation_text=t,
-                          annotation_position="top")
     return _layout(fig, name, value, "distance to the nearest nucleus r (Å)", "dQ/dr (e/Å)")
 
 
+def _region_charge(d: Data, name: str, value: float, highlight: str) -> go.Figure:
+    reg = d["regions"]
+    e = reg["edges"]
+    fig = go.Figure([go.Bar(x=_centers(e), y=reg[w] / RATIO_BIN, width=np.diff(e), name=text,
+                            marker_color=color if w == highlight else MUTED, marker_line_width=0,
+                            hovertemplate="s = %{x:.3f}<br>dQ/ds = %{y:.4g} e<extra></extra>")
+                     for w, text, color in (("core", "core", CORE), ("bond", "bond", BOND),
+                                            ("int", "interstitial", INT))])
+    fig.update_layout(barmode="stack")
+    for c, t in ((d["a"], "a"), (d["b"], "b")):
+        fig.add_vline(x=c, line_dash="dot", line_color="gray", annotation_text=t,
+                      annotation_position="top")
+    return _layout(fig, name, value, "s = min over atoms of r / R (covalent radius R)", "dQ/ds (e)",
+                   legend=dict(x=0.01, xanchor="left", y=0.98, yanchor="top"))  # clear of a, b
+
+
 def fig_m1(d: Data, name: str, f: dict[str, float]) -> tuple[go.Figure, str]:
-    fig = _radial_charge(d, name, f[name], shells=False)
+    fig = _radial_charge(d, name, f[name])
     _vline(fig, f["m1"], f"m1 = {_fmt(f['m1'])} Å")
     return fig, ("Charge per unit distance from the nearest nucleus. m1 is the charge-weighted "
                  "mean distance: how far the electrons sit from their atom on average.")
@@ -324,7 +331,7 @@ def fig_m2(d: Data, name: str, f: dict[str, float]) -> tuple[go.Figure, str]:
 
 
 def fig_sigma_r2(d: Data, name: str, f: dict[str, float]) -> tuple[go.Figure, str]:
-    fig = _radial_charge(d, name, f[name], shells=False)
+    fig = _radial_charge(d, name, f[name])
     sd = float(np.sqrt(max(f["sigma_r2"], 0.0)))
     fig.add_vrect(x0=f["m1"] - sd, x1=f["m1"] + sd, fillcolor=ACCENT, opacity=0.15, line_width=0,
                   annotation_text=f"m1 ± σ (σ = {_fmt(sd)} Å)", annotation_position="top left")
@@ -334,15 +341,15 @@ def fig_sigma_r2(d: Data, name: str, f: dict[str, float]) -> tuple[go.Figure, st
 
 
 def _fig_shell(which: str) -> Callable[[Data, str, dict[str, float]], tuple[go.Figure, str]]:
-    text = {"core": "r ≤ c1", "bond": "c1 < r ≤ c2", "int": "r > c2"}[which]
+    text = {"core": "s ≤ a", "bond": "a < s ≤ b", "int": "s > b"}[which]
 
     def fn(d: Data, name: str, f: dict[str, float]) -> tuple[go.Figure, str]:
-        fig = _radial_charge(d, name, f[name], highlight=which)
-        cap = (f"Charge per unit distance from the nearest nucleus, coloured by shell "
-               f"(core blue, bond orange, interstitial green). f_{which} is the coloured "
-               f"area ({text}) over the total: {100 * f[name]:.1f}% of the charge.")
-        if d["scaled_shells"]:
-            cap += " Shells are scaled per element, so their edges are not drawn."
+        fig = _region_charge(d, name, f[name], which)
+        cap = (f"Charge against s, the distance to the nearest nucleus in units of that "
+               f"atom's covalent radius (the smallest r / R over the atoms). Core: inside a "
+               f"core sphere (s ≤ a); bond: inside an outer sphere only; interstitial: outside "
+               f"every outer sphere (s > b). f_{which} is the coloured area ({text}) over the "
+               f"total: {100 * f[name]:.1f}% of the charge.")
         return fig, cap
     return fn
 
@@ -352,26 +359,23 @@ def _fig_lap(kind: str) -> Callable[[Data, str, dict[str, float]], tuple[go.Figu
         rad = d["radial"]
         e = rad["edges"]
         if kind == "volume":
-            neg, pos, y = rad["vol_neg"], rad["volume"] - rad["vol_neg"], "volume per shell (Å³)"
+            neg, pos, y = rad["vol_neg"], rad["volume"] - rad["vol_neg"], "volume per bin (Å³)"
             cap = ("Grid volume at each distance from the nearest nucleus, split by the sign of "
                    "∇²ρ. lnf is the blue (∇²ρ < 0, charge concentration) share of the total volume.")
         elif kind == "charge":
-            neg, pos, y = rad["charge_neg"], rad["charge"] - rad["charge_neg"], "charge per shell (e)"
+            neg, pos, y = rad["charge_neg"], rad["charge"] - rad["charge_neg"], "charge per bin (e)"
             cap = ("Charge at each distance from the nearest nucleus, split by the sign of ∇²ρ. "
                    "lnf_charge_weighted is the blue (∇²ρ < 0) share of the total charge.")
         else:
-            neg, pos, y = rad["lap_neg"], rad["lap_pos"], "∫|∇²ρ| dV per shell (e/Å²)"
+            neg, pos, y = rad["lap_neg"], rad["lap_pos"], "∫|∇²ρ| dV per bin (e/Å²)"
             cap = ("|∇²ρ| at each distance from the nearest nucleus, for ∇²ρ < 0 (blue) and "
-                   "∇²ρ > 0 (red). lap_concentration_valence is the blue share beyond c1 (the "
-                   "grey core region is excluded). Over the whole cell the two totals are equal "
+                   "∇²ρ > 0 (red). lap_concentration_valence is the blue share outside "
+                   "the core spheres. Over the whole cell the two totals are equal "
                    "on a periodic grid, so only the valence share is informative.")
         fig = go.Figure([_bar(e, neg, "∇²ρ < 0", NEG), _bar(e, pos, "∇²ρ ≥ 0", POS)])
         fig.update_layout(barmode="stack" if kind in ("volume", "charge") else "overlay")
         if kind not in ("volume", "charge"):
             fig.update_traces(opacity=0.65)
-        if kind == "valence" and not d["scaled_shells"]:
-            fig.add_vrect(x0=0, x1=d["c1"], fillcolor="gray", opacity=0.2, line_width=0,
-                          annotation_text="core: excluded", annotation_position="top left")
         return _layout(fig, name, f[name], "distance to the nearest nucleus r (Å)", y), cap
     return fn
 
@@ -390,11 +394,11 @@ def fig_zeta(d: Data, name: str, f: dict[str, float]) -> tuple[go.Figure, str]:
 def fig_ellip(d: Data, name: str, f: dict[str, float]) -> tuple[go.Figure, str]:
     h = d["ellip"]
     if h is None:
-        return _empty(name, f[name], "no bond-shell voxel with λ2 < 0"), "Fallback value."
-    fig = go.Figure(_bar(h["edges"], _weighted_fraction(h), "bond-shell voxels", BOND, showlegend=False))
+        return _empty(name, f[name], "no bond-region voxel with λ2 < 0"), "Fallback value."
+    fig = go.Figure(_bar(h["edges"], _weighted_fraction(h), "bond-region voxels", BOND, showlegend=False))
     _vline(fig, f[name], f"mean = {_fmt(f[name])}")
     return (_layout(fig, name, f[name], "1 − λ2/λ1  (0 cylindrical, → 1 flat)", "voxel fraction"),
-            "Bounded ellipticity of every bond-shell voxel where the density curves down in two "
+            "Bounded ellipticity of every bond-region voxel where the density curves down in two "
             "directions (λ2 < 0). 0: the bond is cylindrical (σ-like); towards 1: flattened "
             "(π-like or planar).")
 
@@ -479,7 +483,7 @@ def fig_v_spread(d: Data, name: str, f: dict[str, float]) -> tuple[go.Figure, st
 def fig_v_int_min(d: Data, name: str, f: dict[str, float]) -> tuple[go.Figure, str]:
     p = d["potential"]
     fig = go.Figure([_bar(p["all"]["edges"], p["all"]["counts"], "all voxels", MUTED),
-                     _bar(p["int"]["edges"], p["int"]["counts"], "interstitial (r > c2)", INT)])
+                     _bar(p["int"]["edges"], p["int"]["counts"], "interstitial", INT)])
     fig.update_layout(barmode="overlay")
     fig.update_yaxes(type="log")
     _vline(fig, f[name], f"min = {_fmt(f[name])} eV")
@@ -596,38 +600,38 @@ def _fig_extrema(which: str) -> Callable[[Data, str, dict[str, float]], tuple[go
 
 def fig_n_nnm(d: Data, name: str, f: dict[str, float]) -> tuple[go.Figure, str]:
     n = d["nnm"]
-    dist = n["max_distance"]
-    top = max(float(dist.max()) if dist.size else 1.0, n["r_cut"]) + RADIAL_BIN
-    e = np.arange(0, top + RADIAL_BIN, RADIAL_BIN)
-    c, _ = np.histogram(dist, bins=e)
-    far = _centers(e) > n["r_cut"]
-    fig = go.Figure([_bar(e, np.where(far, 0, c), "at a nucleus", MUTED),
-                     _bar(e, np.where(far, c, 0), "non-nuclear", ACCENT)])
+    s = n["max_ratio"]
+    top = max(float(s.max()) if s.size else 1.0, n["a"]) + 5 * RATIO_BIN
+    e = np.arange(0, top + 5 * RATIO_BIN, 5 * RATIO_BIN)
+    c_in, _ = np.histogram(s[n["core"]], bins=e)
+    c_out, _ = np.histogram(s[~n["core"]], bins=e)
+    fig = go.Figure([_bar(e, c_in, "at a nucleus", MUTED), _bar(e, c_out, "non-nuclear", ACCENT)])
     fig.update_layout(barmode="stack")
-    _vline(fig, n["r_cut"], f"r_cut = {n['r_cut']} Å", color="gray", dash="dot")
-    return (_layout(fig, name, f[name], "distance of the maximum from the nearest nucleus (Å)",
+    _vline(fig, n["a"], f"a = {n['a']}", color="gray", dash="dot")
+    return (_layout(fig, name, f[name], "s of the maximum (smallest r / R over the atoms)",
                     "local maxima"),
-            f"Every density maximum by its distance from the nearest nucleus. Those beyond "
-            f"r_cut are non-nuclear maxima (red; {int((dist > n['r_cut']).sum())} here); n_NNM "
-            f"is their count per Å³. In a PAW pseudo-density the peak around a heavy nucleus can "
-            f"sit on a shell just outside r_cut instead of at the nucleus, and then counts as "
-            f"non-nuclear.")
+            f"Every density maximum by s, its distance to the nearest nucleus in units of that "
+            f"atom's covalent radius. Those outside every core sphere (s > a) are non-nuclear "
+            f"maxima (red; {int((~n['core']).sum())} here); n_NNM is their count per Å³. In a "
+            f"PAW pseudo-density the peak around a heavy nucleus can sit on a shell just "
+            f"outside the core sphere instead of at the nucleus, and then counts as non-nuclear.")
 
 
 def fig_q_nnm(d: Data, name: str, f: dict[str, float]) -> tuple[go.Figure, str]:
     n = d["nnm"]
     if n["q"].size == 0:
         return _empty(name, f[name], "no non-nuclear maxima: Q_NNM = 0"), (
-            "No density maximum lies farther than r_cut from a nucleus.")
+            "No density maximum lies outside the core spheres.")
     order = np.argsort(n["q"])[::-1][:40]
-    lab = [f"#{i + 1} near {n['atom'][k]} ({n['distance'][k]:.2f} Å)" for i, k in enumerate(order)]
+    lab = [f"#{i + 1} near {n['atom'][k]} (s = {n['ratio'][k]:.2f})" for i, k in enumerate(order)]
     fig = go.Figure(go.Bar(x=lab, y=100 * n["q"][order], marker_color=ACCENT))
     return (_layout(fig, name, f[name], "non-nuclear maximum", "basin charge (% of total)",
                     bargap=0.2),
             "Charge of the steepest-ascent basin of each non-nuclear maximum (largest first). "
             "Q_NNM is their sum over the total charge: electrons held between atoms, as in "
-            "electrides or some metals. Check the n_NNM plot: maxima just beyond r_cut are "
-            "usually pseudo-density shells around heavy atoms, not interstitial electrons.")
+            "electrides or some metals. Check the n_NNM plot: maxima just outside the core "
+            "spheres are usually pseudo-density shells around heavy atoms, not interstitial "
+            "electrons.")
 
 
 def fig_rho_min(d: Data, name: str, f: dict[str, float]) -> tuple[go.Figure, str]:
@@ -657,12 +661,12 @@ def fig_rho_min_ratio(d: Data, name: str, f: dict[str, float]) -> tuple[go.Figur
 def fig_rho_int_mean(d: Data, name: str, f: dict[str, float]) -> tuple[go.Figure, str]:
     a, i = d["rho"]["all"], d["rho"]["int"]
     fig = go.Figure([_bar(a["edges"], a["counts"], "all voxels", MUTED),
-                     _bar(i["edges"], i["counts"], "interstitial (r > c2)", INT)])
+                     _bar(i["edges"], i["counts"], "interstitial", INT)])
     fig.update_layout(barmode="overlay")
     fig.update_yaxes(type="log")
     _vline(fig, f[name], f"interstitial mean = {_fmt(f[name])}")
     return (_layout(fig, name, f[name], "ρ (e/Å³)", "voxels"),
-            "Density distribution, interstitial voxels (farther than c2 from every nucleus) in "
+            "Density distribution, interstitial voxels (outside every outer sphere) in "
             "green. rho_int_mean is their mean: the electron gas between atoms.")
 
 
@@ -742,18 +746,6 @@ def fig_disequilibrium(d: Data, name: str, f: dict[str, float]) -> tuple[go.Figu
             "the disequilibrium D: 1 for a uniform density, larger the more concentrated it is.")
 
 
-def fig_fisher(d: Data, name: str, f: dict[str, float]) -> tuple[go.Figure, str]:
-    i = d["info"]
-    if i is None:
-        return _empty(name, f[name], "no positive density"), "Fallback value."
-    e = d["radial"]["edges"]
-    fig = go.Figure(_bar(e, i["fisher_radial"], "contribution", INT, showlegend=False))
-    return (_layout(fig, name, f[name], "distance to the nearest nucleus r (Å)",
-                    "contribution to I (1/bohr²)"),
-            "Where the Fisher information ∫|∇ρ̃|²/ρ̃ dV comes from. The bars add up to "
-            "fisher_information; it is dominated by the steep density close to the nuclei.")
-
-
 def fig_lmc(d: Data, name: str, f: dict[str, float]) -> tuple[go.Figure, str]:
     vals = [f["disequilibrium"], float(np.exp(f["shannon_entropy"])), f["LMC_complexity"]]
     fig = go.Figure(go.Bar(x=["D", "exp(S)", "C = D·exp(S)"], y=vals,
@@ -769,7 +761,7 @@ def fig_lmc(d: Data, name: str, f: dict[str, float]) -> tuple[go.Figure, str]:
 # --- heterogeneity ---------------------------------------------------
 
 BASE_TEXT = {"m1": ("m1 (Å)", "mean distance of each atom's charge from its nucleus"),
-             "f_bond": ("f_bond", "share of each atom's charge in its bond shell"),
+             "f_bond": ("f_bond", "share of each atom's charge in its bond region"),
              "zeta": ("ζ", "gradient anisotropy of each atom's region")}
 
 
@@ -842,7 +834,7 @@ FIGURES: dict[str, Callable[[Data, str, dict[str, float]], tuple[go.Figure, str]
     "rho_min": fig_rho_min, "rho_min_ratio": fig_rho_min_ratio, "rho_int_mean": fig_rho_int_mean,
     "T_eigenvalues_t1": _fig_t(0), "T_eigenvalues_t2": _fig_t(1), "T_eigenvalues_t3": _fig_t(2),
     "charge_FA": fig_charge_fa, "shannon_entropy": fig_shannon,
-    "fisher_information": fig_fisher, "disequilibrium": fig_disequilibrium,
+    "disequilibrium": fig_disequilibrium,
     "LMC_complexity": fig_lmc,
     **{f"{b}_{s}": _fig_site(b, s) for b in BASE_TEXT
        for s in ("site_std", "site_range", "site_max", "site_min", "within_element_var",

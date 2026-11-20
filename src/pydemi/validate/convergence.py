@@ -10,8 +10,8 @@ Grid-convergence harness and shell-cutoff sensitivity.
   grid spacing, from which :func:`recommended_spacing` reads the coarsest
   spacing that meets a tolerance: the recommended minimum mesh comes out of
   the analytic tests rather than a guess.
-* :func:`sensitivity_sweep` -- recompute every shell-dependent descriptor
-  over a grid of cutoffs (c1, c2) and return a DataFrame, for the cutoff
+* :func:`sensitivity_sweep` -- recompute every region-dependent descriptor
+  over a grid of sphere factors (a, b) and return a DataFrame, for the
   sensitivity curves.
 """
 
@@ -80,27 +80,26 @@ def recommended_spacing(table: Any, tol: float = 0.01) -> float:
     return float(ok["spacing"].max()) if len(ok) else float("nan")
 
 
-def sensitivity_sweep(vd: VolumetricData, c1_range: Optional[Iterable[float]] = None,
-                      c2_range: Optional[Iterable[float]] = None, scaled: bool = False,
-                      **featurize_kwargs: Any) -> Any:
-    """Every shell-dependent descriptor over a grid of cutoffs (c1, c2).
+def sensitivity_sweep(vd: VolumetricData, a_range: Optional[Iterable[float]] = None,
+                      b_range: Optional[Iterable[float]] = None, **featurize_kwargs: Any) -> Any:
+    """Every region-dependent descriptor over a grid of sphere factors (a, b).
 
-    Returns a DataFrame with columns c1, c2 and one per descriptor whose
-    registry entry requires ``shells``; pairs with c1 >= c2 are skipped.
+    Returns a DataFrame with columns a, b and one per descriptor whose
+    registry entry requires ``shells``; pairs with a >= b are skipped.
     """
     import pandas as pd
 
-    from ..constants import SHELL_C1, SHELL_C2
+    from ..constants import SPHERE_A, SPHERE_B
     from ..descriptors import featurize
     from ..descriptors.registry import REGISTRY
     names = [n for n, s in REGISTRY.items() if "shells" in s.requires]
-    c1s = list(c1_range) if c1_range is not None else [SHELL_C1]
-    c2s = list(c2_range) if c2_range is not None else [SHELL_C2]
+    a_s = list(a_range) if a_range is not None else [SPHERE_A]
+    b_s = list(b_range) if b_range is not None else [SPHERE_B]
     rows = []
-    for c1 in c1s:
-        for c2 in c2s:
-            if c1 >= c2:
+    for a in a_s:
+        for b in b_s:
+            if a >= b:
                 continue
-            f = featurize(vd, shells=Shells(float(c1), float(c2), scaled), **featurize_kwargs)
-            rows.append({"c1": float(c1), "c2": float(c2), **{n: f[n] for n in names if n in f}})
+            f = featurize(vd, shells=Shells(float(a), float(b)), **featurize_kwargs)
+            rows.append({"a": float(a), "b": float(b), **{n: f[n] for n in names if n in f}})
     return pd.DataFrame(rows)

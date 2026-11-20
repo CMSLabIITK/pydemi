@@ -23,7 +23,7 @@ identifiers:
     description: "pydemi 0.3.0"
 repository-code: "https://github.com/CMSLabIITK/pydemi"
 abstract: >-
-  pydemi turns the charge density in a VASP CHGCAR into 55 named,
+  pydemi turns the charge density in a VASP CHGCAR into 54 named,
   physically interpretable descriptors in three domains (bonding, structural
   and site heterogeneity), each registered with its formula, units, range and
   fallback values. A graphical interface (pydemi gui) shows the structure,

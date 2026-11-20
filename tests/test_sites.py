@@ -6,6 +6,7 @@ import pytest
 import pydemi
 from pydemi.core.partition import partition_of
 from pydemi.descriptors.heterogeneity import density_site_sums
+from pydemi.core.geometry import Shells, geometry_of, shells_of
 from pydemi.descriptors.registry import FeatureOptions
 from pydemi.io.base import Lattice, Structure
 from pydemi.operators.sitestats import (site_charge, site_m1, site_statistics,
@@ -61,21 +62,23 @@ def test_heterogeneity_names_and_values():
 
 
 def test_heterogeneity_sentinels():
-    # one site per element: within-element variance NaN (with site counts); single element: between 0
+    # one site per element: within-element variance 0, as in a supercell (flagged, with site
+    # counts); single element: between 0
     f, meta = pydemi.featurize(_vd(species=("Fe", "Ni", "O", "S")), domains=["heterogeneity"],
                                return_metadata=True)
-    assert np.isnan(f["m1_within_element_var"]) and meta["m1_within_element_var__flag"] == 1
+    assert f["m1_within_element_var"] == 0.0 and meta["m1_within_element_var__flag"] == 1
     assert meta["site_counts"] == "Fe:1,Ni:1,O:1,S:1" and meta["max_sites_per_element"] == 1
     f, meta = pydemi.featurize(_vd(species=("Fe",) * 4), domains=["heterogeneity"],
                                return_metadata=True)
     assert f["m1_between_element_var"] == 0.0 and meta["m1_between_element_var__flag"] == 1
 
 
-def test_power_partition_is_a_different_tiling():
-    vd = _vd()
-    near = pydemi.featurize(vd, domains=["heterogeneity"])
-    power = pydemi.featurize(vd, domains=["heterogeneity"], partition="power")
-    assert near["m1_site_std"] != pytest.approx(power["m1_site_std"])
-    p = partition_of(vd.with_options(FeatureOptions(partition="power")), "power")
-    q = p.site_sum(vd.rho.data) * vd.rho.dV
-    assert q.sum() == pytest.approx(vd.rho.data.sum() * vd.rho.dV, rel=1e-12)
+def test_site_bond_regions_add_up_to_the_cell():
+    """The per-site bond regions tile the cell's bond region; m1 keeps the nearest-atom cells."""
+    vd = _vd(species=("Fe", "Fe", "O", "O")).with_options(FeatureOptions())
+    bond = shells_of(vd, Shells()).bond
+    sums = density_site_sums(vd, shell_cells=True)
+    assert sums.bond.sum() == pytest.approx(vd.rho.data[bond].sum(), rel=1e-12)
+    near = partition_of(vd, "nearest").site_sum(vd.rho.data * geometry_of(vd).distance)
+    np.testing.assert_allclose(site_m1(density_site_sums(vd)),
+                               near / partition_of(vd, "nearest").site_sum(vd.rho.data), rtol=1e-12)

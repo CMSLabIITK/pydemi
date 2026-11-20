@@ -10,7 +10,7 @@ dropped, which roughly halves the size; the script checks that the trimmed model
 identical predictions. The bundle is xz-compressed and copied into the package, where
 pydemi.props and the GUI read it.
 
-    python scripts/build_bundle.py    # writes results/study_v1/properties_v2.json.xz
+    python scripts/build_bundle.py    # writes results/study_v2/properties_v2.json.xz
                                       # and src/pydemi/properties_v2.json.xz
 """
 
@@ -34,7 +34,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from train import PROPS, SHOW, load  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
-STUDY = ROOT / "results" / "study_v1"
+STUDY = ROOT / "results" / "study_v2"
 KEEP = tuple(PROPS)
 SET = "desc"
 PACKAGE = ROOT.parent / "src" / "pydemi"

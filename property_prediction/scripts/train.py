@@ -1,5 +1,5 @@
 """The property models of the paper: for each of the 17 properties (and the two columns of
-Kumar et al. used in the comparison of Table 4), three models on the 55 pydemi descriptors,
+Kumar et al. used in the comparison of Table 4), three models on the 54 pydemi descriptors,
 with the split of Kumar et al., J. Chem. Inf. Model. 66, 7113 (2026): train 4,847 / val 606 /
 test 606.
 
@@ -10,12 +10,21 @@ Models
 rf and lgbm are refit with 5 seeds; the test split is scored once per fitted model, never
 used for choosing anything. Seeds vary bagging and column sampling only: the split is fixed.
 
-One job per target, resumable: results/study_v1/jobs/<target>__desc.json
+One job per target, resumable: results/study_v2/jobs/<target>__desc.json
 holds the metrics, best parameters, test predictions and SHAP importances; the LightGBM
-boosters go to results/study_v1/models/.
+boosters go to results/study_v2/models/.
 
     OMP_NUM_THREADS=1 nice -n 10 python scripts/train.py           # 4 workers x 4 threads
     N_TRIALS=2 SEEDS=1 ONLY=bulk_modulus OUT=results/smoke python scripts/train.py
+
+Held-out chemical systems (SPLIT): the test split is unchanged; ``system`` drops from train
+and val every structure whose chemical system (set of elements) occurs in the test split
+(325 train, 40 val), so that every test structure is of an unseen system; ``control`` drops
+as many train and val structures at random (seed 0), to separate the unseen systems from
+the smaller training set. The default ``kumar`` keeps the split as distributed.
+
+    SPLIT=system OUT=results/study_system python scripts/train.py
+    SPLIT=control OUT=results/study_control python scripts/train.py
 """
 
 from __future__ import annotations
@@ -24,6 +33,7 @@ import gzip
 import json
 import logging
 import os
+import re
 import sys
 import time
 import traceback
@@ -46,12 +56,13 @@ import pydemi
 
 ROOT = Path(__file__).resolve().parents[1]
 DATA = ROOT / "data"
-OUT = ROOT / os.environ.get("OUT", "results/study_v1")
+OUT = ROOT / os.environ.get("OUT", "results/study_v2")
 WORKERS = int(os.environ.get("WORKERS", "4"))
 THREADS = int(os.environ.get("THREADS", "4"))
 N_TRIALS = int(os.environ.get("N_TRIALS", "50"))
 SEEDS = list(range(int(os.environ.get("SEEDS", "5"))))
 ONLY = [s for s in os.environ.get("ONLY", "").split(",") if s]
+SPLIT = os.environ.get("SPLIT", "kumar")
 MAX_ROUNDS, PATIENCE = 10000, 200
 
 # label, symbol, group, transform for training, lower bound of the prediction
@@ -107,6 +118,28 @@ def load() -> tuple[pd.DataFrame, dict[str, list[str]], pd.DataFrame]:
     return d, {"desc": list(pydemi.descriptor_names())}, meta
 
 
+def chemical_system(formula: str) -> str:
+    return "-".join(sorted(set(re.findall(r"[A-Z][a-z]?", formula))))
+
+
+def kept(d: pd.DataFrame) -> np.ndarray:
+    """Structures used for training and validation under SPLIT (the test split is never dropped)."""
+    if SPLIT not in ("kumar", "system", "control"):
+        raise ValueError(f"SPLIT must be kumar, system or control, got {SPLIT!r}")
+    keep = np.ones(len(d), dtype=bool)
+    if SPLIT == "kumar":
+        return keep
+    sys_ = d.formula.map(chemical_system)
+    shared = (d.split != "test").to_numpy() & sys_.isin(set(sys_[d.split == "test"])).to_numpy()
+    if SPLIT == "system":
+        return ~shared
+    rng = np.random.default_rng(0)
+    for s in ("train", "val"):
+        pool = np.flatnonzero((d.split == s).to_numpy() & ~shared)
+        keep[rng.choice(pool, int((shared & (d.split == s).to_numpy()).sum()), replace=False)] = False
+    return keep
+
+
 def scores(task: str, y: np.ndarray, p: np.ndarray) -> dict[str, float]:
     if task == "classification":
         return {"roc_auc": float(roc_auc_score(y, p)), "accuracy": float(accuracy_score(y, p >= 0.5)),
@@ -125,7 +158,8 @@ def job(target: str, fs: str) -> dict:
     feats = sets[fs]
     y = d[target].to_numpy(float)
     ok = ~np.isnan(y)
-    part = {s: (d.split == s).to_numpy() & ok for s in ("train", "val", "test")}
+    use = kept(d)
+    part = {s: (d.split == s).to_numpy() & ok & (use | (s == "test")) for s in ("train", "val", "test")}
     X = d[feats].to_numpy(float)
     z = y if cls else forward(y, how)
     Xtr, Xva, Xte = (X[part[s]] for s in ("train", "val", "test"))
@@ -139,7 +173,7 @@ def job(target: str, fs: str) -> dict:
         p = back(pz, how)
         return np.maximum(p, floor) if floor is not None else p
 
-    res: dict = {"target": target, "set": fs, "task": task, "label": label, "symbol": symbol,
+    res: dict = {"target": target, "set": fs, "split": SPLIT, "task": task, "label": label, "symbol": symbol,
                  "group": group, "units": meta.at[target, "units"], "transform": how, "floor": floor,
                  "features": feats, "n_train": int(part["train"].sum()), "n_val": int(part["val"].sum()),
                  "n_test": int(part["test"].sum()), "test_y": yte.tolist(),
@@ -245,7 +279,7 @@ def main() -> None:
             and not (OUT / "jobs" / f"{t}__{fs}.json").exists()]
     todo.sort(key=lambda j: -d[j[0]].notna().sum())       # big targets first
     logging.info(f"{len(todo)} jobs, {WORKERS} workers x {THREADS} threads, {N_TRIALS} trials, "
-                 f"seeds {SEEDS}; lightgbm {lgb.__version__}, optuna {optuna.__version__}, "
+                 f"seeds {SEEDS}, split {SPLIT}; lightgbm {lgb.__version__}, optuna {optuna.__version__}, "
                  f"pydemi {pydemi.__version__}")
     with ProcessPoolExecutor(WORKERS) as pool:
         for f in as_completed([pool.submit(run, t, fs) for t, fs in todo]):

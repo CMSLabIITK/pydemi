@@ -7,9 +7,13 @@ information-theoretic measures.
 
 Intensivity: every count is per unit volume (1/Angstrom^3); the non-nuclear
 charge is a fraction of Q_tot; the Shannon entropy and the disequilibrium of
-the shape function rho~ = rho / N_e are normalized by the cell volume, which
-makes them unchanged under a supercell (the unnormalized S shifts by ln 8
-and D divides by 8 for a 2x2x2 supercell).
+the shape function rho~ are normalized by the cell volume, which makes them
+unchanged under a supercell (the unnormalized S shifts by ln 8 and D divides
+by 8 for a 2x2x2 supercell).
+
+The information measures use rho~ = rho+ / int rho+ dV with rho+ = max(rho, 0):
+the small negative values of the PAW pseudo-density, which lie close to the
+nuclei, are set to zero.
 """
 
 from __future__ import annotations
@@ -19,12 +23,12 @@ from typing import Any
 import numpy as np
 from numpy.typing import NDArray
 
-from ..constants import ANGSTROM_BOHR, DENSITY_TO_AU, GEOMETRY_EPS, GRADIENT_TO_AU, RHO_FLOOR_AU
+from ..constants import ANGSTROM_BOHR, DENSITY_TO_AU
 from ..io.base import FloatArray, VolumetricData
 from ..operators.anisotropy import anisotropy_tensor, fractional_anisotropy
 from ..operators.topology import ascent_basins, extremum_census, percolation_levels
-from .registry import (Result, Sentinel, field_derivatives, geometry, is_uniform, masks,
-                       metadata_hook, options, register)
+from .registry import (Result, Sentinel, field_derivatives, is_uniform, masks,
+                       metadata_hook, register)
 
 
 # ----------------------------------------------------------------------
@@ -107,13 +111,14 @@ def _census_metadata(vd: VolumetricData) -> dict[str, Any]:
     return {"euler_consistency": int(census(vd)["euler_consistency"])}
 
 
-def _nnm(vd: VolumetricData, r_cut: FloatArray) -> tuple[NDArray[np.intp], FloatArray]:
-    """(flat indices of the non-nuclear maxima, their basins' charge / Q_tot)."""
+def _nnm(vd: VolumetricData) -> tuple[NDArray[np.intp], FloatArray]:
+    """(flat indices of the non-nuclear maxima, their basins' charge / Q_tot).
+
+    A local maximum is non-nuclear when it lies outside every core sphere.
+    """
     c = census(vd)
     maxima = np.flatnonzero(c["maxima"])
-    geo = geometry(vd)
-    far = geo.distance.ravel()[maxima] > r_cut[geo.atom_index.ravel()[maxima]] + GEOMETRY_EPS
-    nnm = maxima[far]
+    nnm = maxima[~masks(vd).core.ravel()[maxima]]
     key = ("basins",)
     if key not in vd.cache:
         vd.cache[key] = ascent_basins(vd.rho.data, vd.lattice.matrix, c["lower26"])
@@ -123,23 +128,21 @@ def _nnm(vd: VolumetricData, r_cut: FloatArray) -> tuple[NDArray[np.intp], Float
     return nnm, np.array([q / total if total != 0.0 else 0.0])
 
 
-@register(name="n_NNM", domain="structural", field="rho", requires=["census", "geometry"],
+@register(name="n_NNM", domain="structural", field="rho", requires=["census", "shells"],
           units="1/Angstrom^3", range=(0.0, np.inf))
 def n_NNM(vd: VolumetricData) -> Result:
-    """n_NNM = (number of local maxima with min_i |r - R_i| > r_cut) / V_cell
+    """n_NNM = (number of local maxima outside every core sphere) / V_cell
 
-    26-neighbour maxima; r_cut = NNM_R_CUT (0.8 Angstrom) by default.
+    26-neighbour maxima; core spheres of radius a R_i (sphere rule).
     """
-    r_cut = np.full(vd.structure.n_atoms, options(vd).nnm_r_cut)
-    return float(_nnm(vd, r_cut)[0].size) / vd.structure.volume
+    return float(_nnm(vd)[0].size) / vd.structure.volume
 
 
-@register(name="Q_NNM", domain="structural", field="rho", requires=["census", "geometry"],
+@register(name="Q_NNM", domain="structural", field="rho", requires=["census", "shells"],
           units="dimensionless", range=(0.0, 1.0))
 def Q_NNM(vd: VolumetricData) -> Result:
     """Q_NNM = (charge in the steepest-ascent basins of the non-nuclear maxima) / Q_tot"""
-    r_cut = np.full(vd.structure.n_atoms, options(vd).nnm_r_cut)
-    return float(_nnm(vd, r_cut)[1][0])
+    return float(_nnm(vd)[1][0])
 
 
 # ----------------------------------------------------------------------
@@ -169,7 +172,7 @@ def rho_min_ratio(vd: VolumetricData) -> Result:
 @register(name="rho_int_mean", domain="structural", field="rho", requires=["shells"],
           units="e/Angstrom^3", sentinel_cases={"empty_region": 0.0})
 def rho_int_mean(vd: VolumetricData) -> Result:
-    """rho_int_mean = mean of rho over the interstitial shell (r > c2)"""
+    """rho_int_mean = mean of rho over the interstitial region (outside every outer sphere)"""
     inter = masks(vd).interstitial
     if not inter.any():
         return Sentinel(0.0, "empty_region")
@@ -224,7 +227,7 @@ def charge_FA(vd: VolumetricData) -> Result:
 # ----------------------------------------------------------------------
 
 def _shape_function(vd: VolumetricData) -> "dict[str, Any] | Sentinel":
-    key = ("information", options(vd).derivative_backend, options(vd).fd_order)
+    key = ("information",)
     if key not in vd.cache:
         dV = vd.rho.dV * ANGSTROM_BOHR ** 3                          # bohr^3
         V = vd.structure.volume * ANGSTROM_BOHR ** 3
@@ -237,10 +240,7 @@ def _shape_function(vd: VolumetricData) -> "dict[str, Any] | Sentinel":
             pos = p > 0
             S = -float(np.sum(p[pos] * np.log(p[pos])) * dV)
             D = float(np.sum(p * p) * dV)
-            valid = rho > RHO_FLOOR_AU
-            g2 = (field_derivatives(vd, "rho").gradient_norm * GRADIENT_TO_AU / N) ** 2
-            fisher = float(np.sum(g2[valid] / p[valid]) * dV)
-            vd.cache[key] = {"S": S - np.log(V), "D": D * V, "I": fisher}
+            vd.cache[key] = {"S": S - np.log(V), "D": D * V}
     out: "dict[str, Any] | Sentinel" = vd.cache[key]
     return out
 
@@ -248,7 +248,7 @@ def _shape_function(vd: VolumetricData) -> "dict[str, Any] | Sentinel":
 @register(name="shannon_entropy", domain="structural", field="rho", requires=[],
           units="dimensionless", range=(-np.inf, 0.0), sentinel_cases={"zero_density": 0.0})
 def shannon_entropy(vd: VolumetricData) -> Result:
-    """shannon_entropy = -int rho~ ln rho~ dV - ln V,  rho~ = rho / N_e
+    """shannon_entropy = -int rho~ ln rho~ dV - ln V,  rho~ = rho+ / int rho+ dV
 
     Normalized by the cell volume (intensive; unit-independent; 0 for a
     uniform density, negative otherwise -- minus the Kullback-Leibler
@@ -256,14 +256,6 @@ def shannon_entropy(vd: VolumetricData) -> Result:
     """
     r = _shape_function(vd)
     return r if isinstance(r, Sentinel) else float(r["S"])
-
-
-@register(name="fisher_information", domain="structural", field="rho", requires=["gradient"],
-          units="1/bohr^2", range=(0.0, np.inf), sentinel_cases={"zero_density": 0.0})
-def fisher_information(vd: VolumetricData) -> Result:
-    """fisher_information = int |grad rho~|^2 / rho~ dV  (a.u.; voxels above the density floor)"""
-    r = _shape_function(vd)
-    return r if isinstance(r, Sentinel) else float(r["I"])
 
 
 @register(name="disequilibrium", domain="structural", field="rho", requires=[],
