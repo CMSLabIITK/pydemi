@@ -38,7 +38,7 @@ when there is no DFT calculation, a density predicted from the crystal structure
 ::::
 
 ```bash
-pip install "pydemi[gui]"
+pip install pydemi
 ```
 
 ## What it does
