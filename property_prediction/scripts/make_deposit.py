@@ -1,10 +1,10 @@
-"""The data deposit of the paper (Zenodo) -> data/deposit/.
+"""The data files of the paper (available from the corresponding author on request) -> data/deposit/.
 
 Writes the descriptors of the 6,059 DFT densities and of the 605 ChargE3Net test densities, the
 property targets, the test-set predictions of LightGBM (17 properties and the two columns of
 Kumar et al. used in Table 4), of the models on DFT and predicted descriptors (Fig. 5) and of
 MatTen (Table 4), and the PAW dataset of every calculation, read from its OUTCAR. Every table
-is checked against the results it is copied from; the README of the deposit is
+is checked against the results it is copied from; their README is
 deposit_README.md next to this script.
 """
 

@@ -3,7 +3,7 @@
 Shubham K Maurya, MD Faiz Akhtar, Somnath Bhowmick (corresponding author, bsomnath@iitk.ac.in),
 Department of Materials Science and Engineering, Indian Institute of Technology Kanpur, India.
 
-This deposit holds the descriptors, property targets and test-set predictions behind the results
+These files hold the descriptors, property targets and test-set predictions behind the results
 of the paper, and the PAW dataset of every DFT calculation. The descriptors were computed with
 pydemi 0.4.0 (https://github.com/CMSLabIITK/pydemi, doi:10.5281/zenodo.24415538) with its
 default settings (nearest-atom partition). The structures, charge densities and the split are
