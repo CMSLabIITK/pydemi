@@ -180,9 +180,9 @@ Measured on one CPU core (Linux workstation), nearest partition, descriptors plu
 
 | CHGCAR | grid | time | peak memory |
 |---|---|---|---|
-| FeNi3, 6 MB | 56³ | 0.7 s | 0.25 GB |
-| Al2Te5, 31 MB | 64×108×128 | 4.1 s | 0.45 GB |
-| SnBi2Te4, 350 MB | 216³ | 54 s | 2.6 GB |
+| FeNi3, 6 MB | 56³ | 0.7 s | 0.17 GB |
+| Al2Te5, 31 MB | 64×108×128 | 4.1 s | 0.38 GB |
+| SnBi2Te4, 350 MB | 216³ | 54 s | 2.8 GB |
 
 The Becke partition takes about ten times longer on large grids.
 
