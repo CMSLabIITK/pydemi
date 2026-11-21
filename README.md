@@ -199,7 +199,7 @@ that the predictions equal those of the original ChargE3Net code.
 
 ## Citing
 
-See `CITATION.cff`. pydemi 0.3.0: doi:10.5281/zenodo.23952610; 0.2.2: doi:10.5281/zenodo.23891115; 0.2.1:
+See `CITATION.cff`. pydemi 0.4.0: doi:10.5281/zenodo.24415538; 0.3.0: doi:10.5281/zenodo.23952610; 0.2.2: doi:10.5281/zenodo.23891115; 0.2.1:
 doi:10.5281/zenodo.23736932; 0.2.0: doi:10.5281/zenodo.23664506; all versions:
 doi:10.5281/zenodo.22995680.
 
