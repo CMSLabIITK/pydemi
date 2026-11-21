@@ -1,0 +1,1 @@
+Charge per unit distance from the nearest nucleus. m1 is the charge-weighted mean distance: how far the electrons sit from their atom on average.

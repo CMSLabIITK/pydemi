@@ -7,6 +7,9 @@
 
 # pydemi
 
+**Documentation: [cmslabiitk.github.io/pydemi](https://cmslabiitk.github.io/pydemi/)**: tutorials,
+every descriptor with its formula, meaning and an interactive figure, and the API.
+
 Interpretable, fixed-length descriptors of a crystal's electron density, computed from a
 VASP CHGCAR and nothing else. The structure comes from the CHGCAR header and the total
 density from its first data block; no POTCAR, OUTCAR, AECCAR, ELFCAR or LOCPOT is needed.
@@ -165,7 +168,8 @@ pydemi sweep CHGCAR --param b --range 1.0:1.5:0.02 --out sweep.csv    # sphere-f
 | heterogeneity | 18 | `m1_site_std`, `m1_site_range`, `m1_site_max`, `m1_site_min`, `m1_within_element_var`, `m1_between_element_var`, `f_bond_site_std`, `f_bond_site_range`, `f_bond_site_max`, `f_bond_site_min`, `f_bond_within_element_var`, `f_bond_between_element_var`, `zeta_site_std`, `zeta_site_range`, `zeta_site_max`, `zeta_site_min`, `zeta_within_element_var`, `zeta_between_element_var` |
 
 The formulas and their meaning are in `docs/descriptors.pdf` (also a download button in
-the interface). The potential is the Hartree potential of the CHGCAR density. The core,
+the interface) and, with an interactive figure for each, on the
+[documentation site](https://cmslabiitk.github.io/pydemi/descriptors/index.html). The potential is the Hartree potential of the CHGCAR density. The core,
 bond and interstitial regions use the covalent radii of Cordero et al. (Dalton Trans. 2832,
 2008), shipped with the package.
 

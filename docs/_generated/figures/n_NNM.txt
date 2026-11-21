@@ -1,0 +1,1 @@
+Every density maximum by s, its distance to the nearest nucleus in units of that atom's covalent radius. Those outside every core sphere (s > a) are non-nuclear maxima (red; 0 here); n_NNM is their count per Å³. In a PAW pseudo-density the peak around a heavy nucleus can sit on a shell just outside the core sphere instead of at the nucleus, and then counts as non-nuclear.

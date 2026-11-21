@@ -1,0 +1,1 @@
+Charge distribution over r². m2 is its mean, the charge-weighted mean squared distance; it weights far-out (diffuse) density more than m1 does.

@@ -1,0 +1,1 @@
+Distribution of the Hartree potential over the grid, interstitial voxels in green. V_int_min is the lowest interstitial value: the deepest well away from the atoms.

@@ -1,0 +1,1 @@
+|∇²ρ| at each distance from the nearest nucleus, for ∇²ρ < 0 (blue) and ∇²ρ > 0 (red). lap_concentration_valence is the blue share outside the core spheres. Over the whole cell the two totals are equal on a periodic grid, so only the valence share is informative.

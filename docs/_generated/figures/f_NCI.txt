@@ -1,0 +1,1 @@
+The NCI map: every voxel by its signed density and reduced gradient. f_NCI is the share of all voxels inside the box (s < 0.5, ρ < 0.05 a.u.): 101,552 of 592,704.

@@ -1,0 +1,7 @@
+# the documentation (pip install -r docs/requirements.txt -e .)
+sphinx==8.1.3
+furo==2024.8.6
+myst-parser==4.0.0
+sphinx-copybutton==0.5.2
+sphinx-design==0.6.1
+pypandoc_binary==1.14

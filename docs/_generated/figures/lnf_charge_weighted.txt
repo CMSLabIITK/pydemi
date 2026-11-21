@@ -1,0 +1,1 @@
+Charge at each distance from the nearest nucleus, split by the sign of ∇²ρ. lnf_charge_weighted is the blue (∇²ρ < 0) share of the total charge.

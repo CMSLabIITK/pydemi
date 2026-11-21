@@ -1,0 +1,1 @@
+LMC complexity combines order (disequilibrium D) and disorder (exp of the entropy). Both are 1 for a uniform density; C stays near 1 for both perfect order and perfect disorder and grows in between.

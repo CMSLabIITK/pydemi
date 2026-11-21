@@ -1,0 +1,1 @@
+Bounded ellipticity of every bond-region voxel where the density curves down in two directions (λ2 < 0). 0: the bond is cylindrical (σ-like); towards 1: flattened (π-like or planar).

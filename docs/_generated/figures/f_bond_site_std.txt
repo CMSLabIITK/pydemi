@@ -1,0 +1,1 @@
+Per-site share of each atom's charge in its bond region, one point per atom (sphere-rule cells under every partition). f_bond_site_std is the standard deviation over sites (the band).

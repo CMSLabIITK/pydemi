@@ -1,0 +1,1 @@
+Percolation level along each axis. perc_anisotropy = (max − min) / mean: 0 when conduction-like paths are equally good in every direction, large for layered or chain structures.

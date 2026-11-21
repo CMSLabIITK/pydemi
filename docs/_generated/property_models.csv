@@ -1,0 +1,18 @@
+name,label,symbol,group,task,units,n_train,n_test,metric,score,mae
+bulk_modulus,Bulk modulus,K,Mechanical,regression,GPa,4847,606,R²,0.9507269075912262,9.5737
+shear_modulus,Shear modulus,G,Mechanical,regression,GPa,4847,606,R²,0.9109732324013311,7.844
+youngs_modulus,Young's modulus,E,Mechanical,regression,GPa,4847,606,R²,0.9241501924919427,18.3735
+C11,Elastic constant,C11,Elastic tensor,regression,GPa,4635,580,R²,0.9272747314119079,22.1331
+C12,Elastic constant,C12,Elastic tensor,regression,GPa,4635,580,R²,0.8743045436538989,12.0692
+C44,Elastic constant,C44,Elastic tensor,regression,GPa,4635,580,R²,0.8789483595278822,10.3477
+debye_temperature,Debye temperature,θ_D,Thermal,regression,K,4798,600,R²,0.8875964708727458,34.3521
+sound_velocity_transverse,"Sound velocity, transverse",v_t,Thermal,regression,m/s,4798,600,R²,0.8644528303415673,248.0739
+sound_velocity_longitudinal,"Sound velocity, longitudinal",v_l,Thermal,regression,m/s,4798,600,R²,0.9043285410276679,339.1705
+thermal_conductivity_clarke,"Min. thermal conductivity, Clarke",κ_Clarke,Thermal,regression,W/(m K),4798,600,R²,0.9088300841113724,0.0808
+thermal_conductivity_cahill,"Min. thermal conductivity, Cahill",κ_Cahill,Thermal,regression,W/(m K),4798,600,R²,0.9163861940301095,0.0849
+formation_energy,Formation energy,E_f,Energetics,regression,eV/atom,4837,605,R²,0.9485654908047373,0.1313
+cohesive_energy,Cohesive energy,E_coh,Energetics,regression,eV/atom,4837,605,R²,0.9043279246448103,0.2996
+band_gap,Band gap (PBE),E_g,Electronic,regression,eV,4837,605,R²,0.8750972937890286,0.2039
+is_metal,Metallic,P(metal),Electronic,classification,0/1,4837,605,ROC-AUC,0.9855675540626821,
+is_gap_direct,Direct gap,P(direct),Electronic,classification,0/1,1482,163,ROC-AUC,0.7944202898550724,
+refractive_index,Refractive index,n,Optical,regression,1,1089,123,R²,0.764992848297019,0.316

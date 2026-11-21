@@ -20,3 +20,9 @@ paper/
 
 # local analysis reports (unpublished data)
 reports/
+
+# documentation build; the descriptor pages are generated from docs/descriptors.tex
+docs/_build/
+docs/descriptors/
+docs/_generated/md/
+docs/_static/descriptors.pdf

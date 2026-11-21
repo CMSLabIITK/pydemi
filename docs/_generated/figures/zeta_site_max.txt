@@ -1,0 +1,1 @@
+Per-site gradient anisotropy of each atom's region, one point per atom (partition-dependent). zeta_site_max is the highest: Sb3.

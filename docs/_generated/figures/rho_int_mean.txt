@@ -1,0 +1,1 @@
+Density distribution, interstitial voxels (outside every outer sphere) in green. rho_int_mean is their mean: the electron gas between atoms.

@@ -1,0 +1,1 @@
+Per-site gradient anisotropy of each atom's region, one point per atom (partition-dependent). Sites grouped by element. zeta_within_element_var is the site-weighted mean of the variance inside each element: how different chemically identical atoms are.

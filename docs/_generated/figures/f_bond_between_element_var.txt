@@ -1,0 +1,1 @@
+Per-site share of each atom's charge in its bond region, one point per atom (sphere-rule cells under every partition). Each bar runs from the mean over all sites to the element's mean; w = share of sites. f_bond_between_element_var = Σ w (element mean − overall mean)²: how different the elements are from each other.

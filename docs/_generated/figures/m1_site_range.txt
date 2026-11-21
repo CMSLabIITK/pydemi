@@ -1,0 +1,1 @@
+Per-site mean distance of each atom's charge from its nucleus, one point per atom (partition-dependent). m1_site_range is the gap between the highest and lowest site.

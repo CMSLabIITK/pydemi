@@ -1,0 +1,1 @@
+Per-site mean distance of each atom's charge from its nucleus, one point per atom (partition-dependent). Sites grouped by element. m1_within_element_var is the site-weighted mean of the variance inside each element: how different chemically identical atoms are.

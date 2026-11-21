@@ -1,0 +1,1 @@
+How radial the density gradient is. A pile-up at 1 means the gradient points at the atoms (spherical atoms, ζ → 0); weight at small |cos θ| means density bent sideways into bonds. ζ = 1 − the |∇ρ|-weighted mean.

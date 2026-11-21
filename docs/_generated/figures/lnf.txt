@@ -1,0 +1,1 @@
+Grid volume at each distance from the nearest nucleus, split by the sign of ∇²ρ. lnf is the blue (∇²ρ < 0, charge concentration) share of the total volume.

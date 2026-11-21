@@ -1,0 +1,1 @@
+The three eigenvalues of the gradient tensor T. charge_FA measures how far they are from all being 1/3: 0 for an isotropic gradient distribution, 1 if every gradient is parallel.

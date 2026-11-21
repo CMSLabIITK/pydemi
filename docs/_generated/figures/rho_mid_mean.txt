@@ -1,0 +1,1 @@
+Every nearest-neighbour bond: its length and the density at its midpoint. rho_mid_mean is the mean over bonds; high values mean shared (covalent or metallic) density between neighbours.

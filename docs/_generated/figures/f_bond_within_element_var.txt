@@ -1,0 +1,1 @@
+Per-site share of each atom's charge in its bond region, one point per atom (sphere-rule cells under every partition). Sites grouped by element. f_bond_within_element_var is the site-weighted mean of the variance inside each element: how different chemically identical atoms are.

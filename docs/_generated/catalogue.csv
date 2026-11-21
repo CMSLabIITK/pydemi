@@ -1,0 +1,55 @@
+name,domain,field,requires,units,range_min,range_max,intensive,sentinel_cases,formula
+zeta,bonding,rho,"gradient,geometry",dimensionless,0.0,1.0,True,uniform_density=0.0,zeta = 1 - sum_k |grad rho_k . u_k| / sum_k |grad rho_k|
+m1,bonding,rho,geometry,Angstrom,0.0,inf,True,zero_density=0.0,m1 = sum_k rho_k r_k / sum_k rho_k
+m2,bonding,rho,geometry,Angstrom^2,0.0,inf,True,zero_density=0.0,m2 = sum_k rho_k r_k^2 / sum_k rho_k
+sigma_r2,bonding,rho,geometry,Angstrom^2,0.0,inf,True,zero_density=0.0,sigma_r2 = m2 - m1^2
+f_core,bonding,rho,"geometry,shells",dimensionless,0.0,1.0,True,zero_density=0.0,f_core = sum_{k: s <= a} rho_k / sum_k rho_k
+f_bond,bonding,rho,"geometry,shells",dimensionless,0.0,1.0,True,zero_density=0.0,f_bond = sum_{k: a < s <= b} rho_k / sum_k rho_k
+f_int,bonding,rho,"geometry,shells",dimensionless,0.0,1.0,True,zero_density=0.0,f_int = sum_{k: s > b} rho_k / sum_k rho_k
+lnf,bonding,rho,laplacian,dimensionless,0.0,1.0,True,uniform_density=0.0,lnf = (1/N) sum_k 1(lap rho_k < 0)
+lnf_charge_weighted,bonding,rho,laplacian,dimensionless,0.0,1.0,True,uniform_density=0.0;zero_density=0.0,lnf_charge_weighted = sum_{lap rho_k < 0} rho_k / sum_k rho_k
+lap_concentration_valence,bonding,rho,"laplacian,geometry,shells",dimensionless,0.0,1.0,True,uniform_density=0.5;empty_region=0.5,"lap_concentration_valence = sum_{s > a, lap rho < 0} |lap rho_k| / sum_{s > a} |lap rho_k|"
+ellip_bond_bounded_avg,bonding,rho,"hessian,shells",dimensionless,0.0,1.0,True,no_bond_voxels=0.0,"ellip_bond_bounded_avg = mean of 1 - lambda2/lambda1 over {k in bond, lambda2 < 0}"
+f_NCI,bonding,rho,gradient,dimensionless,0.0,1.0,True,uniform_density=0.0,"f_NCI = (1/N) sum_k 1(s_k < 0.5 and rho_k < 0.05 a.u.),  s = |grad rho| / (2 (3 pi^2)^(1/3) rho^(4/3))"
+NCI_attractive,bonding,rho,"gradient,hessian",dimensionless,0.0,1.0,True,uniform_density=0.0;no_nci_voxels=0.0,NCI_attractive = fraction of NCI voxels with lambda2 < 0
+sign_lambda2_rho_mean,bonding,rho,"gradient,hessian",e/bohr^3,-inf,inf,True,uniform_density=0.0;no_nci_voxels=0.0,sign_lambda2_rho_mean = mean of sign(lambda2) rho_k over NCI voxels (rho in a.u.)
+V_spread,bonding,potential,potential,eV,0.0,inf,True,,V_spread = std over sites i of V(R_i)
+V_int_min,bonding,potential,"potential,shells",eV,-inf,inf,True,empty_region=0.0,V_int_min = min over interstitial voxels of V_k (cell average of V set to 0)
+rho_mid_mean,bonding,rho,bond_census,e/Angstrom^3,-inf,inf,True,no_bonds=0.0,rho_mid_mean = mean of rho at nearest-neighbour bond midpoints
+rho_mid_std,bonding,rho,bond_census,e/Angstrom^3,0.0,inf,True,no_bonds=0.0,rho_mid_std = std of rho at nearest-neighbour bond midpoints
+rho_perc_a,structural,rho,percolation,e/Angstrom^3,-inf,inf,True,,rho_perc_a = max {c : the super-level set {rho > c} spans a1 under PBC}
+rho_perc_b,structural,rho,percolation,e/Angstrom^3,-inf,inf,True,,rho_perc_b = max {c : the super-level set {rho > c} spans a2 under PBC}
+rho_perc_c,structural,rho,percolation,e/Angstrom^3,-inf,inf,True,,rho_perc_c = max {c : the super-level set {rho > c} spans a3 under PBC}
+perc_anisotropy,structural,rho,percolation,dimensionless,0.0,inf,True,zero_levels=0.0,perc_anisotropy = (max_alpha - min_alpha) / mean_alpha of rho_perc
+n_max,structural,rho,census,1/Angstrom^3,0.0,inf,True,,n_max = (number of local maxima) / V_cell
+n_min,structural,rho,census,1/Angstrom^3,0.0,inf,True,,n_min = (number of local minima) / V_cell
+n_NNM,structural,rho,"census,shells",1/Angstrom^3,0.0,inf,True,,n_NNM = (number of local maxima outside every core sphere) / V_cell
+Q_NNM,structural,rho,"census,shells",dimensionless,0.0,1.0,True,,Q_NNM = (charge in the steepest-ascent basins of the non-nuclear maxima) / Q_tot
+rho_min,structural,rho,,e/Angstrom^3,-inf,inf,True,,rho_min = min_k rho_k
+rho_min_ratio,structural,rho,,dimensionless,-inf,inf,True,zero_density=0.0,rho_min_ratio = rho_min / <rho>_V
+rho_int_mean,structural,rho,shells,e/Angstrom^3,-inf,inf,True,empty_region=0.0,rho_int_mean = mean of rho over the interstitial region (outside every outer sphere)
+T_eigenvalues_t1,structural,rho,gradient,dimensionless,0.0,1.0,True,uniform_density=0.3333333333333333,"T_eigenvalues_t1 = eigenvalue 1 (ascending, t1 <= t2 <= t3) of T_ab = sum_k d_a rho_k d_b rho_k / sum_k |grad rho_k|^2 (trace 1)"
+T_eigenvalues_t2,structural,rho,gradient,dimensionless,0.0,1.0,True,uniform_density=0.3333333333333333,"T_eigenvalues_t2 = eigenvalue 2 (ascending, t1 <= t2 <= t3) of T_ab = sum_k d_a rho_k d_b rho_k / sum_k |grad rho_k|^2 (trace 1)"
+T_eigenvalues_t3,structural,rho,gradient,dimensionless,0.0,1.0,True,uniform_density=0.3333333333333333,"T_eigenvalues_t3 = eigenvalue 3 (ascending, t1 <= t2 <= t3) of T_ab = sum_k d_a rho_k d_b rho_k / sum_k |grad rho_k|^2 (trace 1)"
+charge_FA,structural,rho,gradient,dimensionless,0.0,1.0,True,uniform_density=0.0,charge_FA = sqrt(3/2) ||T - (1/3) I||_F / ||T||_F
+shannon_entropy,structural,rho,,dimensionless,-inf,0.0,True,zero_density=0.0,"shannon_entropy = -int rho~ ln rho~ dV - ln V,  rho~ = rho+ / int rho+ dV"
+disequilibrium,structural,rho,,dimensionless,0.0,inf,True,zero_density=0.0,disequilibrium = V int rho~^2 dV
+LMC_complexity,structural,rho,,dimensionless,0.0,inf,True,zero_density=0.0,"LMC_complexity = D e^S  (D, S the unnormalized disequilibrium and entropy; = 1 when uniform)"
+m1_site_std,heterogeneity,rho,"geometry,partition",Angstrom,-inf,inf,True,uniform_density=0.0,"m1_site_std = std over sites of X^(i),  X^(i) = sum_k w_i(k) rho_k r_ik / sum_k w_i(k) rho_k"
+m1_site_range,heterogeneity,rho,"geometry,partition",Angstrom,-inf,inf,True,uniform_density=0.0,"m1_site_range = max - min over sites of X^(i),  X^(i) = sum_k w_i(k) rho_k r_ik / sum_k w_i(k) rho_k"
+m1_site_max,heterogeneity,rho,"geometry,partition",Angstrom,-inf,inf,True,uniform_density=0.0,"m1_site_max = max over sites of X^(i),  X^(i) = sum_k w_i(k) rho_k r_ik / sum_k w_i(k) rho_k"
+m1_site_min,heterogeneity,rho,"geometry,partition",Angstrom,-inf,inf,True,uniform_density=0.0,"m1_site_min = min over sites of X^(i),  X^(i) = sum_k w_i(k) rho_k r_ik / sum_k w_i(k) rho_k"
+m1_within_element_var,heterogeneity,rho,"geometry,partition",(Angstrom)^2,-inf,inf,True,uniform_density=0.0;one_site_per_element=0.0,"m1_within_element_var = sum_e w_e Var_{i in e} of X^(i),  X^(i) = sum_k w_i(k) rho_k r_ik / sum_k w_i(k) rho_k"
+m1_between_element_var,heterogeneity,rho,"geometry,partition",(Angstrom)^2,-inf,inf,True,uniform_density=0.0;single_element=0.0,"m1_between_element_var = sum_e w_e (mean_e - mean)^2 of X^(i),  X^(i) = sum_k w_i(k) rho_k r_ik / sum_k w_i(k) rho_k"
+f_bond_site_std,heterogeneity,rho,"geometry,shells,partition",dimensionless,-inf,inf,True,uniform_density=0.0,"f_bond_site_std = std over sites of X^(i),  X^(i) = sum_{a R_i < r_ik <= b R_i} w_i(k) rho_k / sum_k w_i(k) rho_k"
+f_bond_site_range,heterogeneity,rho,"geometry,shells,partition",dimensionless,-inf,inf,True,uniform_density=0.0,"f_bond_site_range = max - min over sites of X^(i),  X^(i) = sum_{a R_i < r_ik <= b R_i} w_i(k) rho_k / sum_k w_i(k) rho_k"
+f_bond_site_max,heterogeneity,rho,"geometry,shells,partition",dimensionless,-inf,inf,True,uniform_density=0.0,"f_bond_site_max = max over sites of X^(i),  X^(i) = sum_{a R_i < r_ik <= b R_i} w_i(k) rho_k / sum_k w_i(k) rho_k"
+f_bond_site_min,heterogeneity,rho,"geometry,shells,partition",dimensionless,-inf,inf,True,uniform_density=0.0,"f_bond_site_min = min over sites of X^(i),  X^(i) = sum_{a R_i < r_ik <= b R_i} w_i(k) rho_k / sum_k w_i(k) rho_k"
+f_bond_within_element_var,heterogeneity,rho,"geometry,shells,partition",dimensionless,-inf,inf,True,uniform_density=0.0;one_site_per_element=0.0,"f_bond_within_element_var = sum_e w_e Var_{i in e} of X^(i),  X^(i) = sum_{a R_i < r_ik <= b R_i} w_i(k) rho_k / sum_k w_i(k) rho_k"
+f_bond_between_element_var,heterogeneity,rho,"geometry,shells,partition",dimensionless,-inf,inf,True,uniform_density=0.0;single_element=0.0,"f_bond_between_element_var = sum_e w_e (mean_e - mean)^2 of X^(i),  X^(i) = sum_{a R_i < r_ik <= b R_i} w_i(k) rho_k / sum_k w_i(k) rho_k"
+zeta_site_std,heterogeneity,rho,"gradient,geometry,partition",dimensionless,-inf,inf,True,uniform_density=0.0,"zeta_site_std = std over sites of X^(i),  X^(i) = 1 - sum_k w_i(k) |grad rho_k . u_ik| / sum_k w_i(k) |grad rho_k|"
+zeta_site_range,heterogeneity,rho,"gradient,geometry,partition",dimensionless,-inf,inf,True,uniform_density=0.0,"zeta_site_range = max - min over sites of X^(i),  X^(i) = 1 - sum_k w_i(k) |grad rho_k . u_ik| / sum_k w_i(k) |grad rho_k|"
+zeta_site_max,heterogeneity,rho,"gradient,geometry,partition",dimensionless,-inf,inf,True,uniform_density=0.0,"zeta_site_max = max over sites of X^(i),  X^(i) = 1 - sum_k w_i(k) |grad rho_k . u_ik| / sum_k w_i(k) |grad rho_k|"
+zeta_site_min,heterogeneity,rho,"gradient,geometry,partition",dimensionless,-inf,inf,True,uniform_density=0.0,"zeta_site_min = min over sites of X^(i),  X^(i) = 1 - sum_k w_i(k) |grad rho_k . u_ik| / sum_k w_i(k) |grad rho_k|"
+zeta_within_element_var,heterogeneity,rho,"gradient,geometry,partition",dimensionless,-inf,inf,True,uniform_density=0.0;one_site_per_element=0.0,"zeta_within_element_var = sum_e w_e Var_{i in e} of X^(i),  X^(i) = 1 - sum_k w_i(k) |grad rho_k . u_ik| / sum_k w_i(k) |grad rho_k|"
+zeta_between_element_var,heterogeneity,rho,"gradient,geometry,partition",dimensionless,-inf,inf,True,uniform_density=0.0;single_element=0.0,"zeta_between_element_var = sum_e w_e (mean_e - mean)^2 of X^(i),  X^(i) = 1 - sum_k w_i(k) |grad rho_k . u_ik| / sum_k w_i(k) |grad rho_k|"

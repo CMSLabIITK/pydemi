@@ -1,0 +1,1 @@
+All 16 density local maxima in the cell, coloured by ρ, with the atoms. n_max is their count per Å³. Drag to rotate.

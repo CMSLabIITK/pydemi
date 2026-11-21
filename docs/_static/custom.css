@@ -1,0 +1,34 @@
+/* pydemi documentation: small additions to Furo */
+
+:root {
+  --pd-purple: #2b1856;
+  --pd-orange: #e8643c;
+}
+
+/* landing page */
+.hero-tagline { font-size: 1.25rem; line-height: 1.5; margin: 0.4rem 0 1.2rem; }
+img.hero-logo { max-width: 380px; width: 100%; margin: 0.5rem 0 0.2rem; }
+section#pydemi > h1 { display: none; }
+.sd-card { border-radius: 10px !important; }
+.sd-card .sd-card-title { font-weight: 650; }
+.sd-card:hover { box-shadow: 0 4px 14px rgba(43, 24, 86, 0.14) !important; }
+.sd-card-img-top { background: #fff; padding: 6px; }
+.big-number { font-size: 2.1rem; font-weight: 700; color: var(--color-brand-content); line-height: 1.1; }
+.big-label { font-size: 0.85rem; opacity: 0.8; }
+
+/* interactive figures (plotly fragments) */
+.example-figure .plotly-graph-div { width: 100% !important; }
+.example-figure { border-left-color: var(--pd-orange) !important; }
+.example-figure > .admonition-title { background: rgba(232, 100, 60, 0.10) !important; }
+.example-figure > .admonition-title::before { background-color: var(--pd-orange) !important; }
+.figcaption { font-size: 0.88rem; opacity: 0.85; margin-top: -0.2rem; }
+.plotly-graph-div { background: #fff; border-radius: 6px; }
+
+/* descriptor units line */
+h3 + p > strong:first-child { color: var(--color-brand-content); }
+
+/* wide tables scroll instead of overflowing */
+table.docutils { display: block; overflow-x: auto; max-width: 100%; }
+
+/* long display equations scroll on narrow screens instead of overflowing the page */
+mjx-container[display="true"], div.math { overflow-x: auto; overflow-y: hidden; max-width: 100%; }

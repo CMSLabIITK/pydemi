@@ -1,0 +1,1 @@
+NCI-region voxels by signed density; the line is their mean. Negative: attractive interactions dominate; positive: steric repulsion.

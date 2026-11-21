@@ -1,0 +1,1 @@
+Midpoint densities grouped by bond type. rho_mid_std is their spread over all bonds: large when the cell mixes strong and weak bonds.

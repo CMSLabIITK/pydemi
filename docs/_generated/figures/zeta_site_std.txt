@@ -1,0 +1,1 @@
+Per-site gradient anisotropy of each atom's region, one point per atom (partition-dependent). zeta_site_std is the standard deviation over sites (the band).

@@ -1,0 +1,1 @@
+Density in each grid plane across b. A path of density above ρ_perc runs through the whole crystal along b, so it must cross every plane: ρ_perc lies below the lowest slab maximum, which marks the bottleneck.

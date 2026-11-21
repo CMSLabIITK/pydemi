@@ -1,0 +1,1 @@
+Distribution of the density over all voxels. rho_min is the lowest value, found 0.00 Å from a As nucleus; a negative value near a nucleus is the PAW pseudo-density, not a real hole.

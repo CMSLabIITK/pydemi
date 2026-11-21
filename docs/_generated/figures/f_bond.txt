@@ -1,0 +1,1 @@
+Charge against s, the distance to the nearest nucleus in units of that atom's covalent radius (the smallest r / R over the atoms). Core: inside a core sphere (s ≤ a); bond: inside an outer sphere only; interstitial: outside every outer sphere (s > b). f_bond is the coloured area (a < s ≤ b) over the total: 45.1% of the charge.

@@ -1,0 +1,1 @@
+Per-site mean distance of each atom's charge from its nucleus, one point per atom (partition-dependent). Each bar runs from the mean over all sites to the element's mean; w = share of sites. m1_between_element_var = Σ w (element mean − overall mean)²: how different the elements are from each other.

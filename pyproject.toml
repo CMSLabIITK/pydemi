@@ -38,6 +38,7 @@ dev = ["pytest>=7.0", "mypy>=1.8", "pandas-stubs", "scipy-stubs"]
 
 [project.urls]
 Homepage = "https://github.com/CMSLabIITK/pydemi"
+Documentation = "https://cmslabiitk.github.io/pydemi/"
 Issues = "https://github.com/CMSLabIITK/pydemi/issues"
 
 [project.scripts]

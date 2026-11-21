@@ -1,0 +1,1 @@
+Per-site mean distance of each atom's charge from its nucleus, one point per atom (partition-dependent). m1_site_std is the standard deviation over sites (the band).

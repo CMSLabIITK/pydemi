@@ -1,0 +1,1 @@
+How much the density gradient lines up with the tensor's axis e2 = (-0.71, 0.71, -0.00). t2 is the |∇ρ|²-weighted mean of cos² θ; the three add to 1, and all equal 1/3 when no direction is preferred.

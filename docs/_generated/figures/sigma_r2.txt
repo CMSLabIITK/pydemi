@@ -1,0 +1,1 @@
+Charge per unit distance from the nearest nucleus; the band is m1 ± σ with σ² = sigma_r2 = m2 − m1², the radial spread of the charge.
