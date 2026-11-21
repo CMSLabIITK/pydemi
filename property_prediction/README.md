@@ -38,6 +38,7 @@ python redundancy/scripts/train_sets.py       #    retrain without them
 python redundancy/scripts/compare.py          #    change in test score, bootstrap intervals
 python scripts/train_mlheldout.py             # 8. property models on DFT vs predicted densities
 python scripts/build_bundle.py                # 9. the models shipped with pydemi
+python scripts/make_deposit.py                # 10. the data deposit of the paper -> data/deposit/
 ```
 
 1. **Descriptors.** `run_descriptors.sh` runs `pydemi batch` over every `CHGCAR` with 16
@@ -68,3 +69,7 @@ python scripts/build_bundle.py                # 9. the models shipped with pydem
 9. **Shipped models.** `build_bundle.py` writes the seed-0 LightGBM model of each property,
    with its test scores, into `src/pydemi/properties_v2.json.xz`, which `pydemi.props` and
    the graphical interface read.
+10. **Data deposit.** `make_deposit.py` writes the files of the paper's Zenodo deposit
+    (descriptors, targets, test-set predictions of LightGBM and MatTen, PAW datasets) to
+    `data/deposit/`, checks each against the results it is copied from, and adds
+    `deposit_README.md` as its README.
