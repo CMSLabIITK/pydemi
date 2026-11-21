@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.4.0 (unreleased)
+## 0.4.0 (2026-11-21)
 
 - **54 descriptors**: `fisher_information` is removed (breaking). It needed two cut-offs of its
   own, a density floor and a 0.5 Angstrom core exclusion (`FISHER_CORE_RADIUS`, also removed),
