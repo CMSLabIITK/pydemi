@@ -11,7 +11,7 @@ Interpretable, named, fixed-length descriptors from a VASP CHGCAR.
 Author: Shubham Maurya, CMS Lab, IIT Kanpur.
 """
 
-__version__ = "0.3.0"
+__version__ = "0.4.0"
 __author__ = "Shubham Maurya, CMS Lab, IIT Kanpur"
 
 from .batch import featurize_batch  # noqa: E402

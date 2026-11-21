@@ -63,7 +63,7 @@ def site_sums(partition: Partition, field: NDArray[Any], gradient: Optional[NDAr
     gn = None if g is None else np.linalg.norm(g, axis=1)
     acc = {k: np.zeros(n) for k in ("total", "r1", "r2", "core", "bond", "radial", "gnorm")}
 
-    def add(key: str, atom: NDArray[np.int64], w: F64) -> None:
+    def add(key: str, atom: NDArray[np.integer[Any]], w: F64) -> None:
         acc[key] += np.bincount(atom, weights=w, minlength=n)
 
     for p in partition.pairs():
@@ -76,6 +76,8 @@ def site_sums(partition: Partition, field: NDArray[Any], gradient: Optional[NDAr
         add("core", a, np.where(core, wf, 0.0))
         add("bond", a, np.where(~core & (r <= c2[a] + GEOMETRY_EPS), wf, 0.0))
         if g is not None and gn is not None:
+            if p.direction is None:
+                raise ValueError("the gradient sums need a partition that stores directions")
             add("radial", a, p.weight * np.abs(np.einsum("ij,ij->i", g[p.voxel], p.direction)))
             add("gnorm", a, p.weight * gn[p.voxel])
     return SiteSums(dV=dV, **acc)

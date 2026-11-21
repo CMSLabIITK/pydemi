@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.4.0 (unreleased)
 
 - **54 descriptors**: `fisher_information` is removed (breaking). It needed two cut-offs of its
   own, a density floor and a 0.5 Angstrom core exclusion (`FISHER_CORE_RADIUS`, also removed),
@@ -35,6 +35,9 @@
 - `pydemi.props` reads model bundles on the descriptors only: `props.composition_features`
   and the `counts=` argument of `props.predict` are removed (the shipped models never used
   them), and the graphical interface no longer has an inputs column.
+- **Lower peak memory**: the sphere-rule cells store no direction field and an int32 atom index,
+  and they skip the gradient sums that only the nearest-atom cells need. On the 216³ grid of
+  SnBi2Te4 the peak falls from 3.05 to 2.77 GB with the GUI plot data. The results are unchanged.
 - The covalent radii are credited to Cordero et al. (2008) directly; the values are unchanged.
 - `property_prediction/` keeps only the scripts behind the results of the paper.
 

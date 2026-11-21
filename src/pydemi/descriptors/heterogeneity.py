@@ -58,8 +58,9 @@ def density_site_sums(vd: VolumetricData, shell_cells: bool = False) -> SiteSums
         part: Partition = (HardPartition(sphere_geometry_of(vd), vd.structure.n_atoms, "spheres")
                            if spheres else partition_of(vd, o.partition))
         c1, c2 = o.shells.atom_cutoffs(vd.structure)
-        vd.cache[key] = site_sums(part, vd.rho.data, field_derivatives(vd, "rho").gradient,
-                                  c1, c2, vd.rho.dV)
+        # the sphere-rule cells give only the per-site region sums: no gradient sums
+        grad = None if spheres else field_derivatives(vd, "rho").gradient
+        vd.cache[key] = site_sums(part, vd.rho.data, grad, c1, c2, vd.rho.dV)
     out: SiteSums = vd.cache[key]
     return out
 

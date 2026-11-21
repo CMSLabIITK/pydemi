@@ -34,7 +34,7 @@ both are part of the definition and recorded in the metadata.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Iterator
+from typing import Any, Iterator, Optional
 
 import numpy as np
 from numpy.typing import NDArray
@@ -52,10 +52,10 @@ I64 = NDArray[np.int64]
 @dataclass(frozen=True, eq=False)
 class PairChunk:
     voxel: I64          # (M,) flat voxel index
-    atom: I64           # (M,) atom index
-    weight: F64         # (M,)
-    distance: F64       # (M,) Angstrom, voxel to this atom's image
-    direction: F64      # (M, 3) unit vector nucleus -> voxel
+    atom: NDArray[np.integer]   # (M,) atom index
+    weight: F64                 # (M,)
+    distance: F64               # (M,) Angstrom, voxel to this atom's image
+    direction: Optional[F64]    # (M, 3) unit vector nucleus -> voxel (None if not stored)
 
 
 class Partition:
@@ -88,11 +88,13 @@ class HardPartition(Partition):
 
     def pairs(self) -> Iterator[PairChunk]:
         dist = self.assignment.distance.ravel()
-        direction = self.assignment.direction.reshape(-1, 3)
+        u = self.assignment.direction
+        direction = None if u is None else u.reshape(-1, 3)
         n = dist.size
         for s in range(0, n, self.chunk):
             v = np.arange(s, min(s + self.chunk, n), dtype=np.int64)
-            yield PairChunk(v, self.labels[v], np.ones(v.size), dist[v], direction[v])
+            yield PairChunk(v, self.labels[v], np.ones(v.size), dist[v],
+                            None if direction is None else direction[v])
 
     def site_sum(self, f: NDArray[Any]) -> F64:
         return np.asarray(np.bincount(self.labels, weights=np.asarray(f, np.float64).ravel(),

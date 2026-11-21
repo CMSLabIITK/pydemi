@@ -47,7 +47,9 @@ def zeta(vd: VolumetricData) -> Result:
     if is_uniform(vd.rho.data):
         return Sentinel(0.0, "uniform_density")
     g = field_derivatives(vd, "rho").gradient
-    return finite_or(gradient_anisotropy(g, geometry(vd).direction), 0.0, "uniform_density")
+    u = geometry(vd).direction
+    assert u is not None                      # the nearest-atom pass always stores it
+    return finite_or(gradient_anisotropy(g, u), 0.0, "uniform_density")
 
 
 @register(name="m1", domain="bonding", field="rho", requires=["geometry"], units="Angstrom",

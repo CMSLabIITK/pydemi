@@ -48,7 +48,7 @@ from __future__ import annotations
 
 import itertools
 from dataclasses import dataclass
-from typing import Sequence
+from typing import Optional, Sequence
 
 import numpy as np
 from numpy.typing import NDArray
@@ -68,9 +68,10 @@ BoolArray = NDArray[np.bool_]
 class NearestAtom:
     """Result of the geometry pass: all arrays are on the density grid."""
 
-    distance: F64        # (n1, n2, n3) Angstrom
-    direction: F64       # (n1, n2, n3, 3) unit vector nucleus -> voxel; 0 at a nucleus
-    atom_index: I64      # (n1, n2, n3)
+    distance: F64                  # (n1, n2, n3) Angstrom
+    direction: Optional[F64]       # (n1, n2, n3, 3) unit vector nucleus -> voxel; 0 at a nucleus
+                                   # (None for the sphere-rule assignment, which does not need it)
+    atom_index: NDArray[np.integer]  # (n1, n2, n3); int32 for the sphere-rule assignment
 
     @property
     def shape(self) -> tuple[int, ...]:
@@ -183,12 +184,13 @@ def sphere_assignment(shape: Sequence[int], structure: Structure) -> NearestAtom
     one nearest-image search per element. Ties within an element follow the
     geometric rule of the nearest-atom pass; ties between elements (r_i / R_i
     equal within GEOMETRY_EPS / 10) go to the element first in alphabetical
-    order. Distance and direction are measured to the assigned atom's image.
+    order. The distance is measured to the assigned atom's image; no direction is stored
+    (only the regions and the per-site region sums use this assignment).
     """
     x = cart_coords(shape, structure.lattice).reshape(-1, 3)
     species = [str(e) for e in structure.species]
     best_s = np.full(len(x), np.inf)
-    best_atom = np.zeros(len(x), dtype=np.int64)
+    best_atom = np.zeros(len(x), dtype=np.int32)
     best_pt = np.zeros((len(x), 3))
     for el in sorted(set(species)):
         R = covalent_radius(el)
@@ -208,12 +210,9 @@ def sphere_assignment(shape: Sequence[int], structure: Structure) -> NearestAtom
         best_s[better] = s[better]
         best_atom[better] = o[idx[better, 0]]
         best_pt[better] = p[idx[better, 0]]
-    diff = x - best_pt
-    r = np.linalg.norm(diff, axis=1)
-    safe = np.where(r > 1e-12, r, 1.0)
-    u = np.where(r[:, None] > 1e-12, diff / safe[:, None], 0.0)
+    r = np.linalg.norm(x - best_pt, axis=1)
     s3 = tuple(int(m) for m in shape)
-    return NearestAtom(r.reshape(s3), u.reshape(s3 + (3,)), best_atom.reshape(s3))
+    return NearestAtom(r.reshape(s3), None, best_atom.reshape(s3))
 
 
 # ----------------------------------------------------------------------

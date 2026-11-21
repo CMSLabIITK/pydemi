@@ -1,7 +1,7 @@
 # Property models of the pydemi paper
 
 The scripts that train and evaluate the property models of the paper: 17 properties
-predicted from the 55 pydemi descriptors, on the 6,059 VASP charge densities of
+predicted from the 54 pydemi descriptors, on the 6,059 VASP charge densities of
 Kumar et al., J. Chem. Inf. Model. 66, 7113 (2026), with the training, validation and test
 split distributed with that dataset (4,847 / 606 / 606).
 
@@ -30,8 +30,8 @@ cd property_prediction
 scripts/run_descriptors.sh /path/to/dataset   # 1. descriptors -> data/descriptors_batch.csv
 python scripts/fetch_mp.py                    # 2. Materials Project targets -> data/mp_*.csv
 python scripts/build_tables.py                # 3. cleaned targets + descriptors -> data/dataset.csv
-python scripts/train.py                       # 4. ridge, random forest, LightGBM -> results/study_v1/
-python scripts/summarize.py                   # 5. scores and SHAP shares -> results/study_v1/*.csv
+python scripts/train.py                       # 4. ridge, random forest, LightGBM -> results/study_v2/
+python scripts/summarize.py                   # 5. scores and SHAP shares -> results/study_v2/*.csv
 python scripts/train_top10.py                 # 6. models on the ten most important descriptors
 python redundancy/scripts/redundancy.py       # 7. correlated descriptors (training split)
 python redundancy/scripts/train_sets.py       #    retrain without them
