@@ -14,11 +14,11 @@ For a base descriptor X with per-site values X^(i) (site aggregation, see
 
 with w_e the fraction of sites of element e, so that
 Var_i(X) = within + between exactly (one-way ANOVA). Applied to m1, f_bond
-and zeta. Every site-restricted sum honours the ``partition`` option. With
-the ``nearest`` partition, the per-site sums of f_bond use the cells of the
-sphere rule (every voxel to the atom with the smallest r_i / R_i), so that the
-bond regions of the sites add up to the bond region of the cell; m1 and zeta
-keep the nearest-atom cells.
+and zeta. The per-site sums of m1 and zeta honour the ``partition`` option.
+Those of f_bond always use the cells of the sphere rule (every voxel to the atom
+with the smallest r_i / R_i): the sphere that puts a voxel in the bond region
+also names its atom, so the bond regions of the sites add up to the bond region
+of the cell under every partition.
 
 Sentinels: a within-element variance is 0.0 when no element has two or more
 sites, as in any supercell of the structure, where the copies of a site are
@@ -47,11 +47,11 @@ PerSite = Callable[[VolumetricData], "F64 | Sentinel"]
 def density_site_sums(vd: VolumetricData, shell_cells: bool = False) -> SiteSums:
     """Site sums of rho under the requested partition (cached on vd).
 
-    ``shell_cells``: with the ``nearest`` partition, sum over the cells of the
-    sphere rule instead (for the per-site region sums).
+    ``shell_cells``: sum over the cells of the sphere rule instead, whatever the
+    partition (for the per-site region sums).
     """
     o = options(vd)
-    spheres = shell_cells and o.partition == "nearest"
+    spheres = shell_cells
     scheme = "spheres" if spheres else o.partition
     key = ("site_sums", "rho", scheme, o.shells.key(), o.derivative_backend, o.fd_order)
     if key not in vd.cache:

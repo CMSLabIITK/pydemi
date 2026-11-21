@@ -773,7 +773,8 @@ def _fig_site(base: str, stat: str) -> Callable[[Data, str, dict[str, float]], t
         if x is None:
             return _empty(name, f[name], "per-site values undefined"), "Fallback value."
         species = np.array(d["species"])
-        cap = f"Per-site {what}, one point per atom (partition-dependent). "
+        dep = "sphere-rule cells under every partition" if base == "f_bond" else "partition-dependent"
+        cap = f"Per-site {what}, one point per atom ({dep}). "
         if stat in ("site_max", "site_min"):
             k = int(np.argmax(x) if stat == "site_max" else np.argmin(x))
             fig = _site_dots(d, x, highlight=k)

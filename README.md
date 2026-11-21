@@ -51,7 +51,8 @@ The window is laid out like desktop software:
 - **Left panel.** *Input*: open a CHGCAR (or CHG; plain or `.gz`, `.bz2`, `.xz`, `.zip`),
   or, in the *Structure (ML)* tab, a CIF or POSCAR/CONTCAR whose density ChargE3Net
   predicts (see below). *Summary*: formula, atoms, volume, electrons, grid and lattice.
-  *Settings*: the atomic partition for the per-site descriptors. *Help*: the descriptor
+  *Settings*: the atomic partition for the per-site descriptors of m1 and zeta (those of
+  f_bond always use the cells of the sphere rule). *Help*: the descriptor
   reference (PDF).
 - **Views**, in tabs across the top:
   - *Structure*: the cell and atoms in 3D, and a slice of the density through any lattice

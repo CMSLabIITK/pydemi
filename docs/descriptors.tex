@@ -740,9 +740,10 @@ f_{\rm bond}^{(i)}&=\frac{\sum_{k:\,aR_i<r_{ik}\le bR_i} w_i(k)\rho_k}{\sum_k w_
 \zeta^{(i)}&=1-\frac{\sum_k w_i(k)|\nabla\rho_k\cdot\hat u_{ik}|}{\sum_k w_i(k)|\nabla\rho_k|}
 &&\text{the asphericity of atom $i$ (cf.\ \dn{zeta}).}
 \end{align*}
-For $f_{\rm bond}^{(i)}$ with the nearest-atom partition, each voxel goes to the atom with the
-smallest $r_{ik}/R_i$ (the atom whose spheres decide its region), so that the bond regions of the
-atoms add up to the bond region of the cell.
+For $f_{\rm bond}^{(i)}$, under every partition, each voxel goes to the atom with the smallest
+$r_{ik}/R_i$: the sphere that puts the voxel in the bond region also names its atom. The bond
+regions of the atoms then add up to the bond region of the cell, and the six $f_{\rm bond}$ site
+descriptors do not depend on the partition; those of $m_1$ and $\zeta$ do.
 Physically, $m_1^{(i)}$ follows the size and charge state of an atom (a cation that has given away
 electrons has a compact cloud, an anion a diffuse one), $f_{\rm bond}^{(i)}$ how much of its charge
 it puts into bonds, and $\zeta^{(i)}$ how directional its bonding is. Symmetry-equivalent atoms have

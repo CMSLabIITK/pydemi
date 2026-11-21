@@ -35,6 +35,12 @@
 - `pydemi.props` reads model bundles on the descriptors only: `props.composition_features`
   and the `counts=` argument of `props.predict` are removed (the shipped models never used
   them), and the graphical interface no longer has an inputs column.
+- **f_bond site descriptors independent of the partition**: the six `f_bond_site_*` and
+  `f_bond_*_element_var` descriptors use the cells of the sphere rule (smallest r_i / R_i) under
+  every partition, also with `partition="becke"` (before, Becke weights). The sphere that puts a
+  voxel in the bond region also names its atom, so the bond regions of the sites always add up to
+  that of the cell. The partition option now applies to the 12 site descriptors of m1 and zeta.
+  Default (nearest) results are unchanged.
 - **Lower peak memory**: the sphere-rule cells store no direction field and an int32 atom index,
   and they skip the gradient sums that only the nearest-atom cells need. On the 216³ grid of
   SnBi2Te4 the peak falls from 3.05 to 2.77 GB with the GUI plot data. The results are unchanged.

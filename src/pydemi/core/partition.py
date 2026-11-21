@@ -18,6 +18,9 @@ Schemes
 ``nearest``    i(k) = argmin_i |r_k - R_i|                        (default)
 ``becke``      Becke fuzzy cells, pure geometry
 
+The per-site sums of m1 and zeta use the chosen scheme; those of f_bond always
+use the cells of the sphere rule (:mod:`pydemi.descriptors.heterogeneity`).
+
 Both need only the structure.
 
 Becke in periodic solids

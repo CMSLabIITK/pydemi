@@ -795,8 +795,9 @@ with st.sidebar:
     partition = st.selectbox("Atomic partition", core.PARTITIONS, key="partition",
                              index=core.PARTITIONS.index(current), on_change=_keep,
                              args=("partition",), format_func=str.capitalize,
-                             help="How voxels are assigned to atoms (only the heterogeneity "
-                                  "descriptors depend on it). " + " ".join(
+                             help="How voxels are assigned to atoms (only the site descriptors of m1 "
+                                  "and zeta depend on it; those of f_bond always use the "
+                                  "cells of the sphere rule). " + " ".join(
                                       f"{p.capitalize()}: {t}" for p, t in PARTITION_HELP.items()))
     _head("Help")
     if PDF.exists():

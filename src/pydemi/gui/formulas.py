@@ -20,7 +20,7 @@ _T = r"$$T_{ab} = \frac{\sum_k \partial_a\rho_k\,\partial_b\rho_k}{\sum_k |\nabl
 _TILDE = r"$\tilde\rho = \rho / N_e$: the density normalised to one electron; $V$: cell volume."
 _PERC = r"$\{\rho > c\}$: the region where the density exceeds $c$; it spans $\mathbf{a}_\alpha$ if it connects a cell to its periodic image along $\mathbf{a}_\alpha$."
 _SITE = r"$w_i(k) = 1$ if voxel $k$ belongs to atom $i$ (the chosen partition), else 0; $r_{ik}$ and $\hat u_{ik}$: distance and direction from atom $i$."
-_SPHERE_CELLS = r"With the nearest partition, atom $i$ owns the voxels whose smallest $r_{ik} / R_i$ is its own (the cells of the sphere rule), so the bond regions of the sites add up to the bond region of the cell."
+_SPHERE_CELLS = r"Under every partition, atom $i$ owns the voxels whose smallest $r_{ik} / R_i$ is its own (the cells of the sphere rule), so the bond regions of the sites add up to the bond region of the cell."
 _ELEMENT = r"$x_e$: fraction of the sites that are element $e$; $\bar X_e$: mean over the sites of $e$; $\bar X$: mean over all sites."
 
 _SITE_X = {

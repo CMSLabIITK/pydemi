@@ -61,6 +61,11 @@ def test_site_descriptors_follow_the_partition():
                                     return_metadata=True)
     assert bmeta["partition"].startswith("becke(k=")
     assert near["m1_site_std"] != pytest.approx(becke["m1_site_std"])
+    assert near["zeta_site_std"] != pytest.approx(becke["zeta_site_std"])
+    # the per-site bond regions come from the sphere rule under every partition
+    for k in near:
+        if k.startswith("f_bond_"):
+            assert becke[k] == near[k], k
 
 
 @functools.lru_cache(maxsize=None)
@@ -75,7 +80,7 @@ def _feats(scheme, transform):
 @pytest.mark.parametrize("scheme", ["becke"])
 def test_partitioned_descriptors_are_invariant(scheme, transform):
     # Becke weights are truncated to the BECKE_CELLS nearest images, which leaves ~1e-8
-    # absolute differences; small site ranges such as f_bond_site_range (~0.007) need atol
+    # absolute differences; small site ranges need atol
     atol = 1e-7
     bad = compare(_feats(scheme, "base"), _feats(scheme, transform), rtol=1e-6, atol=atol)
     assert not bad, bad
